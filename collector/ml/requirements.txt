@@ -1,0 +1,30 @@
+# Dependencies for ml/ and the notebook in ml/notebooks/.
+#
+# pyproject.toml + uv.lock are the source of truth. This file is the plain-pip
+# equivalent for anyone not using uv.
+#
+#   conda activate base
+#   cd ml
+#   pip install -r requirements.txt
+#
+# Needs Python 3.12 or newer. Nothing here is pinned to one minor version, so
+# conda base (3.13) and the uv-managed .venv (3.12) both work. The notebook does
+# `import newsml`, which is this project, so the editable install on the last
+# line is required, and it has to be run from the ml/ directory.
+
+# runtime
+pymongo>=4.8            # read the bronze corpus, the only way into the data
+scikit-learn>=1.5       # the model ladder and its vectorisers
+matplotlib>=3.9         # every figure in the notebook
+numpy>=2.0              # the by-hand metric arithmetic in step 6
+PyYAML>=6.0             # taxonomy.yaml and the other reviewable artifacts
+langdetect>=1.0.9       # measures language instead of trusting the source config
+
+# notebook
+ipykernel>=6.29         # the kernel Jupyter/VS Code attaches to
+nbconvert>=7.16         # only needed to execute notebooks headlessly
+
+# tests
+pytest>=8.3
+
+-e .

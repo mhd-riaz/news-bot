@@ -1,0 +1,139 @@
+# Default configuration. Every key can be overridden by an environment variable
+# named NEWS_<SECTION>_<KEY>, for example NEWS_MONGO_URI or NEWS_SERVER_PORT.
+# Unknown keys are rejected at startup, so a typo fails fast instead of being
+# silently ignored.
+
+app:
+  name: news-collector
+  environment: development
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  read_header_timeout: 5s
+  read_timeout: 15s
+  write_timeout: 30s
+  idle_timeout: 60s
+  shutdown_timeout: 15s
+  max_header_bytes: 1048576
+
+# Guards every /api/v1 route; /health stays open for probes. A request is
+# accepted if it carries a known API key in api_key_header, or valid HTTP basic
+# credentials. The credentials themselves are deliberately absent from this
+# file: they are read only from the environment, which .env feeds locally and
+# the platform injects in deployment.
+#
+#   NEWS_AUTH_API_KEYS         comma-separated, so a key can be rotated in
+#   NEWS_AUTH_BASIC_USERNAME
+#   NEWS_AUTH_BASIC_PASSWORD
+#
+# Starting with this on and no credentials set is a startup error, by design.
+auth:
+  enabled: true
+  api_key_header: X-API-Key
+
+# The reader-facing pages, served on the same port and behind the same
+# credentials as the API.
+web:
+  enabled: true
+  # Also the spacing between consecutive pages' feed positions, so changing it
+  # changes what position_in_feed means in every read event recorded after.
+  page_size: 30
+
+mongo:
+  uri: mongodb://localhost:27017
+  database: news
+  connect_timeout: 10s
+  server_selection_timeout: 10s
+  operation_timeout: 30s
+  max_pool_size: 50
+  min_pool_size: 0
+
+# What the API reconciles against the database before it serves. This is why a
+# redeploy picks up an edited sources.yaml without a separate seed step: a
+# one-shot container that has already exited successfully may simply not be
+# recreated, and then the new feeds never reach the database.
+#
+# Both stages are idempotent. Sources are matched on feed_url and patched rather
+# than replaced, and an omitted optional key is left untouched, so a value tuned
+# through the API survives. Sources already stored but absent from the file are
+# left alone: this reconciles, it does not prune.
+#
+# Failing here stops the process rather than serving against an unmigrated
+# database; the restart policy is the retry. A remote sources_path is the one
+# exception: if it cannot be read the stored source list is left in place and
+# the process carries on, because the file's host being down is no reason to
+# stop collecting. Set migrate: false and sources_path: "" to manage both by
+# hand instead.
+bootstrap:
+  migrate: true
+  # A filesystem path, or an https URL. A URL is read on every start, so the
+  # feed list lives outside the image and editing it needs a restart rather
+  # than a rebuild — for example the raw URL of configs/sources.yaml on main.
+  # NEWS_BOOTSTRAP_SOURCES_PATH overrides this per deployment.
+  sources_path: configs/sources.yaml
+  # Generous next to the other timeouts: index builds are the slow part.
+  timeout: 2m
+
+collector:
+  user_agent: news-collector/1.0 (+https://github.com/riaz/newscollector)
+  request_timeout: 20s
+  max_response_bytes: 10485760
+  max_redirects: 5
+  max_items_per_feed: 500
+  # Never enable this outside local development: it disables the guard that
+  # stops a feed URL reaching a private or link-local address.
+  allow_private_networks: false
+
+scheduler:
+  enabled: true
+  interval: 60s
+  batch_size: 50
+  max_concurrent: 4
+  # Must outlast a collection, or a second collector could start one while the
+  # first is still fetching.
+  lock_ttl: 5m
+
+# The enrichment stage: fetching an article's own page for the sources whose
+# feed sends only a teaser. See fixtures/articles and internal/extract for why
+# it needs several extractors and a never-regress rule rather than one library.
+scraper:
+  enabled: true
+  interval: 5m
+  batch_size: 50
+  user_agent: news-collector/1.0 (+https://github.com/riaz/newscollector)
+  request_timeout: 20s
+  # Looser than collector.max_response_bytes: an ad-heavy article page runs
+  # larger than a feed document.
+  max_response_bytes: 20971520
+  allow_private_networks: false
+  # Below this an extraction is nav furniture or a bot-check page, not a story.
+  min_content_words: 80
+  max_attempts: 3
+  retry_base: 15m
+  # Chasing a three-week-old article mostly buys 404s.
+  max_article_age: 720h
+  # A publisher's own Crawl-delay overrides this when it asks for more.
+  per_host_delay: 2s
+  circuit_failure_threshold: 3
+  circuit_open_for: 15m
+  robots_cache_ttl: 24h
+  # Comfortably longer than request_timeout: a claim outliving this is assumed
+  # to belong to a worker that died, not one that is merely slow.
+  claim_ttl: 10m
+
+# The model service is optional at startup: disabled keeps local collector-only
+# runs working, while unavailable enabled service calls leave articles pending.
+classifier:
+  enabled: false
+  endpoint: http://classifier:8000
+  timeout: 10s
+  batch_size: 50
+  max_attempts: 3
+  claim_ttl: 5m
+  metadata_refresh_interval: 1h
+  # Environment-only: NEWS_CLASSIFIER_API_KEY
+
+logging:
+  level: info
+  format: json

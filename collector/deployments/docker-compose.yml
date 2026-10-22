@@ -1,0 +1,80 @@
+name: news-collector
+
+# Local development stack. Copy .env.example to .env at the project root first:
+# the API refuses to start with auth enabled and no credentials configured, and
+# .env is where those credentials come from.
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  classifier:
+    build:
+      context: ..
+      dockerfile: deployments/classifier.Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      NEWSML_MODEL_DIR: /models/v2-001
+      NEWSML_API_KEY: ${NEWS_CLASSIFIER_API_KEY:-}
+    expose:
+      - "8000"
+    volumes:
+      - ../ml-v2/artifacts/models/v2-001:/models/v2-001:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health/ready')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # The API migrates the database and applies configs/sources.yaml itself, on
+  # every start. `make migrate` and `make seed` still exist for applying either
+  # without a restart.
+  api:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    # Secrets come from .env, which is never baked into the image. Values under
+    # environment: below override env_file, so credentials are deliberately
+    # absent from that list.
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      NEWS_SERVER_HOST: 0.0.0.0
+      NEWS_SERVER_PORT: "8080"
+      NEWS_MONGO_URI: mongodb://mongo:27017
+      NEWS_MONGO_DATABASE: news
+      NEWS_APP_ENVIRONMENT: development
+      NEWS_LOGGING_LEVEL: info
+      NEWS_LOGGING_FORMAT: json
+      NEWS_CLASSIFIER_ENABLED: "true"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  mongo-data:

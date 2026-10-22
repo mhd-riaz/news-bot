@@ -1,0 +1,558 @@
+{
+  "article_count": 1350,
+  "categories": {
+    "articles_without_any": 408,
+    "distinct": 520,
+    "top": {
+      "africa": 7,
+      "ai": 12,
+      "americas": 7,
+      "andhra pradesh": 13,
+      "bengaluru": 39,
+      "business": 12,
+      "coupons": 23,
+      "cricket": 7,
+      "culture": 7,
+      "donald trump": 7,
+      "entertainment": 15,
+      "environment": 8,
+      "europe": 13,
+      "gear": 39,
+      "gear / deals": 13,
+      "health": 7,
+      "india": 252,
+      "india-news": 131,
+      "karnataka": 45,
+      "kerala": 7,
+      "keralam": 21,
+      "maharashtra": 11,
+      "middle east and north africa": 9,
+      "policy": 7,
+      "politics": 8,
+      "russia": 8,
+      "science": 15,
+      "security": 12,
+      "space": 7,
+      "specials": 11,
+      "tamil nadu": 19,
+      "tech": 13,
+      "telangana": 8,
+      "trump administration": 7,
+      "uk news": 15,
+      "us news": 19,
+      "us politics": 7,
+      "uttar pradesh": 11,
+      "west bengal": 7,
+      "world news": 36
+    }
+  },
+  "collection_lag_hours": {
+    "p5": 0.22,
+    "p50": 14.17,
+    "p95": 124.97
+  },
+  "country": {
+    "FR": 37,
+    "GB": 143,
+    "IN": 1003,
+    "US": 167
+  },
+  "fields": {
+    "content": {
+      "absent": 161,
+      "p5": 21,
+      "p50": 522,
+      "p95": 1391,
+      "present": 1189
+    },
+    "summary": {
+      "absent": 272,
+      "p5": 10,
+      "p50": 25,
+      "p95": 357,
+      "present": 1078
+    },
+    "title": {
+      "absent": 0,
+      "p5": 8,
+      "p50": 12,
+      "p95": 17,
+      "present": 1350
+    }
+  },
+  "language_declared": {
+    "en": 1350
+  },
+  "processing_status": {
+    "collected": 481,
+    "enriched": 869
+  },
+  "published_range": [
+    "2026-08-11T10:00:56+00:00",
+    "2026-08-23T12:19:24+00:00"
+  ],
+  "scrape_status": {
+    "extract_failed": 1,
+    "failed": 38,
+    "no_new_content": 16,
+    "not_needed": 79,
+    "robots_disallowed": 147,
+    "success": 790,
+    "unset": 279
+  },
+  "source_count": 20,
+  "sources": {
+    "01a0290a-253b-70f2-ae7b-824043a183a2": {
+      "articles": 73,
+      "content_words": {
+        "absent": 60,
+        "p5": 111,
+        "p50": 506,
+        "p95": 717,
+        "present": 13
+      },
+      "name": "The Hindu \u2014 Bengaluru",
+      "scrape_status": {
+        "success": 13,
+        "unset": 60
+      },
+      "summary_words": {
+        "absent": 21,
+        "p5": 16,
+        "p50": 28,
+        "p95": 42,
+        "present": 52
+      },
+      "with_content": 13
+    },
+    "01a0290a-253f-7b81-ab18-fccefe3554c1": {
+      "articles": 159,
+      "content_words": {
+        "absent": 61,
+        "p5": 133,
+        "p50": 435,
+        "p95": 999,
+        "present": 98
+      },
+      "name": "The Hindu \u2014 National",
+      "scrape_status": {
+        "robots_disallowed": 1,
+        "success": 98,
+        "unset": 60
+      },
+      "summary_words": {
+        "absent": 18,
+        "p5": 14,
+        "p50": 27,
+        "p95": 45,
+        "present": 141
+      },
+      "with_content": 98
+    },
+    "01a0290a-2540-7923-aca2-5b2e4e64535a": {
+      "articles": 47,
+      "content_words": {
+        "absent": 20,
+        "p5": 194,
+        "p50": 432,
+        "p95": 849,
+        "present": 27
+      },
+      "name": "The Times of India \u2014 India",
+      "scrape_status": {
+        "success": 27,
+        "unset": 20
+      },
+      "summary_words": {
+        "absent": 30,
+        "p5": 6,
+        "p50": 61,
+        "p95": 70,
+        "present": 17
+      },
+      "with_content": 27
+    },
+    "01a0290a-2540-7c7f-bd5f-163866fc918c": {
+      "articles": 223,
+      "content_words": {
+        "absent": 2,
+        "p5": 15,
+        "p50": 24,
+        "p95": 35,
+        "present": 221
+      },
+      "name": "NDTV \u2014 Latest",
+      "scrape_status": {
+        "robots_disallowed": 123,
+        "unset": 100
+      },
+      "summary_words": {
+        "absent": 2,
+        "p5": 15,
+        "p50": 24,
+        "p95": 35,
+        "present": 221
+      },
+      "with_content": 221
+    },
+    "01a0297c-272c-7488-baf7-e7c94476f327": {
+      "articles": 122,
+      "content_words": {
+        "absent": 0,
+        "p5": 208,
+        "p50": 508,
+        "p95": 1054,
+        "present": 122
+      },
+      "name": "Deccan Herald \u2014 All stories",
+      "scrape_status": {
+        "no_new_content": 16,
+        "not_needed": 43,
+        "success": 24,
+        "unset": 39
+      },
+      "summary_words": {
+        "absent": 0,
+        "p5": 4,
+        "p50": 333,
+        "p95": 758,
+        "present": 122
+      },
+      "with_content": 122
+    },
+    "01a02dc4-7f98-7ba8-bcc3-b558165b9fe5": {
+      "articles": 201,
+      "content_words": {
+        "absent": 0,
+        "p5": 279,
+        "p50": 690,
+        "p95": 1286,
+        "present": 201
+      },
+      "name": "The Indian Express \u2014 India",
+      "scrape_status": {
+        "success": 201
+      },
+      "summary_words": {
+        "absent": 201,
+        "p5": 0,
+        "p50": 0,
+        "p95": 0,
+        "present": 0
+      },
+      "with_content": 201
+    },
+    "01a02dc4-7fa7-7182-b7cf-be607fc1e221": {
+      "articles": 131,
+      "content_words": {
+        "absent": 0,
+        "p5": 265,
+        "p50": 603,
+        "p95": 977,
+        "present": 131
+      },
+      "name": "Hindustan Times \u2014 India",
+      "scrape_status": {
+        "success": 131
+      },
+      "summary_words": {
+        "absent": 0,
+        "p5": 12,
+        "p50": 21,
+        "p95": 27,
+        "present": 131
+      },
+      "with_content": 131
+    },
+    "01a02dc4-7fa7-77f7-9108-36b51e82d077": {
+      "articles": 47,
+      "content_words": {
+        "absent": 0,
+        "p5": 451,
+        "p50": 838,
+        "p95": 1556,
+        "present": 47
+      },
+      "name": "Livemint \u2014 News",
+      "scrape_status": {
+        "success": 47
+      },
+      "summary_words": {
+        "absent": 0,
+        "p5": 19,
+        "p50": 37,
+        "p95": 47,
+        "present": 47
+      },
+      "with_content": 47
+    },
+    "01a02dc4-7fa7-7bdf-b32b-da8365bc87c6": {
+      "articles": 33,
+      "content_words": {
+        "absent": 0,
+        "p5": 130,
+        "p50": 490,
+        "p95": 1380,
+        "present": 33
+      },
+      "name": "BBC News \u2014 World",
+      "scrape_status": {
+        "success": 33
+      },
+      "summary_words": {
+        "absent": 0,
+        "p5": 15,
+        "p50": 19,
+        "p95": 28,
+        "present": 33
+      },
+      "with_content": 33
+    },
+    "01a02dc4-7fa8-702a-be5c-c5ca1aa538fc": {
+      "articles": 60,
+      "content_words": {
+        "absent": 0,
+        "p5": 352,
+        "p50": 699,
+        "p95": 1778,
+        "present": 60
+      },
+      "name": "The Guardian \u2014 World",
+      "scrape_status": {
+        "success": 60
+      },
+      "summary_words": {
+        "absent": 0,
+        "p5": 67,
+        "p50": 95,
+        "p95": 205,
+        "present": 60
+      },
+      "with_content": 60
+    },
+    "01a02dc4-7fa8-75b4-9499-3a3351d0092c": {
+      "articles": 11,
+      "content_words": {
+        "absent": 0,
+        "p5": 490,
+        "p50": 655,
+        "p95": 1705,
+        "present": 11
+      },
+      "name": "NPR \u2014 News",
+      "scrape_status": {
+        "success": 11
+      },
+      "summary_words": {
+        "absent": 0,
+        "p5": 18,
+        "p50": 30,
+        "p95": 36,
+        "present": 11
+      },
+      "with_content": 11
+    },
+    "01a02dc4-7fa8-7aa2-8400-e704b0f1fd8d": {
+      "articles": 37,
+      "content_words": {
+        "absent": 18,
+        "p5": 84,
+        "p50": 178,
+        "p95": 831,
+        "present": 19
+      },
+      "name": "France 24 \u2014 World",
+      "scrape_status": {
+        "failed": 18,
+        "success": 19
+      },
+      "summary_words": {
+        "absent": 0,
+        "p5": 36,
+        "p50": 54,
+        "p95": 82,
+        "present": 37
+      },
+      "with_content": 19
+    },
+    "01a02dc4-7fa8-7e2c-95cf-481a42938093": {
+      "articles": 20,
+      "content_words": {
+        "absent": 0,
+        "p5": 218,
+        "p50": 838,
+        "p95": 2239,
+        "present": 20
+      },
+      "name": "TechCrunch",
+      "scrape_status": {
+        "success": 20
+      },
+      "summary_words": {
+        "absent": 0,
+        "p5": 15,
+        "p50": 26,
+        "p95": 52,
+        "present": 20
+      },
+      "with_content": 20
+    },
+    "01a02dc4-7fa9-724d-b6fb-807e2b7f586c": {
+      "articles": 10,
+      "content_words": {
+        "absent": 0,
+        "p5": 370,
+        "p50": 497,
+        "p95": 1852,
+        "present": 10
+      },
+      "name": "The Verge",
+      "scrape_status": {
+        "success": 10
+      },
+      "summary_words": {
+        "absent": 0,
+        "p5": 56,
+        "p50": 56,
+        "p95": 56,
+        "present": 10
+      },
+      "with_content": 10
+    },
+    "01a02dc4-7fa9-75ad-82e6-fcba9ddcd9ca": {
+      "articles": 55,
+      "content_words": {
+        "absent": 0,
+        "p5": 532,
+        "p50": 1146,
+        "p95": 3493,
+        "present": 55
+      },
+      "name": "Wired",
+      "scrape_status": {
+        "success": 55
+      },
+      "summary_words": {
+        "absent": 0,
+        "p5": 12,
+        "p50": 23,
+        "p95": 29,
+        "present": 55
+      },
+      "with_content": 55
+    },
+    "01a02dc4-7fa9-792b-96c2-7b8c856244e6": {
+      "articles": 20,
+      "content_words": {
+        "absent": 0,
+        "p5": 315,
+        "p50": 773,
+        "p95": 1873,
+        "present": 20
+      },
+      "name": "Engadget",
+      "scrape_status": {
+        "success": 20
+      },
+      "summary_words": {
+        "absent": 0,
+        "p5": 10,
+        "p50": 17,
+        "p95": 25,
+        "present": 20
+      },
+      "with_content": 20
+    },
+    "01a02dc4-7fa9-7bb0-8474-43f90a0b9dc4": {
+      "articles": 20,
+      "content_words": {
+        "absent": 0,
+        "p5": 687,
+        "p50": 982,
+        "p95": 3984,
+        "present": 20
+      },
+      "name": "ZDNET",
+      "scrape_status": {
+        "success": 20
+      },
+      "summary_words": {
+        "absent": 0,
+        "p5": 16,
+        "p50": 23,
+        "p95": 36,
+        "present": 20
+      },
+      "with_content": 20
+    },
+    "01a02dc4-7faa-707d-a708-07ce7218f5fa": {
+      "articles": 10,
+      "content_words": {
+        "absent": 0,
+        "p5": 440,
+        "p50": 1022,
+        "p95": 4630,
+        "present": 10
+      },
+      "name": "MIT Technology Review",
+      "scrape_status": {
+        "not_needed": 9,
+        "success": 1
+      },
+      "summary_words": {
+        "absent": 0,
+        "p5": 55,
+        "p50": 55,
+        "p95": 55,
+        "present": 10
+      },
+      "with_content": 10
+    },
+    "01a02dc4-7faa-7422-aef0-b37d6d9429aa": {
+      "articles": 50,
+      "content_words": {
+        "absent": 0,
+        "p5": 334,
+        "p50": 521,
+        "p95": 965,
+        "present": 50
+      },
+      "name": "The Register",
+      "scrape_status": {
+        "not_needed": 27,
+        "robots_disallowed": 23
+      },
+      "summary_words": {
+        "absent": 0,
+        "p5": 6,
+        "p50": 12,
+        "p95": 18,
+        "present": 50
+      },
+      "with_content": 50
+    },
+    "01a02dc4-7faa-7799-80ca-9bbe3adcfb81": {
+      "articles": 21,
+      "content_words": {
+        "absent": 0,
+        "p5": 106,
+        "p50": 167,
+        "p95": 279,
+        "present": 21
+      },
+      "name": "Ars Technica",
+      "scrape_status": {
+        "extract_failed": 1,
+        "failed": 20
+      },
+      "summary_words": {
+        "absent": 0,
+        "p5": 10,
+        "p50": 13,
+        "p95": 15,
+        "present": 21
+      },
+      "with_content": 21
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "boilerplate_lines": 1,
+  "cleaning_version": "1.2.0",
+  "collected_before": "2026-08-26T10:29:53+00:00",
+  "counts": {
+    "admitted": 12809,
+    "dropped_at_boundary": 21,
+    "input": 13932,
+    "labelled": 7940,
+    "labels_offered": 8001,
+    "near_duplicate_pairs": 89,
+    "rejected": 1123,
+    "story_groups": 12730,
+    "test": 2567,
+    "train": 7799,
+    "val": 2422
+  },
+  "digests": {
+    "articles.jsonl": "d0313eae689b57f371a6ec72e9ae35d6a38f6ba188271c9fc919c89bf992592e",
+    "labels.jsonl": "5dfab797407c01a2192af961238945ea652c24e57a6586618dd8b2bf9f131018",
+    "rejections.jsonl": "02f1befc84f6a33a5a7d5e16fa912ac82680cb1dbd1e5964fe7648292af9d77b"
+  },
+  "generated_at": "2026-08-26T10:31:22+00:00",
+  "git_sha": "4b507c376566cf15ee409c3fd6faec26275c506d",
+  "label_distribution": {
+    "business_economy": 916,
+    "conflict_war": 231,
+    "crime_justice": 717,
+    "disaster_accident": 404,
+    "education": 395,
+    "entertainment_arts": 731,
+    "environment_climate": 299,
+    "health": 484,
+    "politics": 1563,
+    "science_space": 372,
+    "society_lifestyle": 434,
+    "sport": 713,
+    "technology": 628,
+    "unsorted": 53
+  },
+  "labelled_by_split": {
+    "dropped_at_boundary": 7,
+    "test": 1191,
+    "train": 5552,
+    "val": 1190
+  },
+  "near_duplicates": {
+    "bands": 32,
+    "num_perm": 128,
+    "shingle_words": 5,
+    "threshold": 0.44
+  },
+  "rejection_reasons": {
+    "empty_text": 1,
+    "exact_duplicate": 5,
+    "implausible_timestamp": 202,
+    "language_mismatch": 443,
+    "non_article_format": 153,
+    "service_bulletin": 37,
+    "sponsored": 45,
+    "too_short": 237
+  },
+  "seed": 20260823,
+  "snapshot_id": "20260826-120",
+  "split_boundaries": {
+    "placed_by": "labelled articles",
+    "train_until": "2026-08-24T14:23:03+00:00",
+    "val_until": "2026-08-25T11:40:01+00:00"
+  },
+  "taxonomy_version": 4,
+  "text_variant": "title_summary"
+}

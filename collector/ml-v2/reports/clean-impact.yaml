@@ -1,0 +1,78 @@
+corpus_removed_fraction: 0.0118
+bodies_emptied: 7
+median_removed_by_source:
+  Livemint — Sports: 0.2312
+  Phys.org: 0.072
+  TechCrunch: 0.0371
+  The Indian Express — World: 0.0231
+  The Indian Express — Health: 0.021
+  Livemint — News: 0.0185
+  The Indian Express — Technology: 0.0125
+  The Indian Express — Business: 0.0123
+  The Indian Express — Bengaluru: 0.012
+  The Indian Express — India: 0.0114
+  The Indian Express — Education: 0.0105
+  India Today: 0.0098
+  The New Indian Express: 0.0074
+  The Guardian — Sport: 0.0073
+  Livemint — Money: 0.0056
+  Livemint — Markets: 0.0039
+  Livemint — Industry: 0.0033
+  The Indian Express — Sports: 0.0006
+  Livemint — Politics: 0.0005
+  ZDNET: 0.0
+  Wired: 0.0
+  The Verge: 0.0
+  The Register: 0.0
+  The Indian Express — Entertainment: 0.0
+  The Hindu — Sport: 0.0
+  The Hindu — Science and Technology: 0.0
+  The Hindu — National: 0.0
+  The Hindu — Life and Style: 0.0
+  The Hindu — International: 0.0
+  The Hindu — Entertainment: 0.0
+  The Hindu — Education: 0.0
+  The Hindu — Business: 0.0
+  The Guardian — World: 0.0
+  The Guardian — Technology: 0.0
+  The Guardian — Society: 0.0
+  The Guardian — Science: 0.0
+  The Guardian — Music: 0.0
+  The Guardian — Global Development: 0.0
+  The Guardian — Film: 0.0
+  The Guardian — Environment: 0.0
+  The Guardian — Culture: 0.0
+  The Guardian — Business: 0.0
+  The Economic Times: 0.0
+  ScienceDaily: 0.0
+  New Scientist: 0.0
+  Nature: 0.0
+  NPR — News: 0.0
+  NDTV — World News: 0.0
+  NDTV — Movies: 0.0
+  NDTV — Latest: 0.0
+  NDTV — Cricket: 0.0
+  NASA — Breaking News: 0.0
+  MIT Technology Review: 0.0
+  Livemint — Technology: 0.0
+  Livemint — Companies: 0.0
+  Hindustan Times — World News: 0.0
+  Hindustan Times — Sports: 0.0
+  Hindustan Times — India: 0.0
+  Hindustan Times — Entertainment: 0.0
+  Hindustan Times — Cricket: 0.0
+  Harvard Gazette: 0.0
+  France 24 — World: 0.0
+  Engadget: 0.0
+  Deutsche Welle: 0.0
+  Deccan Herald — All stories: 0.0
+  CNBC: 0.0
+  BBC News — World: 0.0
+  BBC News — Technology: 0.0
+  BBC News — Science and Environment: 0.0
+  BBC News — Politics: 0.0
+  BBC News — Health: 0.0
+  BBC News — Entertainment and Arts: 0.0
+  BBC News — Business: 0.0
+  Ars Technica: 0.0
+  The Times of India — India: -0.0004

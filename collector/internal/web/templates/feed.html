@@ -1,0 +1,34 @@
+{{define "content"}}
+<h1>{{.Title}}</h1>
+
+{{if .Topics}}
+<form class="topic-filter" method="get">
+  <label for="topic">Topic</label>
+  <select id="topic" name="topic">
+    <option value="">All topics</option>
+    {{range .Topics}}<option value="{{.ID}}" {{if eq .ID $.SelectedTopic}}selected{{end}}>{{.Label}}</option>{{end}}
+  </select>
+  <button type="submit">Apply</button>
+</form>
+{{end}}
+
+{{if not .Cards}}
+<p>No articles yet.</p>
+{{end}}
+
+<ol class="feed" start="1">
+{{range .Cards}}
+  <li class="card" data-article-id="{{.Article.ID}}" data-position="{{.Position}}">
+    <a class="card-link" href="{{.Href}}">{{.Article.Title}}</a>
+    {{with .TopicLabel}}<span class="topic-badge">{{.}}</span>{{end}}
+    {{with .Article.Summary}}<p class="excerpt">{{excerpt .}}</p>{{end}}
+    <p class="meta">
+      <span class="source">{{.Article.SourceName}}</span>
+      <time datetime="{{iso .Article.PublishedAt}}">{{since .Article.PublishedAt}}</time>
+    </p>
+  </li>
+{{end}}
+</ol>
+
+{{with .NextHref}}<p class="more"><a href="{{.}}">Older &rarr;</a></p>{{end}}
+{{end}}

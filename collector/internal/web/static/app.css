@@ -1,0 +1,27 @@
+/* Placeholder styling only. The design system lands in Phase 7; this file
+   exists so the page is legible, not so it looks like anything. */
+
+:root { color-scheme: light dark; }
+
+body {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  line-height: 1.5;
+  margin: 0 auto;
+  max-width: 42rem;
+  padding: 1rem;
+}
+
+header { border-bottom: 1px solid; margin-bottom: 1rem; padding-bottom: 0.5rem; }
+
+.feed { list-style: decimal; padding-left: 2rem; }
+.card { margin-bottom: 1.5rem; }
+.card-link { font-size: 1.1rem; font-weight: 600; }
+.topic-filter { margin: 0 0 1rem; }
+.topic-filter select, .topic-filter button { font: inherit; }
+.topic-badge { border: 1px solid; border-radius: 0.25rem; display: inline-block; font-size: 0.8rem; margin-left: 0.5rem; padding: 0.1rem 0.4rem; }
+.excerpt { margin: 0.25rem 0; }
+.meta { font-size: 0.85rem; opacity: 0.75; }
+.meta > * + *::before { content: " · "; }
+.note { font-style: italic; opacity: 0.75; }
+
+a:focus-visible, [tabindex]:focus-visible { outline: 2px solid; outline-offset: 2px; }

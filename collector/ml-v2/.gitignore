@@ -1,0 +1,15 @@
+# Snapshots are large and reproducible from the corpus + manifest.
+data/snapshots/
+data/cache/
+
+# Fitted models are binary and regenerable; manifests and model cards are not.
+artifacts/**/*.joblib
+artifacts/**/*.npy
+
+# Vendored labels: a copy of ml/data/labels/gold-combined.jsonl, pinned by sha256 in
+# every snapshot manifest. Kept out of git deliberately -- see plan.md decision 3.
+data/labels/*.jsonl
+
+.venv/
+__pycache__/
+.pytest_cache/

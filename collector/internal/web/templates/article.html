@@ -1,0 +1,25 @@
+{{define "content"}}
+<article data-article-id="{{.Article.ID}}" data-position="{{.Position}}">
+  <h1>{{.Article.Title}}</h1>
+  {{with .TopicLabel}}<span class="topic-badge">{{.}}</span>{{end}}
+
+  <p class="meta">
+    <span class="source">{{.Article.SourceName}}</span>
+    <time datetime="{{iso .Article.PublishedAt}}">{{since .Article.PublishedAt}}</time>
+    {{range .Article.Authors}}<span class="author">{{.}}</span>{{end}}
+  </p>
+
+  {{with .Article.Summary}}<p class="summary">{{.}}</p>{{end}}
+
+  {{if .Article.Content}}
+  <!-- Stored text is whitespace-collapsed at collection, so there are no
+       paragraph breaks left to render. Phase 2's cleansing is where structure
+       would come back, if it ever does. -->
+  <p class="body">{{.Article.Content}}</p>
+  {{else}}
+  <p class="note">Only the publisher's summary is held for this article.</p>
+  {{end}}
+
+  <p class="origin"><a href="{{.Article.URL}}" rel="noopener noreferrer nofollow" target="_blank">Read at {{.Article.SourceName}}</a></p>
+</article>
+{{end}}

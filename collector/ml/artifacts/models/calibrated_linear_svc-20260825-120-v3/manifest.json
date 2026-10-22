@@ -1,0 +1,171 @@
+{
+  "bundle_bytes": 11724216,
+  "classes": [
+    "business_economy",
+    "conflict_war",
+    "crime_justice",
+    "disaster_accident",
+    "education",
+    "entertainment_arts",
+    "environment_climate",
+    "health",
+    "politics",
+    "science_space",
+    "society_lifestyle",
+    "sport",
+    "technology"
+  ],
+  "cleaning_version": "1.2.0",
+  "collected_before": "2026-08-25T00:00:00+00:00",
+  "dataset_snapshot_id": "20260825-120-v3",
+  "git_sha": "7acabdbf200e3616661ede3e011ddc6e527ea133",
+  "label_map": {
+    "0": "business_economy",
+    "1": "conflict_war",
+    "10": "society_lifestyle",
+    "11": "sport",
+    "12": "technology",
+    "2": "crime_justice",
+    "3": "disaster_accident",
+    "4": "education",
+    "5": "entertainment_arts",
+    "6": "environment_climate",
+    "7": "health",
+    "8": "politics",
+    "9": "science_space"
+  },
+  "metrics": {
+    "abstention_candidates": {
+      "calibrated_linear_svc": {
+        "accuracy": 0.7581903276131046,
+        "accuracy_on_kept": 0.8090277777777778,
+        "coverage": 0.8985959438377535,
+        "macro_f1": 0.6707340055414016,
+        "macro_f1_on_kept": 0.7171360784142581,
+        "ms_per_doc": 0.056948776910699994,
+        "unreached": 3
+      },
+      "complement_nb": {
+        "accuracy": 0.7472698907956318,
+        "accuracy_on_kept": 0.8206106870229007,
+        "coverage": 0.8174726989079563,
+        "macro_f1": 0.627804877965584,
+        "macro_f1_on_kept": 0.7040681592116637,
+        "ms_per_doc": 0.04311992979751089,
+        "unreached": 5
+      },
+      "hashing_sgd": {
+        "accuracy": 0.7113884555382215,
+        "accuracy_on_kept": 0.824,
+        "coverage": 0.7800312012480499,
+        "macro_f1": 0.5840741875547828,
+        "macro_f1_on_kept": 0.6985142417134476,
+        "ms_per_doc": 0.05193532293296656,
+        "unreached": 4
+      }
+    },
+    "accuracy": 0.7581903276131046,
+    "accuracy_on_kept": 0.8090277777777778,
+    "coverage": 0.8985959438377535,
+    "ladder": {
+      "complement_nb": {
+        "accuracy": 0.7473,
+        "fit_s": 0.2,
+        "macro_f1": 0.6278,
+        "model": "complement_nb",
+        "ms/doc": 0.043
+      },
+      "hashing_sgd": {
+        "accuracy": 0.7114,
+        "fit_s": 0.19,
+        "macro_f1": 0.5841,
+        "model": "hashing_sgd",
+        "ms/doc": 0.052
+      },
+      "majority": {
+        "accuracy": 0.2839,
+        "fit_s": 0.01,
+        "macro_f1": 0.034,
+        "model": "majority",
+        "ms/doc": 0.0
+      },
+      "tfidf_linear_svc": {
+        "accuracy": 0.752,
+        "fit_s": 0.3,
+        "macro_f1": 0.6794,
+        "model": "tfidf_linear_svc",
+        "ms/doc": 0.047
+      }
+    },
+    "macro_f1": 0.6707340055414016,
+    "macro_f1_on_kept": 0.7171360784142581,
+    "ms_per_doc": 0.056948776910699994,
+    "n_train": 3003,
+    "n_val": 641,
+    "per_class_f1": {
+      "business_economy": 0.8627450980392157,
+      "conflict_war": 0.47058823529411764,
+      "crime_justice": 0.74,
+      "disaster_accident": 0.8372093023255814,
+      "education": 0.7857142857142857,
+      "entertainment_arts": 0.7,
+      "environment_climate": 0.4,
+      "health": 0.5531914893617021,
+      "politics": 0.8275862068965517,
+      "science_space": 0.6086956521739131,
+      "society_lifestyle": 0.3,
+      "sport": 0.896969696969697,
+      "technology": 0.7368421052631579
+    },
+    "split": "val"
+  },
+  "model": "calibrated_linear_svc",
+  "model_version": "calibrated_linear_svc-20260825-120-v3",
+  "runtime": {
+    "joblib": "1.5.3",
+    "python": "3.12.14",
+    "scikit_learn": "1.9.0"
+  },
+  "seed": 20260823,
+  "serving": "python-sidecar",
+  "taxonomy_version": 4,
+  "text_variant": "title_summary",
+  "thresholds": {
+    "chosen_on": "val",
+    "per_class": {
+      "business_economy": 0.0,
+      "conflict_war": 0.38,
+      "crime_justice": 0.33,
+      "disaster_accident": 0.0,
+      "education": 0.44,
+      "entertainment_arts": 0.47,
+      "environment_climate": 0.45,
+      "health": 0.49,
+      "politics": 0.0,
+      "science_space": 0.48,
+      "society_lifestyle": 0.33,
+      "sport": 0.0,
+      "technology": 0.0
+    },
+    "target_precision": 0.8,
+    "unreached": [
+      "conflict_war",
+      "environment_climate",
+      "society_lifestyle"
+    ]
+  },
+  "trained_at": "2026-08-25T12:08:02+00:00",
+  "vectorizer": {
+    "lowercase": true,
+    "max_df": 1.0,
+    "min_df": 2,
+    "ngram_range": [
+      1,
+      2
+    ],
+    "strip_accents": "unicode",
+    "sublinear_tf": true,
+    "type": "TfidfVectorizer",
+    "vocabulary_size": 25213
+  }
+}

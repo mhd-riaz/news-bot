@@ -1,0 +1,934 @@
+# Sources applied by `make seed`. Re-running is safe: an entry is matched on its
+# feed_url, so an existing source is updated rather than duplicated.
+#
+# Required: name, feed_url, type (rss|atom), language (ISO 639-1), country
+# (ISO 3166-1 alpha-2). Optional: state, city, enabled, priority (0-100),
+# fetch_interval_seconds (60-604800). An omitted optional key keeps whatever is
+# already stored, so a value tuned through the API is not reset by a re-seed.
+
+sources:
+  - name: The Hindu — Bengaluru
+    feed_url: https://www.thehindu.com/news/cities/bangalore/feeder/default.rss
+    type: rss
+    language: en
+    country: IN
+    state: Karnataka
+    city: Bengaluru
+    priority: 70
+
+  - name: The Hindu — National
+    feed_url: https://www.thehindu.com/news/national/feeder/default.rss
+    type: rss
+    language: en
+    country: IN
+    priority: 60
+
+  # Deccan Herald retired its per-city feeds; stories.rss is the only one it
+  # publishes, so this entry is national and carries no state or city.
+  - name: Deccan Herald — All stories
+    feed_url: https://www.deccanherald.com/stories.rss
+    type: rss
+    language: en
+    country: IN
+    priority: 65
+
+  - name: The Times of India — India
+    feed_url: https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms
+    type: rss
+    language: en
+    country: IN
+    priority: 55
+
+  # NDTV serves its feed from FeedBurner, which is reachable, but www.ndtv.com
+  # itself answers 403 to every non-browser client — including /robots.txt. Its
+  # articles therefore stay summary-only; the robots check will mark them
+  # blocked on the first attempt rather than retrying daily.
+  - name: NDTV — Latest
+    feed_url: https://feeds.feedburner.com/ndtvnews-latest
+    type: rss
+    language: en
+    country: IN
+    priority: 50
+    fetch_interval_seconds: 600
+
+  # ---------------------------------------------------------------------------
+  # India — national. All four publish teaser-only feeds (0-36 words per item)
+  # but permit article fetches, so full text comes from the scraping stage.
+  # ---------------------------------------------------------------------------
+
+  - name: The Indian Express — India
+    feed_url: https://indianexpress.com/section/india/feed/
+    type: rss
+    language: en
+    country: IN
+    priority: 60
+
+  - name: Hindustan Times — India
+    feed_url: https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml
+    type: rss
+    language: en
+    country: IN
+    priority: 58
+
+  - name: Livemint — News
+    feed_url: https://www.livemint.com/rss/news
+    type: rss
+    language: en
+    country: IN
+    priority: 52
+
+  # ---------------------------------------------------------------------------
+  # Global. Feeds carry headlines and a short dek; article pages extract cleanly.
+  # ---------------------------------------------------------------------------
+
+  - name: BBC News — World
+    feed_url: https://feeds.bbci.co.uk/news/world/rss.xml
+    type: rss
+    language: en
+    country: GB
+    priority: 60
+
+  - name: The Guardian — World
+    feed_url: https://www.theguardian.com/world/rss
+    type: rss
+    language: en
+    country: GB
+    priority: 58
+
+  - name: NPR — News
+    feed_url: https://feeds.npr.org/1001/rss.xml
+    type: rss
+    language: en
+    country: US
+    priority: 50
+
+  - name: France 24 — World
+    feed_url: https://www.france24.com/en/rss
+    type: rss
+    language: en
+    country: FR
+    priority: 45
+
+  # ---------------------------------------------------------------------------
+  # Technology.
+  # ---------------------------------------------------------------------------
+
+  - name: TechCrunch
+    feed_url: https://techcrunch.com/feed/
+    type: rss
+    language: en
+    country: US
+    priority: 55
+    fetch_interval_seconds: 1800
+
+  - name: The Verge
+    feed_url: https://www.theverge.com/rss/index.xml
+    type: atom
+    language: en
+    country: US
+    priority: 52
+    fetch_interval_seconds: 1800
+
+  - name: Wired
+    feed_url: https://www.wired.com/feed/rss
+    type: rss
+    language: en
+    country: US
+    priority: 48
+    fetch_interval_seconds: 1800
+
+  - name: Engadget
+    feed_url: https://www.engadget.com/rss.xml
+    type: rss
+    language: en
+    country: US
+    priority: 45
+    fetch_interval_seconds: 1800
+
+  - name: ZDNET
+    feed_url: https://www.zdnet.com/news/rss.xml
+    type: rss
+    language: en
+    country: US
+    priority: 42
+    fetch_interval_seconds: 1800
+
+  # MIT Technology Review ships the whole article in the feed (~1500 words per
+  # item), so its stories need no scrape at all.
+  - name: MIT Technology Review
+    feed_url: https://www.technologyreview.com/feed/
+    type: rss
+    language: en
+    country: US
+    priority: 50
+    fetch_interval_seconds: 3600
+
+  # The Register's feed is likewise full-text (~660 words per item), which is
+  # just as well: its robots.txt is default-deny and does not list this
+  # collector, so article pages must not be fetched.
+  - name: The Register
+    feed_url: https://www.theregister.com/headlines.atom
+    type: atom
+    language: en
+    country: GB
+    priority: 48
+    fetch_interval_seconds: 1800
+
+  # Ars Technica's feed carries a usable excerpt (~165 words). Its article pages
+  # answer 202 with a JavaScript bot-check instead of the story, so they are not
+  # worth fetching.
+  - name: Ars Technica
+    feed_url: https://feeds.arstechnica.com/arstechnica/index
+    type: rss
+    language: en
+    country: US
+    priority: 46
+    fetch_interval_seconds: 1800
+
+  # Al Jazeera is deliberately left out. Its robots.txt permits the paths, but
+  # the file's own header forbids using the content for machine learning, text
+  # and data mining, or automated scraping without written permission — which is
+  # exactly what this project does. Enable it only if you obtain that permission.
+  #
+  # - name: Al Jazeera — All
+  #   feed_url: https://www.aljazeera.com/xml/rss/all.xml
+  #   type: rss
+  #   language: en
+  #   country: QA
+  #   priority: 50
+
+  # ---------------------------------------------------------------------------
+  # Section feeds
+  #
+  # Every URL below names a section, which makes the topic a property of the
+  # feed rather than a guess about the article. That is the whole point: the
+  # 150-article pilot measured publisher-level topic priors at 58% group
+  # agreement with human labels, because a general-interest outlet also covers
+  # courts, culture and space. A section feed does not have that problem.
+  #
+  # `ml/taxonomy.yaml` maps these source names to classes under `feed_topics`,
+  # so the name here is load-bearing — renaming one silently drops its label.
+  #
+  # Every URL was verified to resolve and return items before being added.
+  # Sections that 404'd or returned HTML are recorded at the bottom of this file
+  # so nobody rediscovers them.
+  #
+  # Weighted towards the classes the pilot found starved: education 0.7%,
+  # health 1.3%, environment 1.3%, entertainment 3.3%, sport 3.3%.
+  # ---------------------------------------------------------------------------
+
+  - name: The Hindu — Business
+    feed_url: https://www.thehindu.com/business/feeder/default.rss
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: The Hindu — Sport
+    feed_url: https://www.thehindu.com/sport/feeder/default.rss
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: The Hindu — Entertainment
+    feed_url: https://www.thehindu.com/entertainment/feeder/default.rss
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: The Hindu — Science and Technology
+    feed_url: https://www.thehindu.com/sci-tech/feeder/default.rss
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: The Hindu — Education
+    feed_url: https://www.thehindu.com/education/feeder/default.rss
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 3600
+
+  - name: The Hindu — Life and Style
+    feed_url: https://www.thehindu.com/life-and-style/feeder/default.rss
+    type: rss
+    language: en
+    country: IN
+    priority: 66
+    fetch_interval_seconds: 3600
+
+  - name: The Hindu — International
+    feed_url: https://www.thehindu.com/news/international/feeder/default.rss
+    type: rss
+    language: en
+    country: IN
+    priority: 66
+    fetch_interval_seconds: 1800
+
+  - name: The Indian Express — Business
+    feed_url: https://indianexpress.com/section/business/feed/
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: The Indian Express — Sports
+    feed_url: https://indianexpress.com/section/sports/feed/
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: The Indian Express — Entertainment
+    feed_url: https://indianexpress.com/section/entertainment/feed/
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: The Indian Express — Health
+    feed_url: https://indianexpress.com/section/health/feed/
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 3600
+
+  - name: The Indian Express — Education
+    feed_url: https://indianexpress.com/section/education/feed/
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 3600
+
+  - name: The Indian Express — Technology
+    feed_url: https://indianexpress.com/section/technology/feed/
+    type: rss
+    language: en
+    country: IN
+    priority: 66
+    fetch_interval_seconds: 1800
+
+  - name: The Indian Express — World
+    feed_url: https://indianexpress.com/section/world/feed/
+    type: rss
+    language: en
+    country: IN
+    priority: 66
+    fetch_interval_seconds: 1800
+
+  - name: Hindustan Times — Sports
+    feed_url: https://www.hindustantimes.com/feeds/rss/sports/rssfeed.xml
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: Hindustan Times — Cricket
+    feed_url: https://www.hindustantimes.com/feeds/rss/cricket/rssfeed.xml
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: Hindustan Times — Entertainment
+    feed_url: https://www.hindustantimes.com/feeds/rss/entertainment/rssfeed.xml
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: Hindustan Times — World News
+    feed_url: https://www.hindustantimes.com/feeds/rss/world-news/rssfeed.xml
+    type: rss
+    language: en
+    country: IN
+    priority: 66
+    fetch_interval_seconds: 1800
+
+  - name: Livemint — Markets
+    feed_url: https://www.livemint.com/rss/markets
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: Livemint — Companies
+    feed_url: https://www.livemint.com/rss/companies
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: Livemint — Industry
+    feed_url: https://www.livemint.com/rss/industry
+    type: rss
+    language: en
+    country: IN
+    priority: 66
+    fetch_interval_seconds: 3600
+
+  - name: Livemint — Money
+    feed_url: https://www.livemint.com/rss/money
+    type: rss
+    language: en
+    country: IN
+    priority: 66
+    fetch_interval_seconds: 3600
+
+  - name: Livemint — Politics
+    feed_url: https://www.livemint.com/rss/politics
+    type: rss
+    language: en
+    country: IN
+    priority: 66
+    fetch_interval_seconds: 1800
+
+  - name: Livemint — Technology
+    feed_url: https://www.livemint.com/rss/technology
+    type: rss
+    language: en
+    country: IN
+    priority: 66
+    fetch_interval_seconds: 3600
+
+  - name: Livemint — Sports
+    feed_url: https://www.livemint.com/rss/sports
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 3600
+
+  - name: Livemint — Education
+    feed_url: https://www.livemint.com/rss/education
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 3600
+
+  - name: NDTV — Cricket
+    feed_url: https://feeds.feedburner.com/ndtvsports-cricket
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: NDTV — Movies
+    feed_url: https://feeds.feedburner.com/ndtvmovies-latest
+    type: rss
+    language: en
+    country: IN
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: NDTV — World News
+    feed_url: https://feeds.feedburner.com/ndtvnews-world-news
+    type: rss
+    language: en
+    country: IN
+    priority: 66
+    fetch_interval_seconds: 1800
+
+  - name: The Guardian — Business
+    feed_url: https://www.theguardian.com/business/rss
+    type: rss
+    language: en
+    country: GB
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: The Guardian — Sport
+    feed_url: https://www.theguardian.com/sport/rss
+    type: rss
+    language: en
+    country: GB
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: The Guardian — Culture
+    feed_url: https://www.theguardian.com/culture/rss
+    type: rss
+    language: en
+    country: GB
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: The Guardian — Film
+    feed_url: https://www.theguardian.com/film/rss
+    type: rss
+    language: en
+    country: GB
+    priority: 66
+    fetch_interval_seconds: 3600
+
+  - name: The Guardian — Music
+    feed_url: https://www.theguardian.com/music/rss
+    type: rss
+    language: en
+    country: GB
+    priority: 66
+    fetch_interval_seconds: 3600
+
+  - name: The Guardian — Science
+    feed_url: https://www.theguardian.com/science/rss
+    type: rss
+    language: en
+    country: GB
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: The Guardian — Environment
+    feed_url: https://www.theguardian.com/environment/rss
+    type: rss
+    language: en
+    country: GB
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: The Guardian — Education
+    feed_url: https://www.theguardian.com/education/rss
+    type: rss
+    language: en
+    country: GB
+    priority: 72
+    fetch_interval_seconds: 3600
+
+  - name: The Guardian — Society
+    feed_url: https://www.theguardian.com/society/rss
+    type: rss
+    language: en
+    country: GB
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: The Guardian — Global Development
+    feed_url: https://www.theguardian.com/global-development/rss
+    type: rss
+    language: en
+    country: GB
+    priority: 66
+    fetch_interval_seconds: 3600
+
+  - name: The Guardian — Politics
+    feed_url: https://www.theguardian.com/politics/rss
+    type: rss
+    language: en
+    country: GB
+    priority: 66
+    fetch_interval_seconds: 1800
+
+  - name: The Guardian — Technology
+    feed_url: https://www.theguardian.com/technology/rss
+    type: rss
+    language: en
+    country: GB
+    priority: 66
+    fetch_interval_seconds: 1800
+
+  - name: BBC News — Business
+    feed_url: https://feeds.bbci.co.uk/news/business/rss.xml
+    type: rss
+    language: en
+    country: GB
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: BBC News — Health
+    feed_url: https://feeds.bbci.co.uk/news/health/rss.xml
+    type: rss
+    language: en
+    country: GB
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: BBC News — Science and Environment
+    feed_url: https://feeds.bbci.co.uk/news/science_and_environment/rss.xml
+    type: rss
+    language: en
+    country: GB
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: BBC News — Entertainment and Arts
+    feed_url: https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml
+    type: rss
+    language: en
+    country: GB
+    priority: 72
+    fetch_interval_seconds: 1800
+
+  - name: BBC News — Education
+    feed_url: https://feeds.bbci.co.uk/news/education/rss.xml
+    type: rss
+    language: en
+    country: GB
+    priority: 72
+    fetch_interval_seconds: 3600
+
+  - name: BBC News — Politics
+    feed_url: https://feeds.bbci.co.uk/news/politics/rss.xml
+    type: rss
+    language: en
+    country: GB
+    priority: 66
+    fetch_interval_seconds: 1800
+
+  - name: BBC News — Technology
+    feed_url: https://feeds.bbci.co.uk/news/technology/rss.xml
+    type: rss
+    language: en
+    country: GB
+    priority: 66
+    fetch_interval_seconds: 1800
+
+  - name: NPR — Science
+    feed_url: https://feeds.npr.org/1007/rss.xml
+    type: rss
+    language: en
+    country: US
+    priority: 72
+    fetch_interval_seconds: 3600
+
+  - name: NPR — Health
+    feed_url: https://feeds.npr.org/1128/rss.xml
+    type: rss
+    language: en
+    country: US
+    priority: 72
+    fetch_interval_seconds: 3600
+
+  - name: NPR — Education
+    feed_url: https://feeds.npr.org/1013/rss.xml
+    type: rss
+    language: en
+    country: US
+    priority: 72
+    fetch_interval_seconds: 3600
+
+  - name: NPR — Technology
+    feed_url: https://feeds.npr.org/1019/rss.xml
+    type: rss
+    language: en
+    country: US
+    priority: 66
+    fetch_interval_seconds: 3600
+
+  # ---------------------------------------------------------------------------
+  # Single-topic publications
+  #
+  # Not section feeds, so their topic is a prior rather than a fact and lives in
+  # `publisher_topics`. They are here because science and business were the two
+  # thinnest usable classes in the pilot and Indian general news does not supply
+  # them in any quantity.
+  # ---------------------------------------------------------------------------
+
+  - name: ScienceDaily
+    feed_url: https://www.sciencedaily.com/rss/all.xml
+    type: rss
+    language: en
+    country: US
+    priority: 60
+    fetch_interval_seconds: 3600
+
+  - name: Phys.org
+    feed_url: https://phys.org/rss-feed/
+    type: rss
+    language: en
+    country: GB
+    priority: 60
+    fetch_interval_seconds: 3600
+
+  - name: Nature
+    feed_url: https://www.nature.com/nature.rss
+    type: rss
+    language: en
+    country: GB
+    priority: 58
+    fetch_interval_seconds: 7200
+
+  - name: Quanta Magazine
+    feed_url: https://www.quantamagazine.org/feed/
+    type: rss
+    language: en
+    country: US
+    priority: 58
+    fetch_interval_seconds: 7200
+
+  - name: New Scientist
+    feed_url: https://www.newscientist.com/feed/home/
+    type: rss
+    language: en
+    country: GB
+    priority: 58
+    fetch_interval_seconds: 7200
+
+  - name: NASA — Breaking News
+    feed_url: https://www.nasa.gov/rss/dyn/breaking_news.rss
+    type: rss
+    language: en
+    country: US
+    priority: 58
+    fetch_interval_seconds: 7200
+
+  - name: Moneycontrol
+    feed_url: https://www.moneycontrol.com/rss/latestnews.xml
+    type: rss
+    language: en
+    country: IN
+    priority: 60
+    fetch_interval_seconds: 1800
+
+  - name: Business Standard
+    feed_url: https://www.business-standard.com/rss/home_page_top_stories.rss
+    type: rss
+    language: en
+    country: IN
+    priority: 60
+    fetch_interval_seconds: 1800
+
+  - name: The Economic Times
+    feed_url: https://economictimes.indiatimes.com/rssfeedsdefault.cms
+    type: rss
+    language: en
+    country: IN
+    priority: 60
+    fetch_interval_seconds: 1800
+
+  - name: MarketWatch
+    feed_url: https://feeds.marketwatch.com/marketwatch/topstories/
+    type: rss
+    language: en
+    country: US
+    priority: 58
+    fetch_interval_seconds: 3600
+
+  - name: CNBC
+    feed_url: https://www.cnbc.com/id/100003114/device/rss/rss.html
+    type: rss
+    language: en
+    country: US
+    priority: 58
+    fetch_interval_seconds: 3600
+
+  # ---------------------------------------------------------------------------
+  # Global institutions. Single-topic, like the publications above: their
+  # `publisher_topics` prior is high-confidence because a health agency or a
+  # medical journal does not also cover courts or sport.
+  # ---------------------------------------------------------------------------
+
+  - name: WHO — News
+    feed_url: https://www.who.int/rss-feeds/news-english.xml
+    type: rss
+    language: en
+    country: CH
+    priority: 58
+    fetch_interval_seconds: 7200
+
+  - name: The Lancet
+    feed_url: https://www.thelancet.com/rssfeed/lancet_current.xml
+    type: rss
+    language: en
+    country: GB
+    priority: 55
+    fetch_interval_seconds: 7200
+
+  - name: Nature Medicine
+    feed_url: https://www.nature.com/nm.rss
+    type: rss
+    language: en
+    country: GB
+    priority: 55
+    fetch_interval_seconds: 7200
+
+  - name: NOAA — News
+    feed_url: https://www.noaa.gov/rss.xml
+    type: rss
+    language: en
+    country: US
+    priority: 55
+    fetch_interval_seconds: 3600
+
+  - name: UNEP — News and Stories
+    feed_url: https://www.unep.org/rss.xml
+    type: rss
+    language: en
+    country: KE
+    priority: 55
+    fetch_interval_seconds: 7200
+
+  - name: Bank for International Settlements — Press
+    feed_url: https://www.bis.org/doclist/all_pressrels.rss
+    type: rss
+    language: en
+    country: CH
+    priority: 55
+    fetch_interval_seconds: 7200
+
+  # Harvard Gazette covers the whole university, not just education, so it
+  # carries no `publisher_topics` entry — the same choice already made for
+  # MIT News above.
+  - name: Harvard Gazette
+    feed_url: https://news.harvard.edu/gazette/feed/
+    type: rss
+    language: en
+    country: US
+    priority: 50
+    fetch_interval_seconds: 7200
+
+  # Atom, not RSS — the only entry in this file that is. Multi-topic data
+  # journalism, so it also carries no `publisher_topics` entry.
+  - name: Our World in Data
+    feed_url: https://ourworldindata.org/atom.xml
+    type: atom
+    language: en
+    country: GB
+    priority: 50
+    fetch_interval_seconds: 7200
+
+  # ---------------------------------------------------------------------------
+  # General national feeds. No topic label: they carry whatever the desk filed.
+  # Added sparingly, because the pilot already found politics at 29% and crime
+  # at 14%, and these feeds mostly deepen those two.
+  # ---------------------------------------------------------------------------
+
+  - name: India Today
+    feed_url: https://www.indiatoday.in/rss/home
+    type: rss
+    language: en
+    country: IN
+    priority: 55
+    fetch_interval_seconds: 1800
+
+  - name: The New Indian Express
+    feed_url: https://www.newindianexpress.com/feed/
+    type: rss
+    language: en
+    country: IN
+    priority: 55
+    fetch_interval_seconds: 1800
+
+  - name: BBC News — India
+    feed_url: https://feeds.bbci.co.uk/news/world/asia/india/rss.xml
+    type: rss
+    language: en
+    country: GB
+    priority: 55
+    fetch_interval_seconds: 3600
+
+  - name: Deutsche Welle
+    feed_url: https://rss.dw.com/rdf/rss-en-all
+    type: rss
+    language: en
+    country: DE
+    priority: 55
+    fetch_interval_seconds: 3600
+
+  # ---------------------------------------------------------------------------
+  # City desks. A city is a place, not a subject, so these carry no topic label
+  # — the same reason World and International sections are absent from
+  # `feed_topics`. They are here because the classes the weak labels never reach
+  # (crime_justice, disaster_accident, and civic politics) are what a city desk
+  # files all day, and no publisher runs a "Crime" RSS section. Their value is
+  # material for human labelling, not more weak labels.
+  #
+  # Verified live 2026-08-24: all four answer 200 with RSS 2.0.
+  # ---------------------------------------------------------------------------
+
+  - name: Hindustan Times — Bengaluru
+    feed_url: https://www.hindustantimes.com/feeds/rss/cities/bengaluru-news/rssfeed.xml
+    type: rss
+    language: en
+    country: IN
+    state: Karnataka
+    city: Bengaluru
+    priority: 60
+    fetch_interval_seconds: 1800
+
+  # Both Indian Express city feeds serve 200 items with an empty <description>,
+  # so they contribute a title and nothing else until the scrape stage fills in
+  # the body. Same behaviour as the other Indian Express sections above.
+  - name: The Indian Express — Bengaluru
+    feed_url: https://indianexpress.com/section/cities/bangalore/feed/
+    type: rss
+    language: en
+    country: IN
+    state: Karnataka
+    city: Bengaluru
+    priority: 60
+    fetch_interval_seconds: 1800
+
+  - name: The Indian Express — Chennai
+    feed_url: https://indianexpress.com/section/cities/chennai/feed/
+    type: rss
+    language: en
+    country: IN
+    state: Tamil Nadu
+    city: Chennai
+    priority: 60
+    fetch_interval_seconds: 1800
+
+  # OneIndia's robots.txt is default-deny for every agent except Googlebot, so
+  # article pages must not be fetched — the same call already made for The
+  # Register. Its feed does carry a real summary, so title+summary still works.
+  - name: OneIndia — Chennai
+    feed_url: https://www.oneindia.com/rss/feeds/chennai-fb.xml
+    type: rss
+    language: en
+    country: IN
+    state: Tamil Nadu
+    city: Chennai
+    priority: 55
+    fetch_interval_seconds: 1800
+
+# -----------------------------------------------------------------------------
+# Verified dead, 2026-08-23. Recorded so they are not rediscovered and retried.
+#
+#   Reuters topNews / businessNews  DNS does not resolve; public RSS retired
+#   AP News        /rss             404
+#   Tribune India  /rss/feed        403
+#   The Statesman  /feed            500
+#   CNBC TV18      /rss/latest      400
+#   IMF Blog       ?rss=1           403
+#   Scientific American              TLS handshake fails
+#   Scroll.in, The Print, The Wire   return an HTML page, not a feed
+#   Deccan Herald per-section feeds  404/500; only stories.rss exists
+#   NDTV business/health/science/education  404, or HTML served as text/xml
+#   Hindustan Times science          parses but carries no items
+#
+# Paywalled but still useful for title and summary, which is what the corpus
+# trains on: Financial Times, Bloomberg. Not added yet — check their terms
+# first, the way Al Jazeera was checked above.
+#
+# Verified dead, 2026-08-23 (second pass — global institutions):
+#
+#   RBI                No public RSS; site has no autodiscovery link
+#   SEBI                No public RSS; site has no autodiscovery link
+#   PIB                 /rss.aspx redirects to a 404 HTML page
+#   NIH                 /news-releases/feed answers 403 to non-browser clients
+#   CDC, FDA            RSS index pages answer 403 / 404; no feed URL found
+#   BMJ                 /rss/current.xml answers 403
+#   Stanford News       /feed/ answers 403
+#   Oxford, Cambridge   No autodiscovery link; guessed patterns 403/404
+#   MIT OCW, IEA, IPCC  No autodiscovery link on their news pages
+#   IMF Blog            Already recorded above (?rss=1 403)
+# -----------------------------------------------------------------------------

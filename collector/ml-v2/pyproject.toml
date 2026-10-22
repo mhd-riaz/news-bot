@@ -1,0 +1,48 @@
+[project]
+name = "newsmlv2"
+version = "0.1.0"
+description = "Body-aware 13-class news topic classifier. A POC, never deployed."
+requires-python = ">=3.12"
+
+# Stdlib first, then a small focused package. Each entry needs a reason to be here.
+dependencies = [
+    "pymongo>=4.8",              # read the bronze corpus; the only way in
+    "scikit-learn>=1.5",         # vectorisers, linear models, calibration, CV splitters
+    "numpy>=2.0",
+    "scipy>=1.14",               # sparse matrices and the statistical tests
+    "pandas>=2.2",               # snapshot frames
+    "pyarrow>=17.0",             # Parquet + zstd; bodies make JSONL snapshots ~60MB
+    "PyYAML>=6.0",               # reviewable artifacts (taxonomy, experiment configs)
+    "matplotlib>=3.9",           # confusion matrices, reliability curves
+    "spacy>=3.7",                # Phase D0: NER-aware scrubbing and lemmatisation
+    "xgboost>=2.1",              # Phase E2, on dense features only
+    "sentence-transformers>=3.0",# Phase E4, frozen embeddings
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ipykernel>=6.29",  # notebooks drive the reporting; the logic stays in src/
+]
+demo = [
+    "streamlit>=1.38",  # the demo UI; not needed to train, score or reproduce anything
+]
+serve = [
+    "Flask>=3.1,<4",
+    "gunicorn>=23,<24",
+]
+
+[project.scripts]
+newsmlv2 = "newsmlv2.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/newsmlv2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+pythonpath = ["."]

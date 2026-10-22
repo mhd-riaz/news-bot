@@ -1,0 +1,165 @@
+# Learned per-source boilerplate. Regenerate with `make ml-boilerplate`.
+# Review before trusting: every line here is removed from every article
+# of its source, and a false positive silently deletes real content.
+sources:
+  01a0290a-2540-7923-aca2-5b2e4e64535a:
+  - doc_count: 8
+    doc_fraction: 0.1702
+    example: 5k+ users already voted today
+    key: '#k users already voted today'
+  - doc_count: 8
+    doc_fraction: 0.1702
+    example: 3k+ users shared opinion today
+    key: '#k users shared opinion today'
+  - doc_count: 8
+    doc_fraction: 0.1702
+    example: Poll
+    key: poll
+  - doc_count: 8
+    doc_fraction: 0.1702
+    example: Share Opinion
+    key: share opinion
+  01a02dc4-7f98-7ba8-bcc3-b558165b9fe5:
+  - doc_count: 142
+    doc_fraction: 0.7065
+    example: Story continues below this ad
+    key: story continues below this ad
+  - doc_count: 113
+    doc_fraction: 0.5622
+    example: 'Tags:'
+    key: tags
+  - doc_count: 33
+    doc_fraction: 0.1642
+    example: © The Indian Express Pvt Ltd
+    key: the indian express pvt ltd
+  - doc_count: 26
+    doc_fraction: 0.1294
+    example: '2 min readNew DelhiUpdated: Aug 22, 2026 04:47 AM IST'
+    key: '# min readnew delhiupdated aug # # # # am ist'
+  - doc_count: 17
+    doc_fraction: 0.0846
+    example: '3 min readUpdated: Aug 23, 2026 01:43 PM IST'
+    key: '# min readupdated aug # # # # pm ist'
+  - doc_count: 16
+    doc_fraction: 0.0796
+    example: 5 min readNew DelhiAug 23, 2026 07:20 AM IST
+    key: '# min readnew delhiaug # # # # am ist'
+  - doc_count: 14
+    doc_fraction: 0.0697
+    example: © IE Online Media Services Pvt Ltd
+    key: ie online media services pvt ltd
+  - doc_count: 13
+    doc_fraction: 0.0647
+    example: Indian Railways
+    key: indian railways
+  - doc_count: 13
+    doc_fraction: 0.0647
+    example: Indian Railways news
+    key: indian railways news
+  - doc_count: 13
+    doc_fraction: 0.0647
+    example: Ministry of Railways
+    key: ministry of railways
+  - doc_count: 12
+    doc_fraction: 0.0597
+    example: '5 min readUpdated: Aug 23, 2026 11:22 AM IST'
+    key: '# min readupdated aug # # # # am ist'
+  - doc_count: 11
+    doc_fraction: 0.0547
+    example: Railway Board
+    key: railway board
+  01a02dc4-7fa7-77f7-9108-36b51e82d077:
+  - doc_count: 35
+    doc_fraction: 0.7447
+    example: More
+    key: more
+  - doc_count: 35
+    doc_fraction: 0.7447
+    example: Stay updated with the latest Trending, India, World and US news.
+    key: stay updated with the latest trending india world and us news
+  - doc_count: 30
+    doc_fraction: 0.6383
+    example: About the Author
+    key: about the author
+  - doc_count: 14
+    doc_fraction: 0.2979
+    example: Get Latest real-time updates
+    key: get latest real time updates
+  - doc_count: 6
+    doc_fraction: 0.1277
+    example: He can be reached on LinkedIn or on @garvitbhirani on X
+    key: he can be reached on linkedin or on garvitbhirani on x
+  - doc_count: 6
+    doc_fraction: 0.1277
+    example: Outside work, Swati focuses on exploring her passion and love for food. From fancy cafes
+      to street spots, Swati explores food like a true foodie.
+    key: outside work swati focuses on exploring her passion and love for food from fancy cafes to street
+      spots swati explores food like a true foodie
+  - doc_count: 6
+    doc_fraction: 0.1277
+    example: Swati Gandhi
+    key: swati gandhi
+  - doc_count: 5
+    doc_fraction: 0.1064
+    example: Garvit Bhirani
+    key: garvit bhirani
+  01a02dc4-7fa8-702a-be5c-c5ca1aa538fc:
+  - doc_count: 18
+    doc_fraction: 0.3
+    example: after newsletter promotion
+    key: after newsletter promotion
+  - doc_count: 18
+    doc_fraction: 0.3
+    example: skip past newsletter promotion
+    key: skip past newsletter promotion
+  01a02dc4-7fa8-7aa2-8400-e704b0f1fd8d:
+  - doc_count: 9
+    doc_fraction: 0.2432
+    example: 02:54
+    key: '# #'
+  - doc_count: 9
+    doc_fraction: 0.2432
+    example: To display this content from YouTube, you must enable tracking and audience measurement.
+    key: to display this content from youtube you must enable tracking and audience measurement
+  - doc_count: 6
+    doc_fraction: 0.1622
+    example: 'Issued on: 22/08/2026 - 15:26'
+    key: 'issued on # # # # #'
+  - doc_count: 5
+    doc_fraction: 0.1351
+    example: 22/08/2026
+    key: '# # #'
+  - doc_count: 5
+    doc_fraction: 0.1351
+    example: 'Cover image: © France 24'
+    key: 'cover image france #'
+  - doc_count: 5
+    doc_fraction: 0.1351
+    example: 'Issued on: 22/08/2026 - 14:47Modified: 22/08/2026 - 14:47'
+    key: 'issued on # # # # #modified # # # # #'
+  01a02dc4-7fa8-7e2c-95cf-481a42938093:
+  - doc_count: 16
+    doc_fraction: 0.8
+    example: When you purchase through links in our articles, we may earn a small commission. This doesn't
+      affect our editorial independence.
+    key: when you purchase through links in our articles we may earn a small commission this doesn t affect
+      our editorial independence
+  - doc_count: 6
+    doc_fraction: 0.3
+    example: View Bio
+    key: view bio
+  01a02dc4-7fa9-75ad-82e6-fcba9ddcd9ca:
+  - doc_count: 6
+    doc_fraction: 0.1091
+    example: FAQs
+    key: faqs
+  - doc_count: 6
+    doc_fraction: 0.1091
+    example: Power up with unlimited access to WIRED. Get best-in-class reporting and exclusive subscriber
+      content that's too important to ignore. Subscribe Today.
+    key: power up with unlimited access to wired get best in class reporting and exclusive subscriber
+      content that s too important to ignore subscribe today
+thresholds:
+  max_line_words: 25
+  min_doc_count: 5
+  min_doc_fraction: 0.05

@@ -1,0 +1,132 @@
+# Coolify deployment stack for the homelab.
+#
+# Create a "Docker Compose" resource in Coolify and paste this file, or point it
+# at this path in the repository. The image is built and pushed by GitHub
+# Actions (.github/workflows/news-collector.yml), so the homelab only pulls —
+# it never runs the Go build.
+#
+# Coolify fills SERVICE_* itself and keeps the generated values stable across
+# deployments. Variables written as ${NAME:?} are required and must be set in
+# the Coolify UI before the first deploy; the deployment fails fast otherwise.
+#
+# Generate the API key with:  openssl rand -hex 32
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${SERVICE_USER_MONGO}
+      # The 64-character variant is free of symbols, so it needs no escaping
+      # when it is embedded in the connection URI below.
+      - MONGO_INITDB_ROOT_PASSWORD=${SERVICE_PASSWORD_64_MONGO}
+    # Published for direct Compass/mongosh access from trusted LAN clients.
+    # Root auth is already enforced above; restrict at the host firewall too
+    # (e.g. `ufw allow from <client-ip> to any port 27017`) since anyone who
+    # can reach this port can attempt to authenticate.
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # Provision the externally managed classifier-models volume before deployment:
+  # copy v2-001 into /models/v2-001 and set NEWS_CLASSIFIER_MODEL_SHA256 to
+  # `sha256sum bundle.joblib`. The command below refuses a stale or partial bundle.
+  classifier:
+    image: ${NEWS_CLASSIFIER_IMAGE:-ghcr.io/mhd-riaz/news-collector-classifier:latest}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      - NEWSML_MODEL_DIR=/models/v2-001
+      - NEWSML_API_KEY=${NEWS_CLASSIFIER_API_KEY:?}
+      - NEWSML_MODEL_SHA256=${NEWS_CLASSIFIER_MODEL_SHA256:?}
+    volumes:
+      - classifier-models:/models:ro
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        echo "$$NEWSML_MODEL_SHA256  $$NEWSML_MODEL_DIR/bundle.joblib" | sha256sum -c -
+        exec gunicorn --bind=0.0.0.0:8000 --workers=1 --threads=4 app.wsgi:app
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health/ready')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # The API migrates the database and applies the source list itself, on every
+  # start, so there are no one-shot migrate or seed containers here. That is
+  # deliberate: a one-shot container that has already exited successfully is not
+  # guaranteed to be recreated on a redeploy, and when it is skipped an edited
+  # feed list silently never reaches the database.
+  #
+  # Applying is idempotent — sources are matched on feed_url and patched rather
+  # than replaced, an omitted optional key is left untouched, and a stored source
+  # absent from the file is left alone — so a value tuned through the API
+  # survives a redeploy.
+  api:
+    image: ${NEWS_IMAGE:-ghcr.io/mhd-riaz/news-collector:latest}
+    # Compose's default pull_policy ("missing") only pulls an image when it is
+    # absent locally, so a floating `:latest` tag already cached on the host is
+    # never refreshed on redeploy — the container silently keeps running the
+    # old image even though CI pushed a new one. Always pulling here ensures a
+    # Coolify redeploy actually picks up the new build.
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      # Asks Coolify for a domain and routes it to port 8080.
+      - SERVICE_FQDN_API_8080
+      - NEWS_SERVER_HOST=0.0.0.0
+      - NEWS_SERVER_PORT=8080
+      - NEWS_MONGO_URI=mongodb://${SERVICE_USER_MONGO}:${SERVICE_PASSWORD_64_MONGO}@mongo:27017/?authSource=admin
+      - NEWS_MONGO_DATABASE=${NEWS_MONGO_DATABASE:-news}
+
+      # The default reads the copy baked into the image, which means a new feed
+      # needs a rebuild. Point this at the raw URL of configs/sources.yaml
+      # instead and the list is read fresh on every start, so adding a feed is a
+      # commit and a restart:
+      #
+      #   https://raw.githubusercontent.com/mhd-riaz/data-scientist-roadmap/main/semester-1/06-supervised-ml-classification/mini-project/news/configs/sources.yaml
+      #
+      # https only, and a fetch that fails leaves the stored sources in place
+      # rather than stopping the collector.
+      - NEWS_BOOTSTRAP_SOURCES_PATH=${NEWS_BOOTSTRAP_SOURCES_PATH:-configs/sources.yaml}
+
+      # production also refuses a disabled guard and private-network fetches.
+      - NEWS_APP_ENVIRONMENT=production
+      - NEWS_LOGGING_LEVEL=${NEWS_LOGGING_LEVEL:-info}
+      - NEWS_LOGGING_FORMAT=json
+
+      - NEWS_AUTH_ENABLED=true
+      - NEWS_AUTH_API_KEY_HEADER=${NEWS_AUTH_API_KEY_HEADER:-X-API-Key}
+      # Comma-separated: add the replacement, move clients over, drop the old.
+      - NEWS_AUTH_API_KEYS=${NEWS_AUTH_API_KEYS:?}
+      - NEWS_AUTH_BASIC_USERNAME=${NEWS_AUTH_BASIC_USERNAME:?}
+      - NEWS_AUTH_BASIC_PASSWORD=${NEWS_AUTH_BASIC_PASSWORD:?}
+
+      - NEWS_SCHEDULER_ENABLED=${NEWS_SCHEDULER_ENABLED:-true}
+      - NEWS_SCHEDULER_INTERVAL=${NEWS_SCHEDULER_INTERVAL:-60s}
+      - NEWS_CLASSIFIER_ENABLED=true
+      - NEWS_CLASSIFIER_API_KEY=${NEWS_CLASSIFIER_API_KEY:?}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      # /health is unauthenticated on purpose, so this probe needs no credential.
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  mongo-data:
+  classifier-models:
+    external: true

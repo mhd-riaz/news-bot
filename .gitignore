@@ -6,6 +6,51 @@ __pycache__/
 # C extensions
 *.so
 
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.dylib
+*.test
+*.out
+
+# bin files
+**/bin/**
+
+# ml stuff
+**/*.joblib
+
+# backup files
+**/*.bak
+
+# files
+**/*.csv
+**/*.xml
+**/*.gz
+**/*.zip
+**/*.pptx
+**/*.ppt
+**/*.pdf
+**/*.tex
+
+# images
+**/*.png
+**/*.jpeg
+**/*.jpg
+
+!**/assets/*
+
+
+
+# env
+**/.env*
+!**/.env-example
+
+
+
+# vscode
+**/.DS_Store
+
 # Distribution / packaging
 .Python
 build/

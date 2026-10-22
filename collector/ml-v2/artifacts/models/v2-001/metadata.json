@@ -1,0 +1,32 @@
+{
+  "snapshot_id": "v2-001",
+  "fitted_at": "2026-08-27T00:02:44+05:30",
+  "model": "word_char_svc",
+  "variant": "title_body",
+  "body_chars": 4000,
+  "calibration": "isotonic",
+  "folds": 5,
+  "train_articles": 5487,
+  "classes": [
+    "business_economy",
+    "conflict_war",
+    "crime_justice",
+    "disaster_accident",
+    "education",
+    "entertainment_arts",
+    "environment_climate",
+    "health",
+    "politics",
+    "science_space",
+    "society_lifestyle",
+    "sport",
+    "technology"
+  ],
+  "cut": 0.583744383604461,
+  "cut_target_precision": 0.9,
+  "cut_precision_on_train_oof": 0.9001148105625718,
+  "cleaning_version": "2.0.0",
+  "label_digest": "8ed59b13d4148727063fdd5d38ee6c4d365e9949f179525f3824eb187e5a918e",
+  "git_sha": "e05de38f1b9d155094724e52fac142b804cf8515",
+  "bundle_mb": 148.3
+}

@@ -1,0 +1,35 @@
+[project]
+name = "newsml"
+version = "0.1.0"
+description = "Offline data preparation and modelling for the news collector. Never deployed."
+requires-python = ">=3.12"
+
+# Ground rule 10: stdlib first, then a small focused package. Each entry needs a
+# reason to be here.
+dependencies = [
+    "pymongo>=4.8",     # read the bronze corpus; the only way in
+    "matplotlib>=3.9",  # profile figures, styled by swiss.mplstyle in Phase 7
+    "PyYAML>=6.0",      # reviewable artifacts (boilerplate, taxonomy) as YAML
+    "langdetect>=1.0.9",# language is a source *assumption*; this measures it
+    "scikit-learn>=1.5",# the Phase 3 baseline ladder, and the vectorisers it rests on
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ipykernel>=6.29",  # notebooks drive the experiments; the logic stays in src/
+]
+
+[project.scripts]
+newsml = "newsml.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/newsml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
