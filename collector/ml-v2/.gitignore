@@ -1,6 +1,8 @@
 # Snapshots are large and reproducible from the corpus + manifest.
 data/snapshots/
 data/cache/
+data/recommendations/
+artifacts/recommender/
 
 # Fitted models are binary and regenerable; manifests and model cards are not.
 artifacts/**/*.joblib

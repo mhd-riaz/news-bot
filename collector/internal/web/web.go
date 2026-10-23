@@ -92,6 +92,11 @@ func New(articles Articles, events ReadEvents, pageSize int, logger *slog.Logger
 		}
 		pages[name] = t
 	}
+	stories, err := template.New("stories.html").ParseFS(templateFS, "templates/stories.html")
+	if err != nil {
+		return nil, fmt.Errorf("web: parse stories.html: %w", err)
+	}
+	pages["stories.html"] = stories
 
 	var topics classifier.TopicSource
 	if len(topicSources) > 0 {
@@ -104,7 +109,11 @@ func New(articles Articles, events ReadEvents, pageSize int, logger *slog.Logger
 func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", h.feed)
+	mux.HandleFunc("GET /archive", h.feed)
 	mux.HandleFunc("GET /articles/{id}", h.article)
+	mux.HandleFunc("GET /stories", func(w http.ResponseWriter, r *http.Request) {
+		h.render(w, r, http.StatusOK, "stories.html", messageView{Title: "Afterline"})
+	})
 	mux.HandleFunc("POST /read-events", h.readEvents)
 	mux.Handle("GET /static/", http.FileServerFS(staticFS))
 	mux.HandleFunc("/", h.notFound)
@@ -192,7 +201,7 @@ func (h *Handler) feed(w http.ResponseWriter, r *http.Request) {
 		if filter.Topic != "" {
 			query.Set("topic", filter.Topic)
 		}
-		view.NextHref = "/?" + query.Encode()
+		view.NextHref = r.URL.Path + "?" + query.Encode()
 	}
 	h.render(w, r, http.StatusOK, "feed.html", view)
 }
@@ -345,7 +354,11 @@ func (h *Handler) renderMessage(w http.ResponseWriter, r *http.Request, status i
 // failure halfway through cannot emit a half-written page under a sent 200.
 func (h *Handler) render(w http.ResponseWriter, r *http.Request, status int, page string, data any) {
 	var buf bytes.Buffer
-	if err := h.pages[page].ExecuteTemplate(&buf, "layout.html", data); err != nil {
+	entry := "layout.html"
+	if page == "stories.html" {
+		entry = page
+	}
+	if err := h.pages[page].ExecuteTemplate(&buf, entry, data); err != nil {
 		h.logger.ErrorContext(r.Context(), "template render failed", "page", page, "error", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
@@ -358,9 +371,14 @@ func (h *Handler) render(w http.ResponseWriter, r *http.Request, status int, pag
 	// Everything is same-origin and there is no inline script or style, so the
 	// policy can be absolute rather than negotiated. It is the second line of
 	// defence behind html/template's escaping, not a replacement for it.
-	head.Set("Content-Security-Policy",
-		"default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:; "+
-			"connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'")
+	policy :=
+		"default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:; " +
+			"connect-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'none'"
+	if page == "stories.html" {
+		// Images load in the browser, not through a server-side URL fetch/proxy.
+		policy = strings.Replace(policy, "img-src 'self' data:", "img-src 'self' https:", 1)
+	}
+	head.Set("Content-Security-Policy", policy)
 	w.WriteHeader(status)
 	_, _ = buf.WriteTo(w)
 }

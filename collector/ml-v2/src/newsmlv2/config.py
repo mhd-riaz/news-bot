@@ -54,6 +54,20 @@ PUBLISHER_HOLDOUTS = ("The Hindu", "The Guardian")
 UNSORTED = "unsorted"
 
 
+def env_values(path: Path = DOTENV_PATH) -> dict[str, str]:
+    """Read the collector's dotenv convention without logging or exporting secrets."""
+    if not path.is_file():
+        return {}
+    values: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        values[key.strip()] = value.strip().strip("'\"")
+    return values
+
+
 def _uri_from_dotenv(path: Path) -> str:
     """Read the collector's own connection string, with the database spliced in.
 
@@ -62,17 +76,7 @@ def _uri_from_dotenv(path: Path) -> str:
     twice been empty while every make target reported on it happily -- a silent wrong
     answer is worse than a missing one.
     """
-    if not path.is_file():
-        return ""
-
-    values: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        values[key.strip()] = value.strip().strip("'\"")
-
+    values = env_values(path)
     uri = values.get("NEWS_MONGO_URI", "")
     database = values.get("NEWS_MONGO_DATABASE", "news")
     if not uri:

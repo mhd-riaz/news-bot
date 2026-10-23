@@ -35,6 +35,7 @@ build: ## Build every command into $(BIN_DIR)
 	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/seed ./cmd/seed
 	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/collector ./cmd/collector
 	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/scrape ./cmd/scrape
+	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/reader ./cmd/reader
 
 .PHONY: test
 test: ## Run unit tests (no external dependencies)
@@ -214,6 +215,48 @@ ml2-verify: ## Rebuild a snapshot and confirm byte-identical digests
 .PHONY: ml2-run
 ml2-run: ## Run one experiment config: make ml2-run CONFIG=configs/experiments/baseline.yaml
 	cd ml-v2 && uv run newsmlv2 run --config $(CONFIG)
+
+# --- Read-only recommendation demo -----------------------------------------
+REC_ID ?= stories-002
+
+.PHONY: rec-setup
+rec-setup: ## Install the existing Python project with recommendation/serving/test extras
+	cd ml-v2 && uv sync --group recommend --group serve --group dev --group demo
+
+.PHONY: rec-inspect
+rec-inspect: ## Verify which news database the app will read, without displaying its URI
+	cd ml-v2 && uv run --no-sync newsrec inspect
+
+.PHONY: rec-prepare
+rec-prepare: ## Freeze a new cohort; pass REC_ID=<new-id> CUT=<past ISO timestamp>
+	@test -n "$(CUT)" || (echo "CUT must be a past ISO timestamp with timezone"; exit 1)
+	cd ml-v2 && uv run --no-sync newsrec prepare --id "$(REC_ID)" --cut "$(CUT)"
+
+.PHONY: rec-baseline
+rec-baseline: ## Fit TF-IDF and SVD before any neural training
+	cd ml-v2 && uv run --no-sync newsrec baseline --id "$(REC_ID)"
+
+.PHONY: rec-train
+rec-train: ## Train and save the small TensorFlow/Keras autoencoder
+	cd ml-v2 && uv run --no-sync newsrec train --id "$(REC_ID)"
+
+.PHONY: rec-benchmark
+rec-benchmark: ## Measure retrieval and create a blind relevance sheet (never overwrites one)
+	cd ml-v2 && uv run --no-sync newsrec benchmark --id "$(REC_ID)"
+
+.PHONY: rec-serve
+rec-serve: ## Serve saved representations on localhost:8001 (TensorFlow is not loaded)
+	cd ml-v2 && uv run --no-sync newsrec serve --id "$(REC_ID)"
+
+.PHONY: reader
+reader: ## Serve the read-only Stories reader at http://127.0.0.1:8090
+	go run ./cmd/reader
+
+.PHONY: rec-test
+rec-test: ## Check recommendation Python, Go and browser-state logic without a live DB
+	cd ml-v2 && uv run --no-sync pytest tests/test_recommendations.py
+	go test ./cmd/reader ./internal/recommendation ./internal/handler ./internal/web
+	node --test scripts/stories.test.mjsconfig $(CONFIG)
 
 .PHONY: ml2-compare
 ml2-compare: ## Render the model comparison table from the experiment ledger

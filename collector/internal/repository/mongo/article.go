@@ -98,6 +98,32 @@ func (r *ArticleRepository) GetByID(ctx context.Context, id string) (*domain.Art
 	return r.findOne(ctx, bson.D{{Key: "_id", Value: id}})
 }
 
+// GetByIDs hydrates a bounded ranked page in one query without transferring full bodies.
+func (r *ArticleRepository) GetByIDs(ctx context.Context, ids []string) ([]domain.Article, error) {
+	if len(ids) > 30 {
+		return nil, errors.New("mongo: article batch must contain at most 30 IDs")
+	}
+	for _, id := range ids {
+		if err := domain.ValidateID(id); err != nil {
+			return nil, err
+		}
+	}
+	if len(ids) == 0 {
+		return []domain.Article{}, nil
+	}
+	cursor, err := r.coll.Find(ctx, bson.D{{Key: "_id", Value: bson.D{{Key: "$in", Value: ids}}}},
+		options.Find().SetProjection(bson.D{{Key: "content", Value: 0}, {Key: "summary", Value: 0}}))
+	if err != nil {
+		return nil, fmt.Errorf("mongo: hydrate recommended articles: %w", err)
+	}
+	defer cursor.Close(ctx)
+	var articles []domain.Article
+	if err := cursor.All(ctx, &articles); err != nil {
+		return nil, fmt.Errorf("mongo: decode recommended articles: %w", err)
+	}
+	return articles, nil
+}
+
 // List returns a page of articles, newest first.
 //
 // One more article than the caller asked for is read, which is how the page

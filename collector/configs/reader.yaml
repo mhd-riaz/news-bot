@@ -1,0 +1,15 @@
+# Read-only demo. cmd/reader never migrates, seeds, collects, classifies or records events.
+app:
+  name: news-reader
+  environment: development
+server:
+  host: 127.0.0.1
+  port: 8090
+auth:
+  enabled: false
+web:
+  enabled: true
+  page_size: 30
+mongo:
+  uri: mongodb://localhost:27017
+  database: news

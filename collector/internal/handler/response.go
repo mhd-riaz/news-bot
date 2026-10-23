@@ -91,13 +91,17 @@ func writeValidationError(w http.ResponseWriter, err error) {
 // unknown fields so a typo'd or injected key fails loudly instead of being
 // silently dropped. The returned error is already caller-safe.
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+	return decodeJSONLimit(w, r, dst, maxRequestBodyBytes)
+}
+
+func decodeJSONLimit(w http.ResponseWriter, r *http.Request, dst any, limit int64) error {
 	if ct := r.Header.Get("Content-Type"); ct != "" {
 		if mediaType, _, err := mime.ParseMediaType(ct); err != nil || mediaType != "application/json" {
 			return errUnsupportedMediaType
 		}
 	}
 
-	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
@@ -106,7 +110,7 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 		var maxBytes *http.MaxBytesError
 		switch {
 		case errors.As(err, &maxBytes):
-			return fmt.Errorf("request body must not exceed %d bytes", maxRequestBodyBytes)
+			return fmt.Errorf("request body must not exceed %d bytes", limit)
 		case errors.Is(err, io.EOF):
 			return errors.New("request body must not be empty")
 		default:

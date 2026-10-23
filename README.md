@@ -1,2 +1,9 @@
 # news-bot
-a new classifier, that collects rss feed from different sources and then puts things to consume in order to make someone's life productive
+
+News collection, topic classification, and **AFTERLINE**, a content-based news archive recommender with a Stories-inspired reader.
+
+- [Recommendation setup, training, evaluation and architecture](collector/docs/recommender.md)
+- [Verified results and limitations](collector/docs/recommender-results.md)
+- [Collector and classification project](collector/readme.md)
+
+The recommender compares TF-IDF, SVD and locally trained TensorFlow/Keras article representations. Interests are explicit and browser-local—not preferences learned from historical users. Original MongoDB articles are never modified by the recommendation workflow or read-only reader.

@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="description" content="A considered way into a fixed news archive. Discover archived stories through their content and interests you choose yourself.">
+  <title>{{.Title}} · AFTERLINE</title>
+  <link rel="stylesheet" href="/static/stories.css">
+  <script src="/static/stories.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to the archive</a>
+  <div class="shell">
+    <header class="masthead">
+      <a class="wordmark" href="/stories" aria-label="Afterline archive home">AFTERLINE<span class="wordmark-dot" aria-hidden="true"></span></a>
+      <p class="masthead-caption">A second look at the news.</p>
+      <span class="archive-badge">An archive, not a live feed <span aria-hidden="true">↗</span></span>
+    </header>
+
+    <noscript>
+      <section class="notice noscript-notice">
+        <h1>This archive reader needs JavaScript.</h1>
+        <p>Stories uses the same-origin recommendation service to open real archived articles. Enable JavaScript, or <a href="/archive">use the standard reader</a>. No recommendations or interests have been loaded here.</p>
+      </section>
+    </noscript>
+    <p id="storage-warning" class="notice" role="status" hidden></p>
+    <p id="link-note" class="notice" role="status" hidden></p>
+
+    <main id="main" tabindex="-1">
+      <section class="topics" aria-labelledby="topics-heading">
+        <div class="section-heading">
+          <h2 id="topics-heading">Follow a thread</h2>
+          <p>Content clusters, not editorial categories.</p>
+        </div>
+        <div id="topic-list" class="topic-list" role="group" aria-label="Filter stories by content group">
+          <button id="topic-all" class="topic-button" type="button" data-topic="" aria-pressed="true" disabled>
+            <span class="topic-disc topic-disc-all" aria-hidden="true">↗</span>
+            <span class="topic-label">Explore all</span>
+            <span id="topic-all-count" class="topic-count">The whole archive</span>
+          </button>
+        </div>
+        <p id="topic-status" class="sr-only" role="status">Loading archive topics.</p>
+      </section>
+
+      <div class="workspace">
+        <section class="introduction" aria-labelledby="page-title">
+          <p class="eyebrow"><span class="small-rule" aria-hidden="true"></span> The considered edition</p>
+          <h1 id="page-title">Good stories.<br><span>Longer lives.</span></h1>
+          <p class="intro-copy">Not breaking. Still interesting. Find a different way through a fixed collection of news, one archived story at a time.</p>
+          <p class="intro-footnote">No autoplay. No ticking clock.<br>Just something worth a second look.</p>
+
+          <section id="onboarding-invite" class="onboarding-invite" aria-labelledby="invite-heading" hidden>
+            <h2 id="invite-heading">Make this your edition.</h2>
+            <p>Pick 3–5 real stories from Explore to add interests. Fewer is fine, too.</p>
+            <div class="invite-actions">
+              <button id="start-onboarding" class="button button-ink" type="button" disabled>Choose interests <span aria-hidden="true">↗</span></button>
+              <button id="skip-onboarding" class="text-button" type="button" disabled>Skip for now</button>
+            </div>
+          </section>
+
+          <div class="local-profile">
+            <p id="profile-summary">Interests are saved in this browser.</p>
+            <div class="profile-actions">
+              <button id="edit-interests" class="text-button" type="button" disabled>Find more interests</button>
+              <button id="open-reset" class="text-button muted-button" type="button" disabled>Reset interests &amp; history</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="reader-panel" class="reader-panel" aria-labelledby="reader-heading" aria-busy="true" tabindex="-1">
+          <div class="reader-toolbar">
+            <div>
+              <p id="selection-label" class="eyebrow">Explore the archive</p>
+              <h2 id="reader-heading" class="sr-only">Archived stories</h2>
+            </div>
+            <div class="lens-control">
+              <label for="method">Lens</label>
+              <select id="method" aria-describedby="lens-note" disabled>
+                <option value="neural">Neural</option>
+                <option value="tfidf">TF–IDF</option>
+                <option value="svd">SVD</option>
+              </select>
+            </div>
+          </div>
+          <p id="lens-note" class="lens-note">Compare three content-based ways into the same archive.</p>
+          <p id="selection-note" class="selection-note" hidden></p>
+
+          <div id="feed-feedback" class="feed-feedback">
+            <span id="loading-indicator" class="loading-indicator" aria-hidden="true"></span>
+            <p id="feedback-kicker" class="eyebrow">A moment of context</p>
+            <h3 id="feedback-title">Opening the archive.</h3>
+            <p id="feedback-message">Connecting to the recommendation service. These are stored articles, not current news.</p>
+            <div class="feedback-actions">
+              <button id="retry-feed" class="button button-ink" type="button" hidden>Try again</button>
+              <button id="feedback-explore" class="text-button" type="button" hidden>Explore all topics</button>
+              <button id="feedback-interests" class="text-button" type="button" hidden>Choose interests</button>
+            </div>
+          </div>
+
+          <article id="story-card" class="story-card" aria-labelledby="story-title" hidden>
+            <div id="story-cover" class="story-cover">
+              <img id="story-image" class="story-image" alt="" referrerpolicy="no-referrer" decoding="async" hidden>
+              <div id="cover-copy" class="cover-copy">
+                <p class="cover-kicker">The text edition</p>
+                <p class="cover-display" aria-hidden="true">Room for<br>the story.</p>
+                <p id="cover-topic" class="cover-topic"></p>
+              </div>
+              <span id="cover-index" class="cover-index" aria-hidden="true"></span>
+              <span class="archive-stamp">Archived · not live news</span>
+            </div>
+            <div class="story-body">
+              <div class="story-byline">
+                <span id="story-source" class="story-source"></span>
+                <time id="story-date"></time>
+              </div>
+              <h2 id="story-title" tabindex="-1"></h2>
+              <div class="text-label">
+                <span id="story-text-kind" class="text-kind"></span>
+                <span id="story-image-note"></span>
+              </div>
+              <p id="story-text" class="story-text"></p>
+              <details id="more-text" class="more-text" hidden>
+                <summary>Continue the stored text</summary>
+                <p id="remaining-text" class="story-text"></p>
+              </details>
+              <details class="match-details">
+                <summary>Why this story?</summary>
+                <p id="story-reason"></p>
+                <p id="story-score" class="fine-print"></p>
+                <p id="story-input" class="fine-print"></p>
+              </details>
+
+              <div class="preference-actions" role="group" aria-label="Your interest in this story">
+                <button id="like-story" class="preference-button" type="button" aria-pressed="false">
+                  <span aria-hidden="true">＋</span> More like this
+                </button>
+                <button id="dislike-story" class="preference-button" type="button" aria-pressed="false">
+                  <span aria-hidden="true">−</span> Not interested
+                </button>
+              </div>
+              <div class="story-links">
+                <button id="related-story" class="text-button" type="button">Related stories <span aria-hidden="true">↗</span></button>
+                <a id="read-original" class="original-link" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Read original <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a>
+                <span id="original-unavailable" class="fine-print" hidden>Original link unavailable</span>
+              </div>
+            </div>
+          </article>
+
+          <nav id="story-navigation" class="story-navigation" aria-label="Story navigation" hidden>
+            <button id="previous-story" class="navigation-button" type="button" aria-label="Previous archived story" disabled><span aria-hidden="true">←</span> Previous</button>
+            <div class="position">
+              <p><span id="position-current">00</span><span class="position-divider"> / </span><span id="position-total">00</span></p>
+              <progress id="story-progress" value="0" max="1" aria-label="Position within the loaded selection"></progress>
+              <span class="position-caption">In this selection</span>
+            </div>
+            <button id="next-story" class="navigation-button next-button" type="button" aria-label="Next archived story" disabled>Next <span aria-hidden="true">→</span></button>
+          </nav>
+          <p id="navigation-hint" class="navigation-hint" hidden><span class="swipe-hint">Swipe, or </span>use <kbd>←</kbd> <kbd>→</kbd> to turn the page. Next only marks a story viewed.</p>
+          <section id="feed-end" class="end-note" aria-labelledby="end-heading" hidden>
+            <p class="eyebrow">A good place to pause</p>
+            <h3 id="end-heading">That’s this selection.</h3>
+            <p id="end-message">Try a different thread or lens, or add a few interests to find another way in. This is not the end of the news.</p>
+            <div class="feedback-actions">
+              <button id="end-explore" class="text-button" type="button">Explore all topics <span aria-hidden="true">↗</span></button>
+              <button id="end-interests" class="text-button" type="button">Choose interests</button>
+            </div>
+          </section>
+          <p id="action-status" class="action-status" role="status" aria-live="polite" aria-atomic="true">Likes are your choice. Turning a page never adds an interest.</p>
+          <p id="service-note" class="fine-print service-note" hidden></p>
+          <p id="reader-live" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+        </section>
+
+        <aside class="archive-notes" aria-labelledby="archive-heading">
+          <div class="archive-heading">
+            <h2 id="archive-heading">The collection</h2>
+            <span aria-hidden="true">↘</span>
+          </div>
+          <dl class="archive-facts">
+            <div class="corpus-size">
+              <dt>Archived articles</dt>
+              <dd id="corpus-count">—</dd>
+            </div>
+            <div>
+              <dt>Stored publication range</dt>
+              <dd id="publication-range">Waiting for archive information</dd>
+            </div>
+            <div>
+              <dt>Collection cutoff</dt>
+              <dd id="collection-cutoff">—</dd>
+            </div>
+          </dl>
+          <p id="corpus-coverage" class="corpus-coverage">Coverage is based only on articles you actually open here.</p>
+          <details class="edition-details">
+            <summary>A note on this edition</summary>
+            <p id="profile-note">Profiles are saved only in this browser for this snapshot and included in same-origin recommendation requests. Matches use content and explicit interests, not an account or historical-user learning.</p>
+            <p id="date-note">Every story belongs to an archived snapshot. Dates are absolute, shown in UTC, and may be collection dates when a publication date was not stored.</p>
+            <p>Topic circles are unsupervised content groups, not verified editorial categories. A summary or headline is not a substitute for the original reporting. External pages may have changed or disappeared.</p>
+          </details>
+          <p class="limits-note">Local to this snapshot: up to 50 likes, 50 not-interested choices, and the last 2,000 viewed articles. No telemetry is sent by this page.</p>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>AFTERLINE <span aria-hidden="true">/</span> A little distance. A different perspective.</p>
+      <div><span id="snapshot-label">Connecting to archive</span><a href="/archive">Standard reader <span aria-hidden="true">↗</span></a></div>
+    </footer>
+  </div>
+
+  <dialog id="taste-dialog" class="taste-dialog" aria-labelledby="taste-heading" aria-describedby="taste-description">
+    <form id="taste-form">
+      <div class="dialog-heading">
+        <p class="eyebrow">Your edition, your choices</p>
+        <button id="close-taste" class="close-button" type="button" aria-label="Close interest selection">×</button>
+      </div>
+      <h2 id="taste-heading">What catches your eye?</h2>
+      <p id="taste-description" class="dialog-copy">Choose 3–5 real articles from Explore to add to your interests. Fewer is fine; you can skip. Existing interests are kept. Choices are saved in this browser for this snapshot and included in recommendation requests.</p>
+      <div class="taste-toolbar">
+        <span>Explore / up to 24 archived articles</span>
+        <output id="taste-count" aria-live="polite">0 / 5 selected</output>
+      </div>
+      <p id="taste-loading" class="taste-loading" role="status">Loading real articles from Explore…</p>
+      <div id="taste-error" class="notice" role="alert" hidden>
+        <p id="taste-error-message"></p>
+        <button id="taste-retry" class="text-button" type="button">Retry Explore</button>
+      </div>
+      <p id="taste-empty" class="notice" hidden>No unseen articles were available from Explore. You can skip, choose another lens, or reset your local history to revisit the collection.</p>
+      <fieldset id="taste-options" class="taste-options" disabled>
+        <legend class="sr-only">Choose up to five archived articles as interests</legend>
+        <div id="taste-list" class="taste-list"></div>
+      </fieldset>
+      <p id="taste-hint" class="fine-print">Only explicitly selected articles become interests. Offered articles are not marked viewed.</p>
+      <div class="dialog-footer">
+        <button id="taste-skip" class="text-button" type="button">Skip for now</button>
+        <button id="taste-submit" class="button button-ink" type="submit" disabled>Explore without selecting <span aria-hidden="true">↗</span></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="reset-dialog" class="reset-dialog" aria-labelledby="reset-heading" aria-describedby="reset-description">
+    <form id="reset-form">
+      <p class="eyebrow">A fresh edition</p>
+      <h2 id="reset-heading">Start again?</h2>
+      <p id="reset-description" class="dialog-copy">Clear interests and viewed history for this snapshot in this browser. This does not change the archive. Articles you open afterward will start a new local history.</p>
+      <div class="dialog-footer">
+        <button id="cancel-reset" class="text-button" type="button">Keep my edition</button>
+        <button class="button button-ink" type="submit">Reset &amp; explore</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
