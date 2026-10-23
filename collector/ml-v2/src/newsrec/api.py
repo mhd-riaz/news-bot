@@ -13,6 +13,8 @@ from newsmlv2 import config
 
 from .index import Index, UnknownArticle
 
+DEFAULT_METHOD = "tfidf"
+
 
 def create_app(index: Index | None = None, *, api_key: str | None = None) -> Flask:
     if index is None:
@@ -44,12 +46,15 @@ def create_app(index: Index | None = None, *, api_key: str | None = None) -> Fla
 
     @app.get("/v1/meta")
     def metadata():
-        return index.metadata()
+        return {**index.metadata(), "default_method": DEFAULT_METHOD}
 
     @app.post("/v1/recommend")
     def recommend():
         try:
-            return index.recommend(request.get_json())
+            payload = request.get_json()
+            if isinstance(payload, dict):
+                payload.setdefault("method", DEFAULT_METHOD)
+            return index.recommend(payload)
         except UnknownArticle as error:
             app.logger.info("recommendation seed rejected: %s", error)
             abort(404, str(error))

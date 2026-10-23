@@ -18,7 +18,7 @@ const instrumented = source.replace(startup, `
     state, emptyProfile, ids, normaliseProfile, readProfile, saveProfile,
     safeURL, articleDate, normaliseMetadata, normaliseArticle, normaliseResponse,
     bodyFor, requestJSON, loadFeed, nextStory, previousStory, changePreference,
-    currentArticle, canNext, renderStory
+    currentArticle, canNext, renderStory, renderChrome
   };
 })();
 `);
@@ -123,6 +123,7 @@ function harness() {
     meta: { snapshot_id: "snapshot-a", articles: 5000, methods: ["neural", "tfidf", "svd"], topics: [] },
     profile: api.emptyProfile(),
     storageKey: "afterline:profile:snapshot-a",
+    method: "neural",
     loading: false,
     feedback: null,
   });
@@ -235,6 +236,29 @@ describe("AFTERLINE focused UI checks", { concurrency: true }, () => {
     const deduplicated = api.normaliseResponse(selection([article(1), article(1), { id: "invalid" }, article(2)]), "snapshot-a", "neural");
     assert.deepEqual(deduplicated.items.map((item) => item.id).join(","), [id(1), id(2)].join(","));
     assert.equal(api.normaliseResponse(selection(identifiers(40).map((_, index) => article(index + 1))), "snapshot-a", "neural").items.length, 24);
+  });
+
+  test("metadata selects the evaluated baseline default and rejects an unsupported default", () => {
+    const { api } = harness();
+    const metadata = {
+      snapshot_id: "snapshot-a", articles: 20, methods: ["tfidf", "svd", "neural"],
+      default_method: "tfidf", topics: [],
+    };
+    assert.equal(api.normaliseMetadata(metadata).default_method, "tfidf");
+    assert.equal(api.normaliseMetadata({ ...metadata, default_method: undefined }).default_method, "tfidf");
+    assert.throws(() => api.normaliseMetadata({ ...metadata, default_method: "unsupported" }), /unsupported default/);
+  });
+
+  test("initial loading renders before the server chooses a default lens", () => {
+    const { api, state, get } = harness();
+    state.meta = null;
+    state.method = "";
+    state.loading = true;
+    state.feedback = { kind: "loading", title: "Opening the archive.", message: "Loading real metadata." };
+    assert.doesNotThrow(() => api.renderChrome());
+    assert.match(get("lens-note").textContent, /Loading/);
+    assert.equal(get("method").disabled, true);
+    assert.equal(get("reader-panel").getAttribute("aria-busy"), "true");
   });
 
   test("story rendering keeps fetched text literal, labels absolute dates, and handles headline-only input", () => {

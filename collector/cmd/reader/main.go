@@ -56,7 +56,8 @@ func run() error {
 		URI: cfg.Mongo.URI, Database: cfg.Mongo.Database, AppName: cfg.App.Name,
 		ConnectTimeout: cfg.Mongo.ConnectTimeout, ServerSelectionTimeout: cfg.Mongo.ServerSelectionTimeout,
 		OperationTimeout: cfg.Mongo.OperationTimeout, MaxPoolSize: cfg.Mongo.MaxPoolSize,
-		MinPoolSize: cfg.Mongo.MinPoolSize,
+		MinPoolSize:     cfg.Mongo.MinPoolSize,
+		MaxConnIdleTime: cfg.Mongo.MaxConnIdleTime,
 	})
 	if err != nil {
 		return err

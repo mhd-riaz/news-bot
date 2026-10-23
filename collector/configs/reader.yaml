@@ -13,3 +13,5 @@ web:
 mongo:
   uri: mongodb://localhost:27017
   database: news
+  # Retire data sockets before the observed network idle disconnects; no extra retries.
+  max_connection_idle_time: 60s

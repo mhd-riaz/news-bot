@@ -189,7 +189,13 @@ def category_proxy(index: Index) -> dict:
     }
 
 
-def score(directory: Path, sheet: Path, *, case_ids: list[str] | None = None) -> dict:
+def score(
+    directory: Path, sheet: Path, *, case_ids: list[str] | None = None,
+    label_source: str = "human",
+) -> dict:
+    """Score fixed rankings, keeping human and explicitly AI-assisted assessments separate."""
+    if label_source not in ("human", "ai-assisted"):
+        raise ValueError("label_source must be human or ai-assisted")
     cases = read_json(directory / "evaluation-cases.json")
     if cases["documents_sha256"] != digest(directory / "documents.jsonl"):
         raise ValueError("evaluation cases belong to a different snapshot")
@@ -207,6 +213,8 @@ def score(directory: Path, sheet: Path, *, case_ids: list[str] | None = None) ->
             raise ValueError("unknown judgement case")
         if row["case_id"] not in selected:
             continue
+        if row.get("label_source", "human") != label_source:
+            raise ValueError("judgement provenance does not match the selected label source")
         if type(row["grade"]) is not int or row["grade"] not in (0, 1, 2):
             raise ValueError("every candidate needs an independent grade: 0, 1 or 2")
         case = grades.setdefault(row["case_id"], {})
@@ -216,6 +224,7 @@ def score(directory: Path, sheet: Path, *, case_ids: list[str] | None = None) ->
     results = {}
     for method in METHODS:
         precision, ndcg = [], []
+        by_case = {}
         for case_id, ranking in cases["rankings"].items():
             if case_id not in selected:
                 continue
@@ -230,12 +239,21 @@ def score(directory: Path, sheet: Path, *, case_ids: list[str] | None = None) ->
             ideal = np.array(sorted((2 ** grade - 1 for grade in pool.values()), reverse=True)[:5])
             denominator = float(np.sum(ideal / discounts[:len(ideal)]))
             ndcg.append(float(np.sum(gains / discounts[:len(gains)])) / denominator if denominator else 0.0)
+            by_case[case_id] = {
+                "precision_at_5": round(precision[-1], 4),
+                "pooled_ndcg_at_5": round(ndcg[-1], 4),
+            }
         results[method] = {
             "precision_at_5": round(float(np.mean(precision)), 4),
             "pooled_ndcg_at_5": round(float(np.mean(ndcg)), 4),
             "cases": len(precision),
             "total_cases": len(cases["rankings"]),
             "case_ids": sorted(selected),
+            "label_source": label_source,
+            "judgements_sha256": digest(sheet),
+            "by_case": by_case,
         }
-    write_json(directory / ("relevance-selected.json" if case_ids else "relevance.json"), results)
+    suffix = "-selected" if case_ids else ""
+    source = "-ai-assisted" if label_source == "ai-assisted" else ""
+    write_json(directory / f"relevance{source}{suffix}.json", results)
     return results

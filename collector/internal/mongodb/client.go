@@ -22,6 +22,7 @@ type Settings struct {
 	ConnectTimeout         time.Duration
 	ServerSelectionTimeout time.Duration
 	OperationTimeout       time.Duration
+	MaxConnIdleTime        time.Duration
 	MaxPoolSize            uint64
 	MinPoolSize            uint64
 }
@@ -41,7 +42,19 @@ func Connect(s Settings) (*Client, error) {
 	if s.Database == "" {
 		return nil, errors.New("mongodb: database must not be empty")
 	}
+	if s.MaxConnIdleTime < 0 {
+		return nil, errors.New("mongodb: maximum connection idle time must not be negative")
+	}
 
+	c, err := mongo.Connect(clientOptions(s))
+	if err != nil {
+		return nil, fmt.Errorf("mongodb: build client: %w", err)
+	}
+
+	return &Client{client: c, db: c.Database(s.Database)}, nil
+}
+
+func clientOptions(s Settings) *options.ClientOptions {
 	opts := options.Client().
 		ApplyURI(s.URI).
 		SetAppName(s.AppName).
@@ -50,13 +63,10 @@ func Connect(s Settings) (*Client, error) {
 		SetTimeout(s.OperationTimeout).
 		SetMaxPoolSize(s.MaxPoolSize).
 		SetMinPoolSize(s.MinPoolSize)
-
-	c, err := mongo.Connect(opts)
-	if err != nil {
-		return nil, fmt.Errorf("mongodb: build client: %w", err)
+	if s.MaxConnIdleTime > 0 {
+		opts.SetMaxConnIdleTime(s.MaxConnIdleTime)
 	}
-
-	return &Client{client: c, db: c.Database(s.Database)}, nil
+	return opts
 }
 
 // Database returns the handle used by repository implementations.

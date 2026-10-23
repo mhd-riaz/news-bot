@@ -118,6 +118,7 @@ type Mongo struct {
 	ConnectTimeout         time.Duration `yaml:"connect_timeout"`
 	ServerSelectionTimeout time.Duration `yaml:"server_selection_timeout"`
 	OperationTimeout       time.Duration `yaml:"operation_timeout"`
+	MaxConnIdleTime        time.Duration `yaml:"max_connection_idle_time"`
 	MaxPoolSize            uint64        `yaml:"max_pool_size"`
 	MinPoolSize            uint64        `yaml:"min_pool_size"`
 }
@@ -439,6 +440,7 @@ func (c *Config) applyEnv() error {
 	b.duration("MONGO_CONNECT_TIMEOUT", &c.Mongo.ConnectTimeout)
 	b.duration("MONGO_SERVER_SELECTION_TIMEOUT", &c.Mongo.ServerSelectionTimeout)
 	b.duration("MONGO_OPERATION_TIMEOUT", &c.Mongo.OperationTimeout)
+	b.duration("MONGO_MAX_CONNECTION_IDLE_TIME", &c.Mongo.MaxConnIdleTime)
 	b.unsigned("MONGO_MAX_POOL_SIZE", &c.Mongo.MaxPoolSize)
 	b.unsigned("MONGO_MIN_POOL_SIZE", &c.Mongo.MinPoolSize)
 
@@ -530,6 +532,9 @@ func (c *Config) Validate(opts ...Option) error {
 	} else if c.Mongo.MinPoolSize > c.Mongo.MaxPoolSize {
 		errs = append(errs, fmt.Errorf("mongo.min_pool_size (%d) must not exceed mongo.max_pool_size (%d)",
 			c.Mongo.MinPoolSize, c.Mongo.MaxPoolSize))
+	}
+	if c.Mongo.MaxConnIdleTime < 0 {
+		errs = append(errs, errors.New("mongo.max_connection_idle_time must not be negative"))
 	}
 
 	errs = append(errs,

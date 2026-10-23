@@ -239,6 +239,7 @@ Three layers, each overriding the one before: built-in defaults →
 | `mongo.connect_timeout`            | `NEWS_MONGO_CONNECT_TIMEOUT`            | `10s`                       |
 | `mongo.server_selection_timeout`   | `NEWS_MONGO_SERVER_SELECTION_TIMEOUT`   | `10s`                       |
 | `mongo.operation_timeout`          | `NEWS_MONGO_OPERATION_TIMEOUT`          | `30s`                       |
+| `mongo.max_connection_idle_time`   | `NEWS_MONGO_MAX_CONNECTION_IDLE_TIME`    | `0` (keep URI/driver policy) |
 | `mongo.max_pool_size`              | `NEWS_MONGO_MAX_POOL_SIZE`              | `50`                        |
 | `mongo.min_pool_size`              | `NEWS_MONGO_MIN_POOL_SIZE`              | `0`                         |
 | `bootstrap.migrate`                | `NEWS_BOOTSTRAP_MIGRATE`                | `true`                      |

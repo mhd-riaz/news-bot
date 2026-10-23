@@ -71,6 +71,7 @@ func run() error {
 		ConnectTimeout:         cfg.Mongo.ConnectTimeout,
 		ServerSelectionTimeout: cfg.Mongo.ServerSelectionTimeout,
 		OperationTimeout:       cfg.Mongo.OperationTimeout,
+		MaxConnIdleTime:        cfg.Mongo.MaxConnIdleTime,
 		MaxPoolSize:            cfg.Mongo.MaxPoolSize,
 		MinPoolSize:            cfg.Mongo.MinPoolSize,
 	})

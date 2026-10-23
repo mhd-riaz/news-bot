@@ -20,7 +20,7 @@
     profile: emptyProfile(),
     storageKey: "",
     persistence: true,
-    method: "neural",
+    method: "",
     topic: "",
     seed: "",
     seedTitle: "",
@@ -131,13 +131,15 @@
     }
     const methods = [...new Set(value.methods.filter((method) => Object.hasOwn(METHODS, method)))];
     if (!methods.length) throw new Error("No supported recommendation lens is available for this archive.");
+    const defaultMethod = value.default_method === undefined ? methods[0] : value.default_method;
+    if (!methods.includes(defaultMethod)) throw new Error("The archive supplied an unsupported default lens.");
     const seen = new Set();
     const topics = (Array.isArray(value.topics) ? value.topics : []).filter((topic) => {
       if (!topic || typeof topic.id !== "string" || !topic.id || typeof topic.label !== "string" || seen.has(topic.id)) return false;
       seen.add(topic.id);
       return true;
     });
-    return { ...value, methods, topics };
+    return { ...value, methods, topics, default_method: defaultMethod };
   }
 
   function normaliseArticle(value) {
@@ -305,7 +307,7 @@
     $("reader-panel").setAttribute("aria-busy", String(state.loading));
     $("method").disabled = !ready;
     $("method").value = state.method;
-    $("lens-note").textContent = METHODS[state.method].note;
+    $("lens-note").textContent = state.method ? METHODS[state.method].note : "Loading available content lenses.";
     for (const id of ["start-onboarding", "skip-onboarding", "edit-interests", "open-reset"]) $(id).disabled = !ready || state.loading;
     $("onboarding-invite").hidden = !ready || state.profile.onboarded;
     $("edit-interests").hidden = !state.profile.onboarded;
@@ -537,7 +539,7 @@
       if (version !== metaVersion) return;
       const meta = normaliseMetadata(raw);
       state.meta = meta;
-      if (!meta.methods.includes(state.method)) state.method = meta.methods.includes("neural") ? "neural" : meta.methods[0];
+      if (!meta.methods.includes(state.method)) state.method = meta.default_method;
       if (!meta.topics.some((topic) => topic.id === state.topic)) state.topic = "";
       const storageKey = `afterline:profile:${meta.snapshot_id}`;
       if (storageKey !== state.storageKey) {

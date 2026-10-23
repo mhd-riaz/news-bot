@@ -32,6 +32,7 @@ def main(argv: list[str] | None = None) -> int:
         elif name == "score":
             command.add_argument("--judgements", type=Path, required=True)
             command.add_argument("--case", action="append", dest="case_ids")
+            command.add_argument("--label-source", choices=("human", "ai-assisted"), default="human")
         elif name == "serve":
             command.add_argument("--port", type=int, default=8001)
     args = parser.parse_args(argv)
@@ -57,7 +58,9 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "measure":
             result = evaluate.api_latency(directory, api_url=args.api_url)
         else:
-            result = evaluate.score(directory, args.judgements, case_ids=args.case_ids)
+            result = evaluate.score(
+                directory, args.judgements, case_ids=args.case_ids, label_source=args.label_source
+            )
     else:
         from .api import create_app
         from .index import Index

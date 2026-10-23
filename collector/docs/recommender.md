@@ -2,7 +2,11 @@
 
 [Verified delivery results, measurements and remaining limitations](recommender-results.md).
 
+[Submission explanation, demonstration and viva questions](recommender-submission.md).
+
 AFTERLINE recommends archived articles using their content and the articles a reader explicitly selects. It does **not** predict preferences learned from historical users: the original `read_events` collection was empty and had no user identifiers.
+
+The reading default is **TF-IDF**, selected after the separate relevance comparisons. SVD and the trained Neural lens remain available. The model service advertises `default_method`; a request that explicitly selects a lens is never overridden.
 
 ## Quick start
 
@@ -41,6 +45,8 @@ NEWSREC_MODEL_DIR="$PWD/artifacts/recommender/stories-002" \
 An optional `NEWS_RECOMMENDER_API_KEY`, read from the environment or the shared dotenv file, protects the private model endpoints. Go sends it as `X-Recommender-Key`. Never put this key into browser code. `NEWS_RECOMMENDER_ENDPOINT` changes the Go client's destination; it is operator configuration, never request input.
 
 `cmd/reader` is a separate, read-only entry point: **no migration, seeding, scheduler, scraping, classification, retention deletion or telemetry writes**. Do not substitute `make run` or `make up`: the original collector intentionally writes on startup.
+
+The reader caps idle Mongo data connections at **60 seconds**, retiring them before the observed network idle disconnects instead of adding silent retries. Configure `mongo.max_connection_idle_time` or `NEWS_MONGO_MAX_CONNECTION_IDLE_TIME` for a different network. Zero preserves an existing URI `maxIdleTimeMS` or the driver's default; the collector's default remains zero. This bounds stale pooled sockets, not database/network availability. Monitor readiness failures and reconnect latency after long pauses.
 
 ## Freeze and train a new edition
 
@@ -91,6 +97,8 @@ All edition outputs stay under the ignored `ml-v2/artifacts/recommender/<id>/`:
 | `benchmark.json`, `evaluation-cases.json`, `judgements.jsonl` | Measured retrieval comparison and frozen blind judgement pool |
 | `api-latency.json` | Actual Go/Python/Mongo end-to-end latency and exclusion checks |
 | `relevance.json` | Independent relevance results, only after completed judgements |
+| `ai-grades.json`, `ai-judgements.jsonl`, `relevance-ai-assisted.json` | Separate, explicitly AI-assisted assessment; never human ground truth |
+| `rehearsal.json` | Recorded clean restart, dependency outage/recovery and bounded idle-pool checks |
 
 Only load trusted local artifacts; joblib/pickle is not an interchange format for untrusted uploads. There is no artifact-upload or user-supplied-path API.
 
@@ -160,6 +168,19 @@ uv run --no-sync newsrec score --id stories-003 \
 The default 40 fixed cases include 30 article queries (with a headline-only slice when available) and 10 synthetic multi-interest profiles. All three methods use the **same cases and candidate corpus**. The blinded sheet pools top-five candidates without method names. It never substitutes assistant judgements for independent human ground truth. Keep the model/retrieval frozen while judging; scoring refuses mismatched snapshots or changed model/retrieval artifacts. The benchmark refuses to overwrite an existing sheet.
 
 For an explicitly limited manual pilot, repeat `--case <case-id>` when scoring. Only those complete cases are scored, their IDs and the total evaluation size are reported, and results go to `relevance-selected.json` rather than replacing the full report. This is not a claim that the remaining cases passed.
+
+### Separate AI-assisted assessment
+
+The user also approved a method-blinded AI assessment. Its labels are **not human ground truth**, are not copied into `judgements.jsonl`, and carry `label_source: "ai-assisted"` in a separate sheet. Scoring requires the matching source explicitly:
+
+```bash
+cd ml-v2
+uv run --no-sync newsrec score --id stories-002 \
+  --judgements artifacts/recommender/stories-002/ai-judgements.jsonl \
+  --label-source ai-assisted
+```
+
+Those results go to `relevance-ai-assisted.json`; the human pilot keeps its own result file. The scorer rejects mixed or mismatched label sources. All results record the sheet digest and per-case scores. An AI-assisted completion does not certify the original human-relevance acceptance target.
 
 Report useful Precision@5 and graded **pooled** nDCG@5. Pooled judgements are not exhaustive corpus relevance, so do not report Recall@K. The target from the approved plan is held-out mean Precision@5 ≥ 0.60, not an achievement until independently measured. Reconstruction loss does not establish recommendation quality.
 

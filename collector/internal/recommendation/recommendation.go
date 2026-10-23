@@ -47,6 +47,7 @@ type Metadata struct {
 	PublicationRange []string `json:"publication_range"`
 	CollectedBefore  string   `json:"collected_before"`
 	Methods          []string `json:"methods"`
+	DefaultMethod    string   `json:"default_method,omitempty"`
 	Topics           []Topic  `json:"topics"`
 	ProfileNote      string   `json:"profile_note"`
 	DateNote         string   `json:"date_note"`

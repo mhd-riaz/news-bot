@@ -254,9 +254,9 @@ reader: ## Serve the read-only Stories reader at http://127.0.0.1:8090
 
 .PHONY: rec-test
 rec-test: ## Check recommendation Python, Go and browser-state logic without a live DB
-	cd ml-v2 && uv run --no-sync pytest tests/test_recommendations.py
-	go test ./cmd/reader ./internal/recommendation ./internal/handler ./internal/web
-	node --test scripts/stories.test.mjsconfig $(CONFIG)
+	cd ml-v2 && uv run --no-sync pytest tests/test_recommendations.py tests/test_evaluation_provenance.py tests/test_recommender_defaults.py
+	go test ./cmd/reader ./internal/recommendation ./internal/handler ./internal/web ./internal/config ./internal/mongodb
+	node --test scripts/stories.test.mjs
 
 .PHONY: ml2-compare
 ml2-compare: ## Render the model comparison table from the experiment ledger
