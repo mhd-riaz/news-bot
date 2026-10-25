@@ -52,6 +52,7 @@ Reuse existing code before writing new code:
 - JSON-LD extraction: `internal/extract`.
 - API-key auth: `handler.Authenticator`.
 - Cleaning, admission and dedup: `newsmlv2`.
+- Clean text and detected language for articles: the existing classifier-sidecar call (`internal/classifier`, `ml-v2/app/api.py`).
 
 ## Hard rules
 
@@ -71,8 +72,8 @@ Reuse existing code before writing new code:
 
 ## Working protocol (two agents)
 
-1. Read the roadmap status board, your milestone and the contracts it cites.
-2. Claim one task: change `[ ]` to `[~] <agent> <date>` and add a work-log line. Take only tasks whose dependencies or handoffs are done.
+1. Read the roadmap status board and today's row in §1.1, then your task, its milestone's build notes and the contracts it cites.
+2. Claim one task by its ID: change `[ ]` to `[~] <agent> <date>` and add a work-log line. Take only tasks whose dependencies or handoffs are done.
 3. Do not touch files under a task the other agent has claimed. Coordinate in the work log.
 4. To finish a task, add the code, tests and exit evidence (a command and its result, or a link) to the task line, then mark it `[x]`. Update the status board and requirement status.
 5. If blocked, mark the task `[!] <reason>` and add the question to §7.

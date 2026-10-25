@@ -8,30 +8,62 @@ Task markers: `[ ]` todo · `[~]` in progress (agent, date) · `[x]` done (evide
 
 ## 1. Status board
 
-| Milestone | Owner | Window | Needs | Status |
+| Milestone | Lead (others' tasks) | Window | Needs | Status |
 |---|---|---|---|---|
-| M0 Baseline and guardrails | Owner, A, B | 26–27 Oct | — | todo |
-| M1 Collector hardening and sources | A | 26–30 Oct | M0 roles | todo |
-| M2 Revision-aware pipeline | A | 28 Oct–3 Nov | H1 | todo |
-| M3 Accounts, settings, saved items, reader feeds | B | 29 Oct–6 Nov | M0; H2a for the feed | todo |
-| M4 Daily edition (text) | B | 5–8 Nov | H2a, H3 | todo |
-| M5 Association rules | A | 1–7 Nov | H2b | todo |
-| M6 Recommendation model and tuning | A | 4–9 Nov | H2b, H5 | todo |
-| M7 MCP server | B | 6–9 Nov | H2a; H5 for rule tools | todo |
-| M8 Freeze and human evaluation | Owner, A | 10–13 Nov | M3–M6 | todo |
-| M9 Hardening and handover | B; A reviews | 13–15 Nov | M7, M8 | todo |
+| M0 Baseline, guardrails and deploy path | Owner, A, B | 26–27 Oct | — | todo |
+| M1 Collector hardening and sources | A (B: M1.6–M1.8) | 26–30 Oct | M0 | todo |
+| M2 Revision-aware pipeline | A (B: M2.6, M2.7) | 29 Oct–3 Nov | H1 | todo |
+| M3 Accounts, settings, saved items, reader feeds | B (Owner: M3.9) | 29 Oct–4 Nov | M0, D10; H2a for the feed | todo |
+| M4 Daily edition (text) | B (Owner: M4.5) | 4–9 Nov | H2a, H3 | todo |
+| M5 Association rules | A (B: M5.6) | 2–7 Nov | H2b | todo |
+| M6 Recommendation model and tuning | A | 5–8 Nov | H2b, H5 | todo |
+| M7 MCP server | B (A: M7.2) | 6–8 Nov | H2a; H5 for rule tools | todo |
+| M8 Freeze and human evaluation | Owner, A | 9–13 Nov | M3–M6 | todo |
+| M9 Hardening and handover | B; A reviews | 10–15 Nov | M7, M8 | todo |
 
 Milestones overlap only through these handoffs. A dependent task starts when its handoff is marked done here.
 
 | Handoff | From → to | Delivers | Target | Status |
 |---|---|---|---|---|
 | H1 | M1 → M2 | New articles carry every C1 field | 28 Oct | todo |
-| H2a | M2 → M3, M4, M7 | Ranker serves generations with C2 freshness, `source_ids` and date-window filters | 31 Oct | todo |
+| H2a | M2 → M3, M4, M7 | Ranker serves generations with C2 freshness, `source_ids` and verified date-window filters | 31 Oct | todo |
 | H2b | M2 → M5, M6 | First full English index with story groups and multi-topic assignment | 1 Nov | todo |
-| H3 | M3 → M4 | Sign-in, events, settings and saved-items APIs | 5 Nov | todo |
-| H5 | M5 → M6, M7 | Follow-up links and topic labels | 5 Nov | todo |
+| H3 | M3 → M4 | Sign-in, events, settings and saved-items APIs | 4 Nov | todo |
+| H5 | M5 → M6, M7 | Follow-up links, topic labels and their ranker endpoints | 5 Nov | todo |
 
-**Owners (pending D1).** Agent A handles data and ML: collector changes, pipeline, rules, model and evaluation tooling. Agent B handles product and platform: reader, auth, settings, edition, MCP, deployment and security. The agent that did not build a milestone reviews its exit. The owner takes the §7 decisions, sends invites, sets up the OAuth client and coordinates grading.
+**Owners (pending D1).** Agent A handles data and ML: derived article fields, pipeline, ranker, rules, model and evaluation tooling. Agent B handles product and platform: deploy path, sources, operations, reader, auth, settings, edition, MCP and security. Every task in §4 names its agent. The agent that did not build a milestone reviews its exit. The owner takes the §7 decisions, sends invites, sets up the OAuth client, reviews editions and coordinates grading.
+
+### 1.1 Schedule
+
+Agents work every day; owner inputs are dated. IDs refer to §4 tasks.
+
+| Day | Agent A | Agent B | Owner |
+|---|---|---|---|
+| Mon 26 Oct | M0.3, M0.4, M1.1 | M0.5 | M0.1, M0.2 |
+| Tue 27 Oct | M1.2 | M0.6, M0.7, M1.6 | Run the M0.6 script |
+| Wed 28 Oct | M1.3, M1.4 → **H1** | M1.7; deploy the collector with H1 | Invite list |
+| Thu 29 Oct | M1.5 (start the production backfill); M2.1 | M3.1 | D10 |
+| Fri 30 Oct | M1.9; M2.2, M2.3 | M1.8 | D7 from the M1.9 report |
+| Sat 31 Oct | M2.4 → **H2a** | M2.6, M2.7; review M1 | — |
+| Sun 1 Nov | M2.5 → **H2b**; SLA window opens | M3.2, M3.3 | M3.9: sign in and start liking |
+| Mon 2 Nov | M2.8; M5.1 | M3.4, M3.5 | Like articles daily until the freeze |
+| Tue 3 Nov | M2.9 → **M2 exit**; M5.2 | M3.6, M3.7; review M2 | — |
+| Wed 4 Nov | M5.3, M5.4 | M3.8 → **H3**, **M3 exit**; M4.1 | — |
+| Thu 5 Nov | M5.5 → **H5**; M6.1; review M3 | M4.2, M4.3, M4.4 | — |
+| Fri 6 Nov | M6.2, M6.3 (first promotion overnight) | M5.6, M7.1 | M4.5 day 1; M5.7 judging |
+| Sat 7 Nov | M5.7 → **M5 exit**; M6.4, M7.2 | M7.3 | M4.5 day 2 |
+| Sun 8 Nov | M6.5 → **M6 exit** | M7.4 → **M7 exit**; review M6 | M4.5 day 3 |
+| Mon 9 Nov | M8.1; review M4 and M7; buffer | M4.5 report → **M4 exit**; review M5; buffer | — |
+| Tue 10 Nov | M8.2: freeze, sample, persist, send sheets | M9.1 | Grading starts |
+| Wed 11 Nov | Grading support; frozen artifacts untouched | M9.2 | Grade |
+| Thu 12 Nov | Grading support | M9.3 | Grade |
+| Fri 13 Nov | M8.3 → **M8 exit** | M9.4; review M8 | Grading closes in the morning |
+| Sat 14 Nov | M9.5 (results docs); review M9 | M9.5 (other docs), M9.6 | — |
+| Sun 15 Nov | Release checklist review | Tag `v1.0.0` | V1 acceptance |
+
+**Critical path.** Agent A's chain M1.1 → M1.2 → M1.3 → M1.5 → M2.3 → M2.5 (H2b) → M5 → H5 → M6 → M8.2 has about half a day of slack, on 9 Nov. Owner inputs on that path: D1, D9 and D11 on 26 Oct; D10 by 29 Oct; invites by 1 Nov; edition reviews 6–8 Nov; grading 10–13 Nov.
+
+**Slip rule.** A critical-path task one day late goes to §7 the same day, with options such as turning secondary topics off or deferring reader baskets. The owner decides; nothing is cut silently. The 48 h SLA window is passive and can slide to any 48 h before 9 Nov.
 
 ## 2. Requirements
 
@@ -78,18 +110,18 @@ New `articles` fields. Existing fields keep their meaning; backfill writes only 
 
 | Field | Rule |
 |---|---|
-| `detected_language`, `language_confidence` | Detected from the text. `language` keeps the source-declared value. Everything downstream filters on `detected_language = "en"`. |
+| `detected_language`, `language_confidence` | Detected from the text by the classifier sidecar, using the `english_text` logic in `newsrec/data.py`. `language` keeps the source-declared value. Everything downstream filters on `detected_language = "en"`. |
 | `published_at_source` | `feed`, `page` (JSON-LD `datePublished` or `article:published_time`, extending [jsonld.go](../internal/extract/jsonld.go)) or `collected_fallback` |
 | `date_verified` | `true` only for `feed` or `page` |
-| `clean_title`, `clean_summary`, `clean_body` | Cleaned copies; raw `title`, `summary` and `content` are never overwritten. Publisher boilerplate rules come from the Python discovery, are reviewed, and are committed as `configs/boilerplate.yaml`. |
+| `clean_title`, `clean_summary`, `clean_body` | Cleaned copies returned by the sidecar: `clean_article` with per-publisher rules in `ml-v2/configs/boilerplate.yaml`, generated by `boilerplate.discover` and reviewed. Raw `title`, `summary` and `content` are never overwritten. |
 | `image_url` | Existing field. Add the page `og:image` or `twitter:image` when the feed has none. Never download images. |
-| `content_rev` | 1 on insert; `$inc` on every write that changes text, clean fields, detected language, publish date or image URL, including enrichment and backfill. Classification writes do not bump it. |
+| `content_rev` | 1 on insert; `$inc` on every write that changes text, clean fields, detected language, publish date or image URL, including enrichment and backfill. A classification write bumps it only when a derived field changes. |
 | `updated_at` | Written in the same update as each `content_rev` change: `$currentDate` on updates; on insert, set in the repository just before `InsertOne`, never in `NewArticle`. |
 | `inserted_at` | Write time of the insert. `collected_at` is unchanged. |
 
 - Indexes, declared in [indexes.go](../internal/mongodb/indexes.go): `{updated_at: 1, _id: 1}` and `{date_verified: 1, detected_language: 1, published_at: -1}`.
-- Backfill for existing articles writes new fields only, in batches, at low priority, and is resumable. Old dates: `published_at == collected_at` means `collected_fallback`; otherwise `feed`.
-- Golden fixtures in `fixtures/cleaning/` are asserted by both suites: Go cleaning and English decisions must equal Python `clean_article` and `english_text` on the same inputs.
+- The collector gets derived fields from the sidecar it already calls: inline at ingest, through the classification backlog on retry, and again after enrichment changes the text. Enrichment resets `classification_status` to pending, which also re-scores the topic on the full body. Articles without derived fields are not eligible for the index until the backlog fills them.
+- Backfill for existing articles uses the same sidecar call and writes new fields only (never topics), in batches, at low priority, and is resumable. Old dates: `published_at == collected_at` means `collected_fallback`; otherwise `feed`.
 - Sources gain optional `domains` (tags such as `ai`, `software`, `data-science`) and `added_by` (reader ID for reader feeds). `city` already exists.
 - Tag existing technology sources and sections. Add MIT, Medium and other software, data science and AI feeds, plus local and independent publications. Enable each only after it collects English articles within robots rules.
 
@@ -102,8 +134,9 @@ New `articles` fields. Existing fields keep their meaning; backfill writes only 
 ### C3. Pipeline checkpoint
 
 - The active generation's manifest holds the watermark `(updated_at, _id)`. `pipeline_runs` is only a log.
-- A run reads the active manifest (base generation `B`, `model_version`, watermark `W`), selects `updated_at ≥ W − 10 min`, and skips `(article_id, content_rev)` pairs already in `B`. It prepares text from `clean_*` fields with the existing input recipe, builds story groups, vectorises with pinned models and assigns topics. It refreshes rules and labels (M5), writes generation `B+1`, then activates it (C4).
-- Story groups: vendor the calibrated MinHash/LSH from [neardup.py](../ml/src/newsml/neardup.py) (32 bands × 4 rows, threshold 0.44) into ml-v2. Compare only within 72 h and keep the `is_recurring_template` guard. The pipeline does not use the quadratic `story_groups` in [model.py](../ml-v2/src/newsrec/model.py).
+- Eligible articles have `detected_language = "en"` and derived fields, and pass the existing admission rules.
+- A run reads the active manifest (base generation `B`, `model_version`, watermark `W`), selects `updated_at ≥ W − 10 min`, and skips `(article_id, content_rev)` pairs already in `B`. It prepares text from `clean_*` fields with the existing input recipe, builds story groups, vectorises with pinned models, assigns topics and applies the current rules (follow-up links for new story groups). It writes generation `B+1`, then activates it (C4). Rules and labels are mined nightly and at retrain, not in every run.
+- Story groups: vendor the calibrated MinHash/LSH from [neardup.py](../ml/src/newsml/neardup.py) (32 bands × 4 rows, threshold 0.44) into ml-v2, with a vectorised signature (M2.2). Compare only within 72 h and keep the `is_recurring_template` guard. The pipeline does not use the quadratic `story_groups` in [model.py](../ml-v2/src/newsrec/model.py).
 - Topics: each article gets a primary topic (nearest centroid) and up to two secondary topics within a similarity margin. Articles far from every centroid stay `unassigned` until the next retrain. Retrain chooses the topic count by silhouette or coherence plus human review; 8 is too few.
 - A changed article replaces its row. An article that stops qualifying is removed.
 - Nightly reconciliation compares every eligible article's `content_rev` with the active generation. It re-queues stale or missing rows, removes ineligible rows, and reports counts.
@@ -134,7 +167,7 @@ New `articles` fields. Existing fields keep their meaning; backfill writes only 
 
 ### C6. Association rules (R7, R23)
 
-- Items: `topic:<id>` (primary and secondary), `ent:<entity>` from spaCy `en_core_web_sm` (already a dependency; normalise case and aliases), and `kw:<term>` (top TF-IDF terms). Drop items above a maximum-support cutoff. Use FP-Growth via `mlxtend` and log the dependency in §8.
+- Items: `topic:<id>` (primary and secondary), `ent:<entity>` from spaCy `en_core_web_sm` (already a dependency; normalise case and aliases), and `kw:<term>` (top TF-IDF terms). Drop items above a maximum-support cutoff. Use FP-Growth via `mlxtend` and log the dependency in §8. Mine nightly and at retrain; every 30-min run only applies the current rules.
 - (a) Topic suggestions use these sources in trust order:
   - Reader-day baskets (liked plus chosen topics), only after 100 reader-days.
   - Multi-topic article baskets.
@@ -239,16 +272,15 @@ New `articles` fields. Existing fields keep their meaning; backfill writes only 
 
   Same-story pairs are only down-weighted auxiliary examples. Never use them as in-batch negatives for their own group.
 - Leave-one-out: remove a target like from that reader's query profile.
-- Train up to `T_train` and validate on later articles. `T_train` falls before the acceptance fresh window starts.
-- Exclude every M0-reserved acceptance seed's story group, and every related-reading candidate's story group, from training and validation.
+- Train up to `T_train`, the cut of the promoted retrain, and validate on later articles. Acceptance seeds and fresh candidates come only from story groups first seen after `T_train` (C13), so no acceptance pair can be a training pair.
 - Compare TF-IDF, SVD, autoencoder and two-tower, each with and without boosts, using the same pool, exclusions and freshness filter.
 
 ### C13. Evaluation (R15)
 
 - Every available invited reader grades, at minimum you and your brother. There are 50 cases, split evenly: 25 each for two graders or 10 each for five. A case is the grader's own profile (feed) or an opened article (related reading).
 - Rubric: useful (2) means the grader would read it now; partly useful (1) is related but weak or redundant; not useful (0) is unrelated, duplicate or stale. Useful Precision@5 counts only grade 2; pooled nDCG@5 uses every grade. Pool and shuffle each method's top 5, hiding method names and scores.
-- M0 seals the rubric, development cases, acceptance seeds and related-reading candidate story groups. Their hashes go on the M0 task line.
-- Fresh-feed acceptance candidates are articles inside the fresh window at `t_eval`, all collected after `T_train`.
+- M0 seals the rubric, the development cases (the 40 `stories-002` cases) and the acceptance sampling procedure (strata, counts and RNG seed, committed in `evaluate.py`). Their hashes go on the M0 task lines.
+- At freeze, related-reading seeds are sampled by that procedure from story groups first seen after `T_train`. Fresh-feed candidates are articles inside the fresh window at `t_eval` from story groups first seen after `T_train`.
 - M8 freezes the manifest (model, generation, rules, labels and weights) and `t_eval`. It then persists and hashes every method's top 5 for every case before grading. Graders see only those persisted lists.
 - If R15 is met, the method that meets it becomes the default. If several meet it without a meaningful difference, choose the simpler method. If R15 is not met, the best method stays as a fallback and R15 is recorded as **not met**.
 - Human and AI-assisted grades live in separate files. Development tuning may use AI-assisted grades only as supporting evidence.
@@ -283,7 +315,8 @@ R = read · W = insert/update · D = delete · — = none. Create one MongoDB us
 
 ### C15. Operations
 
-- Add `reader`, `ranker`, `batch` and `mcp` to [coolify.compose.yml](../deployments/coolify.compose.yml). Schedule incremental runs every 30 min, reconciliation nightly, and retraining weekly on Sunday 02:00–05:00 IST. Prefer Coolify scheduled tasks to a custom scheduler. Batch runs and retraining get CPU and memory limits and low priority.
+- Images (D11): `news-collector` (Go; every `cmd/*` binary, each service choosing its command), the existing `news-collector-classifier` sidecar, and `news-recommender` (new `deployments/recommender.Dockerfile`: ml-v2 with the recommend and serve groups, for the ranker, batch jobs and `newsrec admin`). A GitHub Actions workflow in this repo builds them and pushes them to GHCR; Coolify pulls.
+- Add `reader`, `ranker`, `batch` and `mcp` to [coolify.compose.yml](../deployments/coolify.compose.yml). Schedule incremental runs every 30 min, reconciliation and rule mining nightly, and retraining weekly on Sunday 02:00–05:00 IST. Prefer Coolify scheduled tasks to a custom scheduler. Batch runs and retraining get low priority.
 - Give every service a health check and restart policy. Alerts (channel D3) fire on:
   - No new articles for 2 h.
   - Two consecutive failed runs.
@@ -293,44 +326,68 @@ R = read · W = insert/update · D = delete · — = none. Create one MongoDB us
 - MongoDB currently publishes host port 27017 for LAN access. M9 records whether to bind it to localhost or firewall it.
 - Measure peak memory after the first full build and every retrain. Consider a vector index only if ranker memory exceeds an agreed share of 12 GB, p95 approaches 500 ms under the agreed load, or retraining overruns its window.
 
+Memory limits for the 12 GB laptop. These are targets: measure them, and record changes in §8.
+
+| Service | Limit |
+|---|---|
+| MongoDB, with a 2 GB WiredTiger cache | 3 GB |
+| Collector API | 0.5 GB |
+| Classifier sidecar | 0.75 GB |
+| Ranker | 1.5 GB |
+| Reader and MCP | 0.25 GB |
+| Incremental batch | 1.5 GB |
+| Weekly retrain, fitting on samples | 3 GB |
+
+That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
+
 ## 4. Milestones
 
-### M0 — Baseline and guardrails (26–27 Oct · Owner, A, B)
+### M0 — Baseline, guardrails and deploy path (26–27 Oct · Owner, A, B)
 
-- [ ] Owner confirms the agent split (D1) and the simplifications (D9)
-- [ ] Testers agree on the C13 rubric
-- [ ] Development cases created, separate from acceptance cases
-- [ ] Acceptance seeds and related-reading candidate story groups reserved; hashes recorded here
-- [ ] MongoDB users created per C14, with credentials in Coolify secrets; a probe shows each user is denied outside its row
-- [ ] Owner books grading time for 10–13 Nov
+- [ ] **M0.1** (Owner) Confirm D1, D9 and D11; decide D2 and D3
+- [ ] **M0.2** (Owner) Testers agree on the C13 rubric; grading booked for 10–13 Nov
+- [ ] **M0.3** (A) Development cases: the 40 `stories-002` cases re-pointed at the full index
+- [ ] **M0.4** (A) Acceptance sampling procedure committed in `evaluate.py`; hashes recorded here (C13)
+- [ ] **M0.5** (B) Deploy path (C15, D11): port `news-collector.yml` from `mhd-riaz/data-scientist-roadmap`; move `deployments/Dockerfile` to `golang:1.27-alpine` and build every `cmd/*`; add `deployments/recommender.Dockerfile`
+- [ ] **M0.6** (B) `deployments/mongo-users.js` creates the C14 users. The owner runs it once as root, with passwords from the environment. A probe shows each user is denied outside its row; credentials go in Coolify secrets.
+- [ ] **M0.7** (B) MongoDB `--wiredTigerCacheSizeGB 2` and the C15 memory limits in the compose file
 
-**Exit:** every item is done with evidence.
+**Build notes.** `deployments/Dockerfile` uses `golang:1.26-alpine` while `go.mod` requires Go 1.27, and official Go images default to `GOTOOLCHAIN=local`, so expect the image build to fail until M0.5. The image also builds no reader binary today.
 
-### M1 — Collector hardening and sources (26–30 Oct · A)
+**Exit:** every item is done with evidence, and CI builds all three images.
 
-- [ ] C1 article fields written on insert and enrichment (H1)
-- [ ] Golden fixtures show Go cleaning and English decisions equal Python on the same inputs, asserted in both suites
-- [ ] C1 indexes added to `internal/mongodb`
-- [ ] Backfill command for existing articles: new fields only, batched, low priority and resumable
-- [ ] Verified-date share per publisher reported (input to D7)
-- [ ] Source `domains` and `added_by` fields carried through the domain model, `sources.yaml`, seed and sync
-- [ ] Existing technology sources and sections tagged. MIT, Medium, other software, data science and AI feeds, and local or independent publications added and verified (R17)
-- [ ] Health checks and alerts (D3)
-- [ ] Encrypted off-machine backup, with restore rehearsed (D2)
+### M1 — Collector hardening and sources (26–30 Oct · A; B for M1.6–M1.8)
 
-**Exit:** new and backfilled articles carry every C1 field. `collection_runs` shows no collection gap. Restore has been rehearsed. `make check`, `make test-race` and `make test-integration` pass.
+- [ ] **M1.1** (A) Sidecar `/v1/classify` items accept an optional `source` and return `clean_title`, `clean_summary`, `clean_body`, `language` and `language_confidence` (C1). Add `langdetect` to `requirements-serve.txt`, and ship the reviewed boilerplate rules in the image.
+- [ ] **M1.2** (A) Go: the classifier client parses the derived fields; `domain.Article` gains the C1 fields; the processor writes them at ingest with `published_at_source` and `date_verified`; the repository sets `inserted_at` and `updated_at` at write time
+- [ ] **M1.3** (A) The classification backlog writes derived fields and bumps `content_rev` and `updated_at` when they change. Enrichment stores the page date and image, bumps on change, and resets classification to pending.
+- [ ] **M1.4** (A) C1 indexes in `internal/mongodb`, with tests; with M1.2 and M1.3 this completes H1
+- [ ] **M1.5** (A) `cmd/backfill` and `make backfill`: sidecar-derived fields for existing articles, new fields only, resumable; run in production at low priority
+- [ ] **M1.6** (B) Source `domains` and `added_by` through `domain.Source`, `SourceInput`, `sources.yaml`, seed, sync and the sources API
+- [ ] **M1.7** (B) Existing technology sources and sections tagged; MIT, Medium, other software, data science and AI feeds, and local or independent publications added and verified (R17)
+- [ ] **M1.8** (B) Health checks; `newsrec alerts` as a scheduled task (D3); daily encrypted `mongodump` (D2); restore rehearsed into a scratch database
+- [ ] **M1.9** (A) Verified-date share per publisher reported (input to D7)
 
-### M2 — Revision-aware pipeline (28 Oct–3 Nov · A)
+**Build notes.**
 
-- [ ] Incremental run per C3 on a 30-min schedule
-- [ ] Calibrated MinHash/LSH story grouping vendored into ml-v2 (C3)
-- [ ] Multi-topic assignment and topic-count selection (C3)
-- [ ] First full English index, fresh and archive, built after the M1 backfill (H2b); peak memory recorded
-- [ ] Generation manifests, compare-and-set activation, `pipeline:publish` lease and rollback (C4)
-- [ ] Ranker hot reload. `/health/ready` reports generation, model and `activated_at`. C2 freshness, `source_ids` and date-window filters (H2a)
-- [ ] Reader client accepts generation changes without losing likes or history; `scripts/stories.test.mjs` updated
-- [ ] Nightly reconciliation
-- [ ] Tests cover:
+- M1.1: `ml-v2/app/api.py` already cleans every item with `serve.prepare` → `clean_article`, then discards the result. Return it instead, passing `source` so per-publisher rules apply. Refactor `english_text` in `newsrec/data.py` to also return its confidence.
+- M1.2: `internal/classifier/{classifier,http}.go`, `internal/domain/article.go` (`publicationTime` also returns its provenance), `internal/processor/processor.go` and `internal/repository/mongo/article.go`.
+- M1.3: `internal/service/classification.go`, `internal/repository/mongo/article_classification.go`, `internal/extract/jsonld.go` plus meta tags (test with `fixtures/articles/*.html.gz`), `internal/service/enrichment.go` and `internal/repository/mongo/article_scrape.go`.
+- M1.5: the filter `{content_rev: {$exists: false}}` makes it resumable, and batches of 50 match the sidecar batch size. It never writes topics.
+- M1.7: verify each feed with `make collect-source SOURCE=<id>` against a local database before enabling it.
+
+**Exit:** new and backfilled articles carry every C1 field. `collection_runs` shows no collection gap. Restore has been rehearsed. `make check`, `make test-race`, `make test-integration` and `make ml2-test` pass.
+
+### M2 — Revision-aware pipeline (29 Oct–3 Nov · A; B for M2.6 and M2.7)
+
+- [ ] **M2.1** (A) Generation layout and manifests, compare-and-set activation, `pipeline:publish` lease and rollback (C4)
+- [ ] **M2.2** (A) Vectorised MinHash/LSH vendored into ml-v2; the 43 labelled pairs used by `make ml-pairs-import` still give recall ≥ 0.90 and precision ≥ 0.80 (C3)
+- [ ] **M2.3** (A) Full build: chronological split; TF-IDF, SVD and autoencoder fits; story groups; multi-topic assignment and topic-count choice (C3); peak memory recorded
+- [ ] **M2.4** (A) Ranker: hot reload; `/health/ready` reports generation, model and `activated_at`; C2 freshness, `source_ids` and verified date-window filters; responses drop `text` and carry generation and model (H2a)
+- [ ] **M2.5** (A) First full production index after the M1.5 backfill (H2b); incremental runs and nightly reconciliation live
+- [ ] **M2.6** (B) Reader: Go request and metadata fields; display text built from `clean_summary` or `clean_body` with the existing display recipe; `stories.js` drops the snapshot check and per-snapshot storage key; `scripts/stories.test.mjs` updated
+- [ ] **M2.7** (B) `ranker` and `batch` deployed: `newsrec run` every 30 min and `newsrec reconcile` nightly, with C15 limits
+- [ ] **M2.8** (A) Integration tests against the local `make mongo-up` database cover:
   - [ ] Delayed insert
   - [ ] Enrichment after indexing
   - [ ] Backfill update
@@ -339,82 +396,120 @@ R = read · W = insert/update · D = delete · — = none. Create one MongoDB us
   - [ ] Reconciliation restoring a removed row
   - [ ] Stale build rejected after another activation
   - [ ] Rollback, then replay
-  - [ ] Open tab across an incremental activation and a model change
-- [ ] C5 SLA report running
+  - [ ] Open tab across an incremental activation and a model change (with B)
+- [ ] **M2.9** (A) `newsrec sla` report (C5); 48 consecutive hours measured
+
+**Build notes.**
+
+- New `ml-v2/src/newsrec/pipeline.py`, with `build`, `run`, `reconcile`, `rollback` and `sla` commands in `cli.py`. Reuse the fitting code in `model.py` and the input recipe in `data.py`.
+- A generation directory holds `tfidf.npz`, `svd.npy`, `neural.npy`, `rows.parquet` (ID, source ID, publisher, dates, `date_verified`, `content_rev`, story group, topics and, from M5, entities), `minhash.npy` (72 h window) and `manifest.json`. Text stays in MongoDB.
+- Simplification with a known ceiling: each generation is a full copy, about 0.6 GB at 170k articles. Switch to base + delta segments only if a run exceeds 5 min.
+- MinHash: hash each shingle once with blake2b, then apply 128 `(a·x + b) mod p` permutations in numpy. The current pure-Python signature computes 128 blake2b hashes per shingle and is too slow for the full corpus. Both schemes estimate Jaccard, so the calibrated banding and threshold still apply; the labelled-pairs check confirms it.
+- Fit TF-IDF and SVD on a sample of up to 60k articles, then transform the rest. Export the autoencoder encoder to numpy, so only retrain imports TensorFlow.
 
 **Exit:** all tests pass. New-article latency has p95 ≤ 60 min and max ≤ 60 min over 48 consecutive hours. Revision latency is reported. No step is quadratic. Peak memory is recorded.
 
-### M3 — Accounts, settings, saved items and reader feeds (29 Oct–6 Nov · B)
+### M3 — Accounts, settings, saved items and reader feeds (29 Oct–4 Nov · B; owner for M3.9)
 
-- [ ] Google sign-in, allow-list, sessions and CSRF (C10)
-- [ ] `reader_events` (like, dislike, undo) and `reader_settings` (C8)
-- [ ] Ranker requests built server-side from stored events and settings (C7); browser storage becomes a cache
-- [ ] Fresh-first feed and archive view (after H2a)
-- [ ] Saved stories and topics with notes (R18)
-- [ ] Reader feeds: add, list with collector status, disable (R21)
-- [ ] Settings screen with mix, city, domains, reset, download and delete (R20)
-- [ ] Security tests for every new route: auth, scope, CSRF and size limits (H3)
-- [ ] Testers start liking articles (owner)
+- [ ] **M3.1** (B) Google sign-in with PKCE, allow-list, sessions and CSRF (C10)
+- [ ] **M3.2** (B) `reader_events` (like, dislike, undo) and `reader_settings`; ranker requests built server-side from them (C7, C8); browser storage becomes a cache
+- [ ] **M3.3** (B) Reader deployed behind the D10 hostname with auth on
+- [ ] **M3.4** (B) Fresh-first feed and archive view (after H2a)
+- [ ] **M3.5** (B) Saved stories and topics with notes (R18)
+- [ ] **M3.6** (B) Reader feeds: add, list with collector status, disable (R21)
+- [ ] **M3.7** (B) Settings screen with mix, city, domains, reset, download and delete (R20)
+- [ ] **M3.8** (B) Security tests for every new route: auth, scope, CSRF and size limits (H3)
+- [ ] **M3.9** (Owner) Testers invited; they sign in and like articles daily from 1 Nov
+
+**Build notes.**
+
+- Add `golang.org/x/oauth2` (PKCE helpers) and `github.com/coreos/go-oidc/v3` (ID-token verification), and log both in §8. A new config section holds the OAuth client, cookie and timeouts; secrets come from the environment.
+- Reuse `sameOrigin` from `internal/web/web.go` for state-changing routes; move it where both packages can use it.
+- Add repositories in `internal/repository/mongo/` and collections in `internal/mongodb`. Indexes: unique reader email and `google_sub`, a TTL on session expiry, and unique keys for events, saved items and editions.
+- Add routes to `readerRoutes` in `cmd/reader/main.go`: `/auth/login`, `/auth/callback`, `/auth/logout` and `/api/v1/me/…` for events, settings, saved items, feeds, export and delete.
+- Pages: `settings.html` and `saved.html` templates with small vanilla JavaScript; no build step.
+- Reader feeds go through the existing `SourceInput` validation with `added_by`; the collector does every fetch.
 
 **Exit:** only allow-listed accounts can sign in. Preferences, saved items and notes survive a browser reset, a device change and a generation change. The fresh feed shows only C2-fresh articles. A reader-added feed is collected and shown to that reader. Delete-my-data removes every `reader_*`, `saved_items` and `editions` row for that reader.
 
-### M4 — Daily edition (5–8 Nov · B)
+### M4 — Daily edition (4–9 Nov · B; owner for M4.5)
 
-- [ ] Ranker edition request with date window, pool, caps and one article per story group
-- [ ] Build on first open, store, and support explicit rebuild (C9)
-- [ ] Edition page with actions and short or empty states
-- [ ] Tests cover Asia/Kolkata day boundaries; English `date_verified` articles only; the pool rule; story-group dedupe; caps; availability time; and a stored edition remaining unchanged across generations
-- [ ] Testers review 3 consecutive editions; useful share reported, with no pass mark until the owner sets one
+- [ ] **M4.1** (B) Edition service: the pool becomes `source_ids`; ranker request with the verified date window, caps and one article per story group; editions stored per C9
+- [ ] **M4.2** (B) Edition page with actions, short and empty states, and explicit rebuild
+- [ ] **M4.3** (B) Tests cover Asia/Kolkata day boundaries; English `date_verified` articles only; the pool rule; story-group dedupe; caps; availability time; and a stored edition remaining unchanged across generations
+- [ ] **M4.4** (B) Deployed by 6 Nov 06:00, so editions for 5–7 Nov can be reviewed
+- [ ] **M4.5** (Owner) Testers review 3 consecutive editions; useful share reported, with no pass mark until the owner sets one
+
+**Build notes.** `internal/service/edition.go`, `internal/repository/mongo/edition.go`, `internal/web/templates/edition.html` and a `/edition/{date}` route. Config keys cover the edition timezone, availability time and size.
 
 **Exit:** each tester gets editions on consecutive days. Tests pass, and the review is reported.
 
-### M5 — Association rules (1–7 Nov · A)
+### M5 — Association rules (2–7 Nov · A; B for M5.6)
 
-- [ ] Item extraction with the maximum-support cutoff (C6)
-- [ ] (a) Article and bridge rules, with reader baskets gated at 100 reader-days; per-reader suggestions with their rule
-- [ ] (b) Follow-up rules, `story_links` and a "Follow-ups" endpoint, with B adding the reader section (H5)
-- [ ] (c) Labels with owner override (H5)
-- [ ] `rule_boost` in ranking
-- [ ] C6 acceptance checks recorded
+- [ ] **M5.1** (A) Entities for every indexed article, from a one-off spaCy pass (`n_process=2`) and then each run, stored in `rows.parquet`; item extraction with the maximum-support cutoff (C6)
+- [ ] **M5.2** (A) Nightly and retrain mining with `mlxtend` FP-Growth on a sparse basket matrix into `association_rules`; article and bridge rules, with reader baskets gated at 100 reader-days; per-reader suggestions with their rule (R7a)
+- [ ] **M5.3** (A) Follow-up rules and `story_links`, applied to new story groups in every run (R7b)
+- [ ] **M5.4** (A) Labels with owner override in `topic_labels` (R7c)
+- [ ] **M5.5** (A) `rule_boost` in scoring; ranker endpoints for suggestions, follow-ups and rules (H5)
+- [ ] **M5.6** (B) "Follow-ups" section and topic-suggestion row in the reader
+- [ ] **M5.7** (Owner, A) C6 acceptance judged and recorded
+
+**Build notes.** New `ml-v2/src/newsrec/rules.py`. `make ml2-setup` already installs spaCy `en_core_web_sm`; log `mlxtend` in §8. Mining runs nightly and at retrain only.
 
 **Exit:** each C6 check passes or is recorded as not met.
 
-### M6 — Recommendation model and tuning (4–9 Nov · A)
+### M6 — Recommendation model and tuning (5–8 Nov · A)
 
-- [ ] Training pairs, leave-one-out profiles and holdouts (C12)
-- [ ] Two-tower model trained and served as a method
-- [ ] Weekly retrain with catch-up promotion; one promotion done (C4)
-- [ ] `w1`–`w5` tuned on development cases; values and reasons logged in §8
-- [ ] Offline comparison of all methods, with and without boosts
+- [ ] **M6.1** (A) Training pairs, leave-one-out profiles and the temporal split (C12)
+- [ ] **M6.2** (A) Two-tower model trained; towers exported to `.npz` and run in numpy inside the ranker, with no TensorFlow at serve time; served as method `twotower`
+- [ ] **M6.3** (A) `newsrec retrain` with catch-up promotion (C4); one promotion done. The weekly schedule starts only after M8 (M9.4), so the evaluated model stays fixed.
+- [ ] **M6.4** (A) `w1`–`w5` tuned on development cases with AI-assisted grades in separate files; values and reasons logged in §8
+- [ ] **M6.5** (A) Offline comparison of all methods, with and without boosts
+
+**Build notes.** New `ml-v2/src/newsrec/twotower.py`. Reuse the Keras setup in `model.train`: seeds, determinism and CPU thread limits.
 
 **Exit:** the model is served, one promotion with catch-up is done, and the comparison is recorded.
 
-### M7 — MCP server (6–9 Nov · B)
+### M7 — MCP server (6–8 Nov · B; A for M7.2)
 
-- [ ] `cmd/mcp` with the C11 tools
-- [ ] Agent keys, rate limits, size limits and access log
-- [ ] `/api/v1/agent/*` protected by the service key
-- [ ] Service added to the compose file
+- [ ] **M7.1** (B) `/api/v1/agent/*` in the reader behind `handler.Authenticator` with the service key; reader routes reject that key, and agent routes reject cookies
+- [ ] **M7.2** (A) Ranker `/v1/search` scores a TF-IDF query vector against the active generation, for `search_articles`
+- [ ] **M7.3** (B) `cmd/mcp` with the C11 tools, environment keys, per-key rate limit, size limits and access log
+- [ ] **M7.4** (B) MCP deployed from the compose file; cross-rejection tests pass
+
+**Build notes.** Add `github.com/modelcontextprotocol/go-sdk` with streamable HTTP, and log it in §8. Tools call only the reader; `cmd/mcp` has no database user.
 
 **Exit:** every tool works with a valid key. Unknown and removed keys are rejected. Reader routes reject the service key, and agent routes reject cookies. No reader data is reachable.
 
-### M8 — Freeze and human evaluation (freeze 10 Nov; grading 10–13 Nov · Owner, A)
+### M8 — Freeze and human evaluation (9–13 Nov; freeze 10 Nov · Owner, A)
 
-- [ ] Manifest, weights and `t_eval` frozen; every method's top 5 for every case persisted and hashed (C13)
-- [ ] Blind pooled sheets created; all 50 cases graded
-- [ ] Scores calculated; R15 recorded as met or not met; default method set
+- [ ] **M8.1** (A) Freeze command in `evaluate.py`: pin the manifest, weights and `t_eval`; sample acceptance seeds by the sealed procedure; persist every method's top 5 per case. Reuse the existing blind-sheet export and `score()`.
+- [ ] **M8.2** (A, Owner) Freeze on 10 Nov; hashes recorded here; blind pooled sheets sent; all 50 cases graded
+- [ ] **M8.3** (A) Scores calculated; R15 recorded as met or not met; default method set
 
 **Exit:** all 50 cases are graded against the frozen lists. Human grades are stored separately from AI grades, and R15 status is recorded.
 
-### M9 — Hardening and handover (13–15 Nov · B; A reviews)
+### M9 — Hardening and handover (10–15 Nov · B; A reviews)
 
-- [ ] Concurrent load test with testers and agents (target D5)
-- [ ] Security review covers C10, C11 and C14 enforcement, CSP, CSRF and the MongoDB port decision (C15)
-- [ ] JavaScript line coverage raised; flaky rate-limit test fixed
-- [ ] Final backup and restore rehearsal
-- [ ] `recommender.md`, `recommender-results.md`, `recommender-client-review.md` and the root `README.md` updated with measured evidence
+- [ ] **M9.1** (B) Flaky rate-limit test fixed; JavaScript line coverage raised
+- [ ] **M9.2** (B) Security review covers C10, C11 and C14 enforcement, CSP, CSRF and the MongoDB port decision (C15)
+- [ ] **M9.3** (B) Concurrent load test with testers and agents (target D5), using a small standard-library script
+- [ ] **M9.4** (B) Final backup and restore rehearsal; weekly retrain schedule enabled
+- [ ] **M9.5** (A, B) `recommender.md`, `recommender-results.md`, `recommender-client-review.md` and the root `README.md` updated with measured evidence
+- [ ] **M9.6** (B) §4.1 release checklist run
 
 **Exit:** p95 under the agreed load meets the target. C14 is verified, docs are updated and restore is rehearsed.
+
+### 4.1 V1 release checklist
+
+- [ ] Every V1 requirement in §2 is done or recorded as not met, with evidence
+- [ ] Collector, sidecar, reader (auth on), ranker, batch and MCP run in production, with health checks green for 24 h
+- [ ] The C5 report shows p95 ≤ 60 min and max ≤ 60 min over 48 consecutive hours
+- [ ] R15 is recorded as met or not met from the frozen human evaluation
+- [ ] Security review done; database users enforced; no secrets in the repository
+- [ ] Backup and restore rehearsed within the last 48 h
+- [ ] `make check`, `make test-race`, `make test-integration`, `make rec-test`, `make ml2-test` and the JavaScript tests pass on the release commit
+- [ ] Docs updated, and the deployed commit tagged `v1.0.0`
 
 ## 5. Checks in every milestone
 
@@ -430,10 +525,12 @@ R = read · W = insert/update · D = delete · — = none. Create one MongoDB us
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
 | V1 scope, now including R17–R21, does not fit 21 days for two agents | High | High | R17–R21 stay off the ML critical path. A milestone more than a day late goes to §7 the same day; no silent cuts. |
-| Go and Python cleaning drift apart | Medium | High | Golden fixtures in both suites (M1) |
+| No deploy path for this repo, or the Go image build fails | High | High | M0.5 on day 1: port the workflow and bump the Go image |
+| Owner inputs arrive late (D10, invites, reviews, grading) | Medium | High | Dates in §1.1; escalate the same day |
+| Sidecar outage delays derived fields | Low | Medium | Articles wait in the classification backlog and enter the index later; the SLA counts the delay |
 | Few articles have verified dates | Medium | High | Measure in M1; owner decides D7 early |
 | Only two graders by 10 Nov | Medium | High | 25 cases each; book time in M0 |
-| 12 GB memory pressure during a full build or retrain | Medium | High | Limits, quiet hours, measurements on every build |
+| 12 GB memory pressure during a full build or retrain | Medium | High | C15 limits; fits on samples; only retrain imports TensorFlow; measured on every build |
 | Too few likes for reader baskets and reader pairs | High | Medium | Content-based positives (C12); article and bridge rules carry R7(a); report the gap |
 | Backfill of ~173k articles is slow | Medium | Medium | Low-priority batches; pipeline starts with new articles |
 | 0.65 is not reached | Medium | Medium | Record R15 as not met; the best method stays default |
@@ -454,6 +551,8 @@ R = read · W = insert/update · D = delete · — = none. Create one MongoDB us
 | D7 | Relax R3 if few dates are verified | M1 report | No |
 | D8 | Should MCP expose a reader's own saved items and notes? | M7 | Not in V1 (V2-6) |
 | D9 | Accept the simplifications marked "Proposed" in §8 | M0 | Accept |
+| D10 | Public hostname for the reader (Cloudflare Tunnel) and the Google OAuth client | 29 Oct | None; blocks M3.3 |
+| D11 | Port the old repo's GitHub Actions workflow and publish this repo's images to GHCR | 26 Oct | Yes |
 
 ## 8. Decision log
 
@@ -461,11 +560,17 @@ Newest first. Never lower a threshold or change a contract without a row here.
 
 | Date | Decision | Reason |
 |---|---|---|
+| 2026-10-25 | V1 execution plan: numbered tasks with agents, the §1.1 schedule and the §4.1 release checklist; B takes deployment, sources and operations | Agent A's chain is the critical path |
+| 2026-10-25 | **Proposed (D9):** clean text and detected language come from the existing classifier-sidecar call, not a Go port. Enrichment resets classification, so text is re-derived and the topic re-scored on the full body. | Same code as preparation, no parity fixtures, and the existing retry path |
+| 2026-10-25 | Rules and labels are mined nightly and at retrain; runs only apply them | Mining the corpus does not fit a 30-min run |
+| 2026-10-25 | Generations are full copies, MinHash is vectorised, fits use samples, and only retrain imports TensorFlow | Keeps runs within 10 min and memory within the C15 limits |
+| 2026-10-25 | The Go reader builds display text from `clean_*` fields; generations store no text | Text stays in MongoDB, and generations stay small |
+| 2026-10-25 | The weekly retrain schedule starts after M8 | The evaluated model must not change before grading |
 | 2026-10-25 | Voice, audio briefing and iPhone app move to V2; Android follows V2 | Owner |
 | 2026-10-25 | V1 adds R17–R21; the audience starts with you and your brother, then grows to ~5 readers | Owner |
 | 2026-10-25 | Activation is a compare-and-set on the active pointer; the watermark lives in the manifest | A stale build could undo a retrain, and rollback could skip updates |
 | 2026-10-25 | The SLA has no exclusions and is measured at ranker activation; revision latency is separate | R5 has no exceptions; revisions are not collections |
-| 2026-10-25 | Acceptance seeds and related candidates are reserved in M0; fresh candidates come after `T_train`; rankings are persisted at freeze | Fresh candidates do not exist in M0; this prevents leakage and drift during grading |
+| 2026-10-25 | Acceptance seeds and fresh candidates are sampled at freeze from story groups first seen after `T_train`, by a procedure sealed in M0; rankings are persisted at freeze | Candidates cannot be reserved in M0, and the temporal split already prevents leakage; persisted rankings prevent drift during grading |
 | 2026-10-25 | The permission matrix covers existing collector collections; only the collector holds DDL | The collector needs them today, and bootstrap migrates on start |
 | 2026-10-25 | The fresh window has a lower bound | Future-dated items would stay pinned to the top |
 | 2026-10-25 | Detected language goes in `detected_language`; `language` keeps the source value | Original fields are never rewritten |
@@ -483,6 +588,7 @@ Append only. Add one line for each claim, handoff, block or finish.
 | Date | Agent | Item | Note |
 |---|---|---|---|
 | 2026-10-25 | — | Roadmap created | Built from the client expectations, the v4 review draft and the review of that draft |
+| 2026-10-25 | — | V1 execution plan added | §1.1 schedule, numbered tasks with build notes, §4.1 release checklist |
 
 ## 10. V2 backlog (not designed)
 
