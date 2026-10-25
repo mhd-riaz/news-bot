@@ -2,7 +2,7 @@
 
 [Verified delivery results, measurements and remaining limitations](recommender-results.md).
 
-[Submission explanation, demonstration and viva questions](recommender-submission.md).
+[Client and architecture review briefing, including the demonstration walkthrough](recommender-client-review.md).
 
 AFTERLINE recommends archived articles using their content and the articles a reader explicitly selects. It does **not** predict preferences learned from historical users: the original `read_events` collection was empty and had no user identifiers.
 

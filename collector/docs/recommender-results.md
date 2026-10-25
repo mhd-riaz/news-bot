@@ -6,7 +6,7 @@ A working content-based news archive recommender with a read-only Go application
 
 Local reader: **http://127.0.0.1:8090/stories**
 
-See [setup, training and evaluation](recommender.md), plus the [submission explanation and viva](recommender-submission.md).
+See [setup, training and evaluation](recommender.md), plus the [client and architecture review briefing](recommender-client-review.md).
 
 **Reading default: TF-IDF.** It led both the small human pilot and the separate AI-assisted assessment. SVD and the trained neural model remain available for comparison; no model or frozen evaluation rankings were tuned during finalization.
 

@@ -380,7 +380,7 @@ Implemented controls include:
 - Escaped Go templates, text-only DOM assignment, a restrictive content policy and safe URL schemes.
 - No server-side arbitrary-URL image proxy.
 - Existing authentication integration and an optional private recommender API key.
-- Environment-based secrets excluded from source and the submission archive.
+- Environment-based secrets excluded from source and the handover archive.
 - Trusted-local-artifact loading, with edition hashes and ID/matrix alignment checked at startup.
 
 Important limits:
@@ -410,7 +410,7 @@ make reader
 
 The existing Docker/Compose assets for the collector/classifier were preserved. A production deployment pipeline, scheduled index publication, rolling edition promotion and production observability stack for the new reader/ranker have not been delivered.
 
-A private submission archive contains 246 files, approximately 121 MB, including source, the trained edition and separate evaluation records. Every member hash was checked. A restored copy loaded the copied model artifacts, passed model-service requests and compiled the Go reader.
+A private handover archive contains 246 files, approximately 121 MB, including source, the trained edition and separate evaluation records. Every member hash was checked. A restored copy loaded the copied model artifacts, passed model-service requests and compiled the Go reader.
 
 That restoration reused installed dependencies; it was not a new-machine or new-OS installation certification. The archive excludes secrets, virtual environments and executables and still requires the original MongoDB connection. Copying it off the laptop and checking dataset redistribution rights remain operational responsibilities.
 
@@ -427,7 +427,45 @@ That restoration reused installed dependencies; it was not a new-machine or new-
 | Define load, memory and availability acceptance tests | Warm single-reader latency is not a production SLA |
 | Agree the quality-improvement evaluation protocol | Future tuning needs a development set and fresh held-out assessment |
 
-## 19. Recommended review demonstration
+## 19. Anticipated review questions
+
+**Why content-based rather than collaborative filtering?**  
+There is article content but no usable user-item interaction history. The existing event collection was empty and carried no user identifier. Explicit selections form a content profile; "readers like you" claims would be unsupported.
+
+**Which parts are unsupervised, and why does that matter here?**  
+SVD, autoencoder reconstruction and k-means grouping all learn structure without labelled targets. That matters commercially because the system needed no labelling programme and no historical behaviour data to start working.
+
+**Where is the neural model actually used?**  
+It is trained locally on 16,000 real articles as an 82,496-parameter encoder/decoder. Its saved 64-dimensional representations drive one selectable retrieval method and the content groups used for exploration.
+
+**Why run SVD before the network?**  
+It avoids densifying 25,000-dimensional sparse features and keeps CPU training tractable. SVD-only retrieval is retained as a control, so any neural gain can be attributed correctly.
+
+**Why a denoising objective?**  
+The encoder reconstructs clean features from mildly perturbed inputs, which encourages robustness. Whether that helps must still be judged through retrieval quality, not reconstruction loss.
+
+**Why index 20,000 articles rather than the whole corpus?**  
+A frozen cohort makes preparation, comparison and delivery within the agreed timeline tractable. Full-corpus indexing needs more efficient duplicate candidate blocking first; that is scoped work, not a hidden defect.
+
+**How are articles with very little text handled?**  
+They use the same preprocessing with no invented supporting text. Headline-only items are a known weaker slice and are reported separately rather than averaged away.
+
+**How do you avoid evaluation leakage?**  
+Story grouping and chronological splits separate representation fitting from validation. Category and relevance labels never train the unsupervised model, and the earlier classifier's held-out set stays closed.
+
+**How is recommendation quality measured?**  
+Same-case Precision@5 and pooled nDCG, with human and AI-assisted label sources reported separately, plus latency, diversity and functional checks.
+
+**Does lower training loss mean better recommendations?**  
+No. Reconstruction optimises an input-copying objective, not reader usefulness. The two are reported separately for exactly this reason.
+
+**TF-IDF beat the neural model — was the ML work wasted?**  
+No. The comparison is the result. We use the simpler method for reading, retain the trained model as a measured option, and reuse its representations for content grouping. Choosing the more complex method without evidence would have been the worse outcome.
+
+**What are the main limitations?**  
+Small human judgement coverage, AI-assessment bias, English-language and publisher imbalance, imperfect duplicate and date handling, browser-local history, archive-only indexing and dependency availability.
+
+## 20. Recommended review demonstration
 
 1. Show edition coverage and archive dates.
 2. Explore a content circle without an existing profile.
@@ -442,11 +480,10 @@ That restoration reused installed dependencies; it was not a new-machine or new-
 
 > We have delivered a working, evidence-backed recommendation MVP on the existing news infrastructure. It includes a genuinely trained neural representation model, but the simpler TF-IDF method is the current reading default because it performed better in the available comparisons. The system is ready for a controlled pilot and architectural review. Production deployment and full human relevance acceptance remain explicit next gates rather than assumptions.
 
-## 20. Supporting evidence and code entry points
+## 21. Supporting evidence and code entry points
 
 - [Measured results and verification caveats](recommender-results.md)
 - [Setup, training, evaluation and API instructions](recommender.md)
-- [Submission explanation and viva questions](recommender-submission.md)
 - [Read-only Go entry point](../cmd/reader/main.go)
 - [Go recommendation orchestration](../internal/recommendation/recommendation.go)
 - [Public recommendation handlers](../internal/handler/recommendation.go)
