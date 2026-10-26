@@ -16,6 +16,9 @@ import (
 // ProcessingStatus is how far an article has travelled through the pipeline.
 type ProcessingStatus string
 
+// PublicationDateSource records where the stored publication time came from.
+type PublicationDateSource string
+
 // The stages an article passes through. Collection produces "collected";
 // enrichment promotes an article to "enriched" once its stored text is the whole
 // story, whether the feed supplied it or a fetch did. An article whose full text
@@ -24,6 +27,12 @@ type ProcessingStatus string
 const (
 	ProcessingStatusCollected ProcessingStatus = "collected"
 	ProcessingStatusEnriched  ProcessingStatus = "enriched"
+)
+
+const (
+	PublicationDateSourceFeed              PublicationDateSource = "feed"
+	PublicationDateSourcePage              PublicationDateSource = "page"
+	PublicationDateSourceCollectedFallback PublicationDateSource = "collected_fallback"
 )
 
 // Valid reports whether p is a status this package defines.
@@ -79,8 +88,20 @@ type Article struct {
 	State    string `bson:"state,omitempty"`
 	City     string `bson:"city,omitempty"`
 
-	PublishedAt time.Time `bson:"published_at"`
-	CollectedAt time.Time `bson:"collected_at"`
+	PublishedAt       time.Time             `bson:"published_at"`
+	CollectedAt       time.Time             `bson:"collected_at"`
+	PublishedAtSource PublicationDateSource `bson:"published_at_source"`
+	DateVerified      bool                  `bson:"date_verified"`
+
+	CleanTitle         string  `bson:"clean_title,omitempty"`
+	CleanSummary       string  `bson:"clean_summary,omitempty"`
+	CleanBody          string  `bson:"clean_body,omitempty"`
+	DetectedLanguage   string  `bson:"detected_language,omitempty"`
+	LanguageConfidence float64 `bson:"language_confidence,omitempty"`
+
+	ContentRev int64     `bson:"content_rev"`
+	InsertedAt time.Time `bson:"inserted_at"`
+	UpdatedAt  time.Time `bson:"updated_at"`
 
 	ProcessingStatus ProcessingStatus `bson:"processing_status"`
 
@@ -99,6 +120,18 @@ type Article struct {
 	Topic                   string               `bson:"topic,omitempty"`
 	Confidence              float64              `bson:"confidence,omitempty"`
 	ModelVersion            string               `bson:"model_version,omitempty"`
+}
+
+// ArticleDerivedFields are the article attributes computed by the classifier
+// sidecar and required for C1 indexing.
+type ArticleDerivedFields struct {
+	CleanTitle         string
+	CleanSummary       string
+	CleanBody          string
+	DetectedLanguage   string
+	LanguageConfidence float64
+	PublishedAtSource  PublicationDateSource
+	DateVerified       bool
 }
 
 // ArticleIdentity is everything that can identify an article as one already
@@ -138,6 +171,7 @@ func NewArticle(src Source, item FeedItem, now time.Time) (*Article, error) {
 	}
 
 	collected := storedTime(now)
+	publishedAt, publishedAtSource, dateVerified := publicationTime(item.PublishedAt, collected)
 	a := &Article{
 		ID:         id.String(),
 		SourceID:   src.ID,
@@ -163,9 +197,12 @@ func NewArticle(src Source, item FeedItem, now time.Time) (*Article, error) {
 		State:    src.State,
 		City:     src.City,
 
-		CollectedAt:      collected,
-		PublishedAt:      publicationTime(item.PublishedAt, collected),
-		ProcessingStatus: ProcessingStatusCollected,
+		CollectedAt:       collected,
+		PublishedAt:       publishedAt,
+		PublishedAtSource: publishedAtSource,
+		DateVerified:      dateVerified,
+		ContentRev:        1,
+		ProcessingStatus:  ProcessingStatusCollected,
 
 		ClassificationStatus: ClassificationStatusPending,
 	}
@@ -211,6 +248,7 @@ func (a *Article) Normalize() {
 	a.State = strings.TrimSpace(a.State)
 	a.City = strings.TrimSpace(a.City)
 	a.Topic = strings.ToLower(strings.TrimSpace(a.Topic))
+	a.DetectedLanguage = strings.ToLower(strings.TrimSpace(a.DetectedLanguage))
 
 	a.PublishedAt = storedTime(a.PublishedAt)
 	a.CollectedAt = storedTime(a.CollectedAt)
@@ -254,6 +292,18 @@ func (a *Article) Validate() error {
 
 	if a.PublishedAt.IsZero() {
 		v.add("published_at", "must not be zero")
+	}
+	switch a.PublishedAtSource {
+	case PublicationDateSourceFeed, PublicationDateSourcePage:
+		if !a.DateVerified {
+			v.add("date_verified", "must be true for feed or page dates")
+		}
+	case PublicationDateSourceCollectedFallback:
+		if a.DateVerified {
+			v.add("date_verified", "must be false for collected fallback dates")
+		}
+	default:
+		v.add("published_at_source", "must be feed, page or collected_fallback")
 	}
 	if a.CollectedAt.IsZero() {
 		v.add("collected_at", "must not be zero")
@@ -300,11 +350,13 @@ func (a *Article) Validate() error {
 
 // publicationTime falls back to the collection time when the feed gave no date
 // or gave one that cannot be true.
-func publicationTime(published *time.Time, collected time.Time) time.Time {
+func publicationTime(
+	published *time.Time, collected time.Time,
+) (time.Time, PublicationDateSource, bool) {
 	if published == nil || published.IsZero() || published.After(collected.Add(maxClockSkew)) {
-		return collected
+		return collected, PublicationDateSourceCollectedFallback, false
 	}
-	return *published
+	return *published, PublicationDateSourceFeed, true
 }
 
 // canonicalFromGUID returns the publisher's own permalink when its identifier is

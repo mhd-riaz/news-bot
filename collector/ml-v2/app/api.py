@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hmac
 import os
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +10,7 @@ import yaml
 from flask import Flask, abort, request
 from werkzeug.exceptions import HTTPException
 
-from newsmlv2 import serve
+from newsmlv2 import config, language, serve
 
 DEFAULT_MAX_BATCH = 100
 DEFAULT_MAX_REQUEST_BYTES = 1 << 20
@@ -20,6 +21,7 @@ def create_app(
     classifier: serve.Classifier | None = None,
     model_version: str | None = None,
     topics: list[dict[str, str]] | None = None,
+    boilerplate_rules: Mapping[str, frozenset[str]] | None = None,
     api_key: str | None = None,
     max_batch: int | None = None,
     max_request_bytes: int | None = None,
@@ -27,6 +29,9 @@ def create_app(
     classifier = classifier or serve.load(_model_directory())
     model_version = model_version or _model_version(classifier)
     topics = topics if topics is not None else _topics(_taxonomy_path(), classifier.classes)
+    boilerplate_rules = (
+        boilerplate_rules if boilerplate_rules is not None else _boilerplate(_boilerplate_path())
+    )
     api_key = api_key if api_key is not None else os.getenv("NEWSML_API_KEY")
     max_batch = max_batch or _positive_env("NEWSML_MAX_BATCH", DEFAULT_MAX_BATCH)
     max_request_bytes = max_request_bytes or _positive_env(
@@ -76,8 +81,10 @@ def create_app(
         texts: list[str] = []
         valid_positions: list[int] = []
         for position, item in enumerate(items):
-            article_id, title, summary, body = _article_fields(item)
-            cleaned_title, cleaned_summary, cleaned_body = serve.prepare(title, summary, body)
+            article_id, title, summary, body, source = _article_fields(item)
+            cleaned_title, cleaned_summary, cleaned_body = serve.prepare(
+                title, summary, body, boilerplate=boilerplate_rules.get(source)
+            )
             text = serve.text_for(cleaned_title, cleaned_summary, cleaned_body)
             if not text.strip():
                 response_items[position] = {
@@ -87,34 +94,48 @@ def create_app(
                 continue
             texts.append(text)
             valid_positions.append(position)
+            detected_language, language_confidence = language.detect_language(text)
+            response_items[position] = {
+                "id": article_id,
+                "clean_title": cleaned_title,
+                "clean_summary": cleaned_summary,
+                "clean_body": cleaned_body,
+                "language": detected_language,
+                "language_confidence": language_confidence,
+            }
 
         if texts:
             labels, scores, filed = classifier.route(texts)
             for position, topic, confidence, admitted in zip(
                 valid_positions, labels, scores, filed, strict=True
             ):
-                response_items[position] = {
-                    "id": items[position]["id"],
+                result = response_items[position]
+                if result is None:
+                    raise RuntimeError("classification result position was not prepared")
+                result.update({
                     "topic": str(topic),
                     "confidence": float(confidence),
                     "filed": bool(admitted),
-                }
+                })
 
         return {"model_version": model_version, "items": response_items}
 
     return app
 
 
-def _article_fields(item: object) -> tuple[str, str, str, str]:
+def _article_fields(item: object) -> tuple[str, str, str, str, str]:
     if not isinstance(item, dict):
         abort(400, "each item must be an object")
     article_id = item.get("id")
     if not isinstance(article_id, str) or not article_id.strip():
         abort(400, "each item must have a non-empty string id")
-    fields = tuple(item.get(name, "") for name in ("title", "summary", "body"))
-    if not all(isinstance(value, str) for value in fields):
+    title, summary, body = (item.get(name, "") for name in ("title", "summary", "body"))
+    if not all(isinstance(value, str) for value in (title, summary, body)):
         abort(400, "title, summary and body must be strings")
-    return article_id, *fields
+    source = item.get("source", "")
+    if not isinstance(source, str):
+        abort(400, "source must be a string")
+    return article_id, title, summary, body, source.strip()
 
 
 def _model_directory() -> Path:
@@ -136,6 +157,31 @@ def _model_version(classifier: serve.Classifier) -> str:
 
 def _taxonomy_path() -> Path:
     return Path(os.getenv("NEWSML_TAXONOMY_PATH", Path(__file__).parents[1] / "taxonomy.yaml"))
+
+
+def _boilerplate_path() -> Path:
+    return Path(__file__).parents[1] / "configs" / "boilerplate.yaml"
+
+
+def _boilerplate(path: Path) -> dict[str, frozenset[str]]:
+    with path.open(encoding="utf-8") as file:
+        document = yaml.safe_load(file)
+    if not isinstance(document, dict) or document.get("cleaning_version") != config.CLEANING_VERSION:
+        raise RuntimeError("boilerplate rules must match the current cleaning version")
+    sources = document.get("sources")
+    if not isinstance(sources, dict):
+        raise RuntimeError("boilerplate rules must contain a sources mapping")
+    rules = {}
+    for source, lines in sources.items():
+        if not isinstance(source, str) or not source.strip() or not isinstance(lines, list):
+            raise RuntimeError("boilerplate sources must map names to lists of lines")
+        if any(not isinstance(line, str) or not line.strip() for line in lines):
+            raise RuntimeError(f"boilerplate rules for {source} contain an invalid line")
+        folded = [line.casefold() for line in lines]
+        if len(folded) != len(set(folded)):
+            raise RuntimeError(f"boilerplate rules for {source} contain duplicate lines")
+        rules[source] = frozenset(folded)
+    return rules
 
 
 def _topics(path: Path, classes: Any) -> list[dict[str, str]]:

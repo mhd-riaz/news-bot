@@ -191,10 +191,18 @@ as it is up.
 make mongo-up                      # MongoDB only, on localhost:27017
 make run                           # migrate, apply sources.yaml, serve on :8080
 make collect                       # collect everything currently due, once
+make backfill                      # backfill up to 1000 legacy articles
 ```
 
 `make migrate` and `make seed` do the two startup steps on their own, against a
 database the API is already serving.
+
+The C1 backfill processes at most 50 articles per classifier request, pauses one
+second between full batches, and resumes from articles without `content_rev`.
+It writes cleaned text, detected language and date provenance only; raw article
+text and existing topics are left untouched. Set `BACKFILL_LIMIT` or
+`BACKFILL_DELAY` to adjust a run, then rerun `make backfill` until no work
+remains.
 
 ## Verification gates
 
@@ -305,10 +313,12 @@ curl -u operator:secret    localhost:8080/api/v1/sources        # browser, curl
 
 ## Deployment
 
-[.github/workflows/news-collector.yml](../../../../.github/workflows/news-collector.yml)
-runs Go and Flask tests, smoke-tests the mounted model image, and publishes both
-the API and classifier images tagged `latest` and with the commit SHA. The
-homelab only ever pulls finished images, so no build runs on it.
+[../.github/workflows/news-collector.yml](../.github/workflows/news-collector.yml)
+runs the Go, classifier, ML and recommender checks on pull requests and pushes to
+`main`. A successful `main` build publishes the Go, classifier and recommender
+images to GHCR, then calls Coolify's authenticated deploy webhook. The Go image
+contains every `cmd/*` executable; the API and (after M3 authentication is ready)
+the reader use the same image with different commands.
 
 On the Coolify side, create a **Docker Compose** resource from
 [deployments/coolify.compose.yml](deployments/coolify.compose.yml). It brings up
@@ -328,11 +338,26 @@ unguarded API:
 | `NEWS_AUTH_API_KEYS`          | `openssl rand -hex 32`, comma-separated          |
 | `NEWS_AUTH_BASIC_USERNAME`    |                                                  |
 | `NEWS_AUTH_BASIC_PASSWORD`    | at least 16 characters                           |
+| `NEWS_MONGO_COLLECTOR_PASSWORD` | 64 hex characters; database-scoped collector user |
 | `NEWS_IMAGE`                  | optional; pin to a SHA tag to roll back          |
 | `NEWS_BOOTSTRAP_SOURCES_PATH` | optional; an https URL to change feeds unrebuilt |
 | `NEWS_CLASSIFIER_API_KEY`     | shared internal API key for the classifier       |
 | `NEWS_CLASSIFIER_MODEL_SHA256`| `sha256sum` of `v2-001/bundle.joblib`            |
 | `NEWS_CLASSIFIER_IMAGE`       | optional; pin classifier to a SHA tag            |
+
+Before the first production deploy, create the database users once as MongoDB
+root. Supply `NEWS_MONGO_ROOT_URI`, `NEWS_MONGO_DATABASE`, and distinct
+`NEWS_MONGO_{COLLECTOR,BATCH,RANKER,READER,OWNER}_PASSWORD` values through a
+secure environment; each password must be generated as 64 hex characters (for
+example, `openssl rand -hex 32`). Run:
+
+```bash
+mongosh "$NEWS_MONGO_ROOT_URI" --quiet --file deployments/mongo-users.js
+```
+
+Store the generated passwords in Coolify secrets. MongoDB enforces each
+principal's collection permissions; ownership of reader-added sources is
+checked by the reader application, not by MongoDB roles.
 
 And these as GitHub repository secrets:
 
@@ -341,9 +366,9 @@ And these as GitHub repository secrets:
 | `COOLIFY_WEBHOOK` | the resource's Deploy Webhook URL        |
 | `COOLIFY_TOKEN`   | Coolify API token with deploy permission |
 
-If either is missing the deploy step is skipped with a warning and the image is
-still published, so the pipeline is usable before Coolify is wired up. Roll back
-by setting `NEWS_IMAGE` to a previous `sha-` tag and redeploying.
+Both are required for a successful `main` deployment. The deploy-only token is
+sent in the `Authorization` header and neither secret is written to logs. Roll
+back by setting `NEWS_IMAGE` to a previous `sha-` tag and redeploying.
 
 `GITHUB_TOKEN` covers the GHCR push. If the package is private, authenticate the
 homelab's Docker daemon once:
@@ -387,13 +412,17 @@ sync off entirely, for a deployment that manages sources only through the API.
 | `language`               | yes      | two-letter ISO 639-1 code              |
 | `country`                | yes      | two-letter ISO 3166-1 alpha-2 code     |
 | `state`, `city`          | no       | up to 100 characters                   |
+| `domains`                | no       | up to 20 lowercase slug tags (64 chars each) |
+| `added_by`               | no       | reader UUID; seed/internal only        |
 | `enabled`                | no       | defaults to `true`                     |
 | `priority`               | no       | 0-100, defaults to 50                  |
 | `fetch_interval_seconds` | no       | 60-604800, defaults to 900             |
 
 `health_status`, `consecutive_failures`, `last_error`, `last_collected_at`,
 `next_scheduled_at` and the timestamps are owned by the server. A request that tries to
-set one is rejected rather than ignored.
+set one is rejected rather than ignored. `added_by` is also server-owned in the API:
+it is returned when present, but API callers cannot set or change it until reader identity
+is available. `domains` can be supplied on create or update; an empty list clears the tags.
 
 ## Endpoints
 

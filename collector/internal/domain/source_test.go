@@ -146,6 +146,23 @@ func TestNormalizeCanonicalisesFields(t *testing.T) {
 	}
 }
 
+func TestNormalizeCanonicalisesDomainsAndOwner(t *testing.T) {
+	in := validInput()
+	in.Domains = ptr([]string{" Data-Science ", "AI", "ai"})
+	in.AddedBy = ptr("0198F3D2-1111-7000-8000-000000000001")
+
+	src, err := NewSource(in, fixedNow)
+	if err != nil {
+		t.Fatalf("NewSource: %v", err)
+	}
+	if got, want := strings.Join(src.Domains, ","), "ai,data-science"; got != want {
+		t.Errorf("domains = %q, want %q", got, want)
+	}
+	if src.AddedBy != "0198f3d2-1111-7000-8000-000000000001" {
+		t.Errorf("added_by = %q, want canonical UUID", src.AddedBy)
+	}
+}
+
 func TestNewSourceRejectsInvalidInput(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -181,6 +198,18 @@ func TestNewSourceRejectsInvalidInput(t *testing.T) {
 		{"country missing", func(in *SourceInput) { in.Country = "" }, "country"},
 		{"state too long", func(in *SourceInput) { in.State = strings.Repeat("s", MaxRegionLength+1) }, "state"},
 		{"city too long", func(in *SourceInput) { in.City = strings.Repeat("c", MaxRegionLength+1) }, "city"},
+		{"invalid domain tag", func(in *SourceInput) { in.Domains = ptr([]string{"ai/software"}) }, "domains"},
+		{"domain tag too long", func(in *SourceInput) {
+			in.Domains = ptr([]string{strings.Repeat("a", MaxDomainLength+1)})
+		}, "domains"},
+		{"too many domain tags", func(in *SourceInput) {
+			domains := make([]string, MaxDomains+1)
+			for i := range domains {
+				domains[i] = "tag-" + strings.Repeat("a", i+1)
+			}
+			in.Domains = &domains
+		}, "domains"},
+		{"invalid added_by", func(in *SourceInput) { in.AddedBy = ptr("reader-1") }, "added_by"},
 	}
 
 	for _, tc := range tests {
@@ -248,6 +277,33 @@ func TestApplyPatchesOnlySuppliedFields(t *testing.T) {
 	}
 	if !src.CreatedAt.Equal(fixedNow) {
 		t.Errorf("created_at = %v, want it untouched", src.CreatedAt)
+	}
+}
+
+func TestApplyPatchesDomainsAndOwner(t *testing.T) {
+	src, err := NewSource(validInput(), fixedNow)
+	if err != nil {
+		t.Fatalf("NewSource: %v", err)
+	}
+	domains := []string{"Software", "AI"}
+	owner := "0198f3d2-1111-7000-8000-000000000001"
+
+	if err := src.Apply(SourcePatch{Domains: &domains, AddedBy: &owner}, fixedNow.Add(time.Hour)); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if got, want := strings.Join(src.Domains, ","), "ai,software"; got != want {
+		t.Errorf("domains = %q, want %q", got, want)
+	}
+	if src.AddedBy != owner {
+		t.Errorf("added_by = %q, want %q", src.AddedBy, owner)
+	}
+
+	emptyDomains, emptyOwner := []string{}, ""
+	if err := src.Apply(SourcePatch{Domains: &emptyDomains, AddedBy: &emptyOwner}, fixedNow.Add(2*time.Hour)); err != nil {
+		t.Fatalf("Apply clearing fields: %v", err)
+	}
+	if len(src.Domains) != 0 || src.AddedBy != "" {
+		t.Errorf("cleared fields = %v/%q, want empty", src.Domains, src.AddedBy)
 	}
 }
 

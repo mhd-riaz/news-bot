@@ -241,16 +241,18 @@ type SourcesFile struct {
 // Source mirrors domain.SourceInput. Optional fields are pointers so an omitted
 // key keeps the stored value instead of resetting it to a default.
 type Source struct {
-	Name                 string `yaml:"name"`
-	FeedURL              string `yaml:"feed_url"`
-	Type                 string `yaml:"type"`
-	Language             string `yaml:"language"`
-	Country              string `yaml:"country"`
-	State                string `yaml:"state"`
-	City                 string `yaml:"city"`
-	Enabled              *bool  `yaml:"enabled"`
-	Priority             *int   `yaml:"priority"`
-	FetchIntervalSeconds *int   `yaml:"fetch_interval_seconds"`
+	Name                 string    `yaml:"name"`
+	FeedURL              string    `yaml:"feed_url"`
+	Type                 string    `yaml:"type"`
+	Language             string    `yaml:"language"`
+	Country              string    `yaml:"country"`
+	State                string    `yaml:"state"`
+	City                 string    `yaml:"city"`
+	Domains              *[]string `yaml:"domains"`
+	AddedBy              *string   `yaml:"added_by"`
+	Enabled              *bool     `yaml:"enabled"`
+	Priority             *int      `yaml:"priority"`
+	FetchIntervalSeconds *int      `yaml:"fetch_interval_seconds"`
 }
 
 // Input converts one entry into the service's input type.
@@ -263,6 +265,8 @@ func (s Source) Input() domain.SourceInput {
 		Country:              s.Country,
 		State:                s.State,
 		City:                 s.City,
+		Domains:              s.Domains,
+		AddedBy:              s.AddedBy,
 		Enabled:              s.Enabled,
 		Priority:             s.Priority,
 		FetchIntervalSeconds: s.FetchIntervalSeconds,

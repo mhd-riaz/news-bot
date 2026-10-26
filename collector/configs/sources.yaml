@@ -3,8 +3,9 @@
 #
 # Required: name, feed_url, type (rss|atom), language (ISO 639-1), country
 # (ISO 3166-1 alpha-2). Optional: state, city, enabled, priority (0-100),
-# fetch_interval_seconds (60-604800). An omitted optional key keeps whatever is
-# already stored, so a value tuned through the API is not reset by a re-seed.
+# fetch_interval_seconds (60-604800), domains (up to 20 lowercase tags), and
+# added_by (reader UUID). An omitted optional key keeps whatever is already
+# stored, so a value tuned through the API is not reset by a re-seed.
 
 sources:
   - name: The Hindu — Bengaluru

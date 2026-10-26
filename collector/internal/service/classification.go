@@ -119,6 +119,7 @@ func (s *ClassificationService) classify(ctx context.Context, article *domain.Ar
 	}
 	results, err := s.deps.Classifier.Classify(ctx, []classifier.Item{{
 		ID: article.ID, Title: article.Title, Summary: article.Summary, Body: article.Content,
+		Source: article.SourceName,
 	}})
 	if err != nil || len(results) != 1 {
 		status := domain.ClassificationStatusPending
@@ -134,6 +135,10 @@ func (s *ClassificationService) classify(ctx context.Context, article *domain.Ar
 	}
 	return domain.ClassificationResult{
 		Status: status, Topic: prediction.Topic, Confidence: prediction.Confidence,
-		ModelVersion: prediction.ModelVersion, At: now, ClaimedAt: claimedAt,
+		ModelVersion: prediction.ModelVersion, CleanTitle: prediction.CleanTitle,
+		CleanSummary: prediction.CleanSummary, CleanBody: prediction.CleanBody,
+		DetectedLanguage:   prediction.DetectedLanguage,
+		LanguageConfidence: prediction.LanguageConfidence,
+		At:                 now, ClaimedAt: claimedAt,
 	}
 }

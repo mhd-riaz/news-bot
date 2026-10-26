@@ -52,6 +52,8 @@ func TestUpdateClassificationPreservesArticleContentAndClaimOwnership(t *testing
 	if err := repo.UpdateClassification(testContext(t), article.ID, domain.ClassificationResult{
 		Status: domain.ClassificationStatusClassified, Topic: "politics", Confidence: 0.9,
 		ModelVersion: "v2-001", At: now, ClaimedAt: *claimed.ClassificationClaimedAt,
+		CleanTitle: "Clean headline", CleanSummary: "Clean summary", CleanBody: "Clean body",
+		DetectedLanguage: "en", LanguageConfidence: 0.99,
 	}); err != nil {
 		t.Fatalf("UpdateClassification: %v", err)
 	}
@@ -65,10 +67,49 @@ func TestUpdateClassificationPreservesArticleContentAndClaimOwnership(t *testing
 	if got.Topic != "politics" || got.ClassificationClaimedAt != nil || got.ClassifiedAt == nil {
 		t.Errorf("stored classification = %+v", got)
 	}
+	if got.CleanTitle != "Clean headline" || got.CleanSummary != "Clean summary" ||
+		got.CleanBody != "Clean body" || got.DetectedLanguage != "en" ||
+		got.LanguageConfidence != 0.99 || got.ContentRev != 2 {
+		t.Errorf("stored derived fields/revision = %+v", got)
+	}
 	if err := repo.UpdateClassification(testContext(t), article.ID, domain.ClassificationResult{
 		Status: domain.ClassificationStatusFailed, At: now, ClaimedAt: now,
 	}); !errors.Is(err, repository.ErrNotFound) {
 		t.Errorf("stale owner update error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestUpdateClassificationLeavesRevisionWhenDerivedFieldsAreUnchanged(t *testing.T) {
+	repo := newTestArticleRepo(t)
+	article := newArticle(t, "https://example.com/classification/unchanged", "classification-unchanged")
+	article.CleanTitle = article.Title
+	article.CleanSummary = article.Summary
+	article.CleanBody = "Clean body"
+	article.DetectedLanguage = "en"
+	article.LanguageConfidence = 0.99
+	if err := repo.Create(testContext(t), article); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	now := article.CollectedAt.Add(time.Second)
+	claimed, err := repo.ClaimForClassification(testContext(t), classificationClaim(now))
+	if err != nil {
+		t.Fatalf("ClaimForClassification: %v", err)
+	}
+	if err := repo.UpdateClassification(testContext(t), article.ID, domain.ClassificationResult{
+		Status: domain.ClassificationStatusClassified, Topic: "politics", Confidence: 0.9,
+		ModelVersion: "v2-001", At: now, ClaimedAt: *claimed.ClassificationClaimedAt,
+		CleanTitle: article.CleanTitle, CleanSummary: article.CleanSummary, CleanBody: article.CleanBody,
+		DetectedLanguage: article.DetectedLanguage, LanguageConfidence: article.LanguageConfidence,
+	}); err != nil {
+		t.Fatalf("UpdateClassification: %v", err)
+	}
+	got, err := repo.GetByID(testContext(t), article.ID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if got.ContentRev != 1 || !got.UpdatedAt.Equal(article.UpdatedAt) {
+		t.Errorf("unchanged derived fields bumped revision/timestamp: %d / %v", got.ContentRev, got.UpdatedAt)
 	}
 }
 

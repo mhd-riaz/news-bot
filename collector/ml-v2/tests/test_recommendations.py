@@ -196,9 +196,16 @@ def test_input_recipe_fallbacks_and_length_cap(title, summary, body, kind):
 
 
 def test_language_is_checked_not_inferred_from_source_metadata():
-    assert data.english_text("The research team published new findings about galaxies and distant stars.")
-    assert not data.english_text("\u092f\u0939 \u0939\u093f\u0902\u0926\u0940 \u092e\u0947\u0902 \u090f\u0915 \u0938\u092e\u093e\u091a\u093e\u0930 \u0939\u0948")
-    assert not data.english_text("")
+    accepted, confidence = data.english_text(
+        "The research team published new findings about galaxies and distant stars."
+    )
+    assert accepted and 0 <= confidence <= 1
+    accepted, confidence = data.english_text(
+        "\u092f\u0939 \u0939\u093f\u0902\u0926\u0940 \u092e\u0947\u0902 \u090f\u0915 \u0938\u092e\u093e\u091a\u093e\u0930 \u0939\u0948"
+    )
+    assert not accepted and confidence == 0
+    accepted, confidence = data.english_text("")
+    assert not accepted and confidence == 0
 
 
 def test_database_settings_honor_file_and_environment(tmp_path, monkeypatch):
@@ -259,7 +266,7 @@ def test_export_is_bounded_deterministic_and_read_only(tmp_path, monkeypatch):
             return Database()
 
     monkeypatch.setattr(data, "MongoClient", Client)
-    monkeypatch.setattr(data, "english_text", lambda _: True)
+    monkeypatch.setattr(data, "english_text", lambda _: (True, 1.0))
     monkeypatch.setattr(data, "settings", lambda: ("mongodb://unit.test", "news"))
     left, right = tmp_path / "left", tmp_path / "right"
     for directory in (left, right):
@@ -268,7 +275,7 @@ def test_export_is_bounded_deterministic_and_read_only(tmp_path, monkeypatch):
     assert (left / "documents.jsonl").read_bytes() == (right / "documents.jsonl").read_bytes()
     with pytest.raises(FileExistsError):
         data.freeze(left, cut=datetime(2026, 8, 2, tzinfo=UTC))
-    monkeypatch.setattr(data, "english_text", lambda _: False)
+    monkeypatch.setattr(data, "english_text", lambda _: (False, 0.0))
     with pytest.raises(ValueError, match="only 0"):
         data.freeze(tmp_path / "rejected", cut=datetime(2026, 8, 2, tzinfo=UTC), limit=100, candidates=120)
     records.clear()
@@ -366,6 +373,111 @@ def test_selected_manual_cases_do_not_silently_claim_full_evaluation(index_dir, 
         evaluate.score(index_dir, sheet, case_ids=["unknown"])
     with pytest.raises(ValueError, match="independent grade"):
         evaluate.score(index_dir, sheet)
+
+
+def test_acceptance_sample_is_reproducible_and_balanced(tmp_path):
+    train_cut = datetime(2026, 9, 1, tzinfo=UTC)
+    t_eval = datetime(2026, 10, 25, tzinfo=UTC)
+    rows = []
+    groups = []
+    for number in range(55):
+        rows.append({
+            "id": f"article-{number:02}",
+            "collected_at": "2026-08-31T00:00:00Z" if number < 2 else "2026-09-02T00:00:00Z",
+            "published_at": "2026-10-20T00:00:00Z" if number < 50 else "2026-08-01T00:00:00Z",
+            "detected_language": "en",
+            "date_verified": number != 49,
+        })
+        groups.append(f"group-{number:02}")
+    rows.append({
+        "id": "article-prior-copy",
+        "collected_at": "2026-08-31T00:00:00Z",
+        "published_at": "2026-10-20T00:00:00Z",
+        "detected_language": "en",
+        "date_verified": True,
+    })
+    groups.append("group-02")
+    profiles = {
+        "grader-b": {"liked": ["article-01"], "viewed": ["article-00"]},
+        "grader-a": {"liked": ["article-00"]},
+    }
+
+    sample = evaluate.sample_acceptance(
+        rows, groups, train_cut=train_cut, t_eval=t_eval, grader_profiles=profiles,
+    )
+    repeated = evaluate.sample_acceptance(
+        list(reversed(rows)), list(reversed(groups)), train_cut=train_cut, t_eval=t_eval,
+        grader_profiles=dict(reversed(list(profiles.items()))),
+    )
+    assert sample == repeated
+    assert sample["seed"] == 20260823
+    assert sample["counts"] == {"total": 50, "feed": 2, "related_reading": 48}
+    assert sample["grader_case_counts"] == {"grader-a": 25, "grader-b": 25}
+    assert len(sample["cases"]) == 50
+    feed = [case for case in sample["cases"] if case["type"] == "feed"]
+    related = [case for case in sample["cases"] if case["type"] == "related_reading"]
+    assert [case["request"]["liked"] for case in feed] == [["article-00"], ["article-01"]]
+    assert all(case["request"]["limit"] == 5 for case in feed)
+    assert len({case["request"]["seed_id"] for case in related}) == 48
+    assert "article-02" not in sample["candidate_pools"]["post_train"]
+    assert "article-prior-copy" not in sample["candidate_pools"]["post_train"]
+    assert sample["candidate_pools"]["fresh_feed"] == [
+        f"article-{number:02}" for number in range(3, 49)
+    ]
+    assert all(
+        sample["candidate_pools"]["post_train"].count(case["request"]["seed_id"]) == 1
+        for case in related
+    )
+
+    five_graders = {f"grader-{number}": {} for number in range(5)}
+    five_grader_sample = evaluate.sample_acceptance(
+        rows, groups, train_cut=train_cut, t_eval=t_eval, grader_profiles=five_graders,
+    )
+    assert five_grader_sample["counts"] == {"total": 50, "feed": 5, "related_reading": 45}
+    assert set(five_grader_sample["grader_case_counts"].values()) == {10}
+
+    output = tmp_path / "acceptance-sample.json"
+    saved = evaluate.sample_acceptance(
+        rows, groups, train_cut=train_cut, t_eval=t_eval, grader_profiles=profiles, output=output,
+    )
+    assert data.read_json(output) == saved
+    with pytest.raises(FileExistsError, match="preserve the frozen"):
+        evaluate.sample_acceptance(
+            rows, groups, train_cut=train_cut, t_eval=t_eval, grader_profiles=profiles, output=output,
+        )
+
+
+def test_acceptance_sample_rejects_invalid_inputs():
+    train_cut = datetime(2026, 9, 1, tzinfo=UTC)
+    t_eval = datetime(2026, 10, 25, tzinfo=UTC)
+    profiles = {"grader-a": {}, "grader-b": {}}
+    rows = [{
+        "id": f"article-{number}",
+        "collected_at": "2026-09-02T00:00:00Z",
+        "published_at": "2026-10-20T00:00:00Z",
+        "detected_language": "en",
+        "date_verified": True,
+    } for number in range(50)]
+    groups = [f"group-{number}" for number in range(50)]
+
+    with pytest.raises(ValueError, match="later than train_cut"):
+        evaluate.sample_acceptance(
+            rows, groups, train_cut=t_eval, t_eval=train_cut, grader_profiles=profiles,
+        )
+    with pytest.raises(ValueError, match="outside the frozen index"):
+        evaluate.sample_acceptance(
+            rows, groups, train_cut=train_cut, t_eval=t_eval,
+            grader_profiles={"grader-a": {"liked": ["missing"]}, "grader-b": {}},
+        )
+    with pytest.raises(ValueError, match="need 48 post-training"):
+        evaluate.sample_acceptance(
+            rows[:47], groups[:47], train_cut=train_cut, t_eval=t_eval, grader_profiles=profiles,
+        )
+    rows[0].pop("date_verified")
+    with pytest.raises(ValueError, match="detected_language and boolean date_verified"):
+        evaluate.sample_acceptance(
+            rows, groups, train_cut=train_cut, t_eval=t_eval, grader_profiles=profiles,
+        )
 
 
 def test_category_proxy_uses_only_old_train_labels(index, monkeypatch):

@@ -396,6 +396,8 @@ func TestEnsureCreatesThenUpdatesTheSameFeed(t *testing.T) {
 	in := validInput()
 	in.Name = "The Hindu — Bengaluru (city desk)"
 	in.Priority = ptr(80)
+	in.Domains = ptr([]string{"ai", "software"})
+	in.AddedBy = ptr("0198f3d2-1111-7000-8000-000000000001")
 
 	second, created, err := svc.Ensure(context.Background(), in)
 	if err != nil {
@@ -410,6 +412,9 @@ func TestEnsureCreatesThenUpdatesTheSameFeed(t *testing.T) {
 	if second.Name != in.Name || second.Priority != 80 {
 		t.Errorf("source = %q/%d, want the seeded values applied", second.Name, second.Priority)
 	}
+	if len(second.Domains) != 2 || second.AddedBy != *in.AddedBy {
+		t.Errorf("domains/added_by = %v/%q, want seed values applied", second.Domains, second.AddedBy)
+	}
 	if len(repo.byID) != 1 {
 		t.Errorf("repository holds %d sources, want reseeding not to duplicate", len(repo.byID))
 	}
@@ -417,7 +422,10 @@ func TestEnsureCreatesThenUpdatesTheSameFeed(t *testing.T) {
 
 func TestEnsureLeavesUnsetFieldsAlone(t *testing.T) {
 	svc, _ := newService(t)
-	created, _, err := svc.Ensure(context.Background(), validInput())
+	initial := validInput()
+	initial.Domains = ptr([]string{"software"})
+	initial.AddedBy = ptr("0198f3d2-1111-7000-8000-000000000001")
+	created, _, err := svc.Ensure(context.Background(), initial)
 	if err != nil {
 		t.Fatalf("Ensure: %v", err)
 	}
@@ -432,6 +440,9 @@ func TestEnsureLeavesUnsetFieldsAlone(t *testing.T) {
 	}
 	if reseeded.Priority != 95 {
 		t.Errorf("priority = %d, want the operator's 95 preserved", reseeded.Priority)
+	}
+	if len(reseeded.Domains) != 1 || reseeded.Domains[0] != "software" || reseeded.AddedBy != *initial.AddedBy {
+		t.Errorf("domains/added_by = %v/%q, want unset seed fields preserved", reseeded.Domains, reseeded.AddedBy)
 	}
 }
 

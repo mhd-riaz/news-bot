@@ -1,6 +1,7 @@
 package classifier
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -54,15 +55,31 @@ func TestClassifySendsTheExpectedRequestAndValidatesResponse(t *testing.T) {
 		if request.Method != http.MethodPost || request.URL.Path != "/v1/classify" || request.Header.Get("X-Classifier-Key") != "test-secret" {
 			t.Fatalf("unexpected request %s %s", request.Method, request.URL)
 		}
+		var body struct {
+			Items []Item `json:"items"`
+		}
+		if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		if len(body.Items) != 2 || body.Items[0].Source != "Example Publisher" {
+			t.Errorf("request items = %#v", body.Items)
+		}
 		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write([]byte(`{"model_version":"v2-001","items":[{"id":"a","topic":"politics","confidence":0.9,"filed":true},{"id":"b","topic":"unsorted","confidence":0.4,"filed":false}]}`))
+		_, _ = writer.Write([]byte(`{"model_version":"v2-001","items":[{"id":"a","topic":"politics","confidence":0.9,"filed":true,"clean_title":"Budget","clean_summary":"Budget passed","clean_body":"The budget was approved.","language":"en","language_confidence":0.99},{"id":"b","topic":"unsorted","confidence":0.4,"filed":false,"clean_title":"Story","clean_summary":"","clean_body":"","language":"und","language_confidence":0}]}`))
 	})
-	results, err := client.Classify(t.Context(), []Item{{ID: "a", Title: "Budget"}, {ID: "b", Summary: "Story"}})
+	results, err := client.Classify(t.Context(), []Item{
+		{ID: "a", Title: "Budget", Source: "Example Publisher"},
+		{ID: "b", Summary: "Story"},
+	})
 	if err != nil {
 		t.Fatalf("Classify: %v", err)
 	}
 	if len(results) != 2 || results[0].Topic != "politics" || results[1].Topic != "unsorted" {
 		t.Errorf("results = %#v", results)
+	}
+	if results[0].CleanTitle != "Budget" || results[0].DetectedLanguage != "en" ||
+		results[0].LanguageConfidence != 0.99 || results[0].CleanBody != "The budget was approved." {
+		t.Errorf("derived result fields = %#v", results[0])
 	}
 }
 
@@ -73,6 +90,26 @@ func TestClassifyRejectsInvalidResponseContracts(t *testing.T) {
 	})
 	_, err := client.Classify(t.Context(), []Item{{ID: "expected"}})
 	if !errors.Is(err, ErrBadResponse) {
+		t.Errorf("error = %v, want ErrBadResponse", err)
+	}
+}
+
+func TestClassifyRejectsMissingDerivedFields(t *testing.T) {
+	client := newTestClient(t, func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"model_version":"v2-001","items":[{"id":"a","topic":"politics","confidence":0.9,"filed":true}]}`))
+	})
+	if _, err := client.Classify(t.Context(), []Item{{ID: "a"}}); !errors.Is(err, ErrBadResponse) {
+		t.Errorf("error = %v, want ErrBadResponse", err)
+	}
+}
+
+func TestClassifyRejectsInvalidLanguageConfidence(t *testing.T) {
+	client := newTestClient(t, func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"model_version":"v2-001","items":[{"id":"a","topic":"politics","confidence":0.9,"filed":true,"language":"en","language_confidence":1.1}]}`))
+	})
+	if _, err := client.Classify(t.Context(), []Item{{ID: "a"}}); !errors.Is(err, ErrBadResponse) {
 		t.Errorf("error = %v, want ErrBadResponse", err)
 	}
 }

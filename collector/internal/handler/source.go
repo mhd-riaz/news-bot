@@ -39,16 +39,17 @@ func NewSource(sources SourceManager, logger *slog.Logger) *Source {
 // domain model so a caller cannot set server-owned fields such as health,
 // failure counts or timestamps.
 type createSourceRequest struct {
-	Name                 string `json:"name"`
-	FeedURL              string `json:"feed_url"`
-	Type                 string `json:"type"`
-	Language             string `json:"language"`
-	Country              string `json:"country"`
-	State                string `json:"state"`
-	City                 string `json:"city"`
-	Enabled              *bool  `json:"enabled"`
-	Priority             *int   `json:"priority"`
-	FetchIntervalSeconds *int   `json:"fetch_interval_seconds"`
+	Name                 string    `json:"name"`
+	FeedURL              string    `json:"feed_url"`
+	Type                 string    `json:"type"`
+	Language             string    `json:"language"`
+	Country              string    `json:"country"`
+	State                string    `json:"state"`
+	City                 string    `json:"city"`
+	Domains              *[]string `json:"domains"`
+	Enabled              *bool     `json:"enabled"`
+	Priority             *int      `json:"priority"`
+	FetchIntervalSeconds *int      `json:"fetch_interval_seconds"`
 }
 
 func (r createSourceRequest) toInput() domain.SourceInput {
@@ -60,6 +61,7 @@ func (r createSourceRequest) toInput() domain.SourceInput {
 		Country:              r.Country,
 		State:                r.State,
 		City:                 r.City,
+		Domains:              r.Domains,
 		Enabled:              r.Enabled,
 		Priority:             r.Priority,
 		FetchIntervalSeconds: r.FetchIntervalSeconds,
@@ -68,16 +70,17 @@ func (r createSourceRequest) toInput() domain.SourceInput {
 
 // updateSourceRequest is a partial update: an omitted field is left untouched.
 type updateSourceRequest struct {
-	Name                 *string `json:"name"`
-	FeedURL              *string `json:"feed_url"`
-	Type                 *string `json:"type"`
-	Language             *string `json:"language"`
-	Country              *string `json:"country"`
-	State                *string `json:"state"`
-	City                 *string `json:"city"`
-	Enabled              *bool   `json:"enabled"`
-	Priority             *int    `json:"priority"`
-	FetchIntervalSeconds *int    `json:"fetch_interval_seconds"`
+	Name                 *string   `json:"name"`
+	FeedURL              *string   `json:"feed_url"`
+	Type                 *string   `json:"type"`
+	Language             *string   `json:"language"`
+	Country              *string   `json:"country"`
+	State                *string   `json:"state"`
+	City                 *string   `json:"city"`
+	Domains              *[]string `json:"domains"`
+	Enabled              *bool     `json:"enabled"`
+	Priority             *int      `json:"priority"`
+	FetchIntervalSeconds *int      `json:"fetch_interval_seconds"`
 }
 
 func (r updateSourceRequest) toPatch() domain.SourcePatch {
@@ -88,6 +91,7 @@ func (r updateSourceRequest) toPatch() domain.SourcePatch {
 		Country:              r.Country,
 		State:                r.State,
 		City:                 r.City,
+		Domains:              r.Domains,
 		Enabled:              r.Enabled,
 		Priority:             r.Priority,
 		FetchIntervalSeconds: r.FetchIntervalSeconds,
@@ -111,6 +115,8 @@ type sourceResponse struct {
 	Country              string     `json:"country"`
 	State                string     `json:"state,omitempty"`
 	City                 string     `json:"city,omitempty"`
+	Domains              []string   `json:"domains,omitempty"`
+	AddedBy              string     `json:"added_by,omitempty"`
 	FetchIntervalSeconds int        `json:"fetch_interval_seconds"`
 	NextScheduledAt      time.Time  `json:"next_scheduled_at"`
 	LastCollectedAt      *time.Time `json:"last_collected_at,omitempty"`
@@ -133,6 +139,8 @@ func newSourceResponse(s *domain.Source) sourceResponse {
 		Country:              s.Country,
 		State:                s.State,
 		City:                 s.City,
+		Domains:              s.Domains,
+		AddedBy:              s.AddedBy,
 		FetchIntervalSeconds: s.FetchIntervalSeconds,
 		NextScheduledAt:      s.NextScheduledAt,
 		LastCollectedAt:      s.LastCollectedAt,

@@ -61,15 +61,17 @@ def text_for(title: str, summary: str, body: str, *, body_chars: int = BODY_CHAR
     return f"{title or ''}\n{trimmed or (summary or '').strip()}"
 
 
-def prepare(title: str, summary: str = "", body: str = "") -> tuple[str, str, str]:
-    """Clean pasted text with the corpus recipe, minus what needs a known publisher.
+def prepare(
+    title: str, summary: str = "", body: str = "", *,
+    boilerplate: frozenset[str] | None = None,
+) -> tuple[str, str, str]:
+    """Clean text with the corpus recipe and optional publisher-specific body rules.
 
-    Per-source boilerplate and affix stripping are keyed on the masthead, and a pasted
-    article has no masthead, so only the source-independent rules apply. That is a
-    genuine train/serve difference and it is a small one: cleaning removes 1.2% of body
-    text corpus-wide, and the generic furniture rules do most of it.
+    When no source is known, only source-independent rules apply.
     """
-    cleaned_title, cleaned_summary, cleaned_body = clean.clean_article(title, summary, body)
+    cleaned_title, cleaned_summary, cleaned_body = clean.clean_article(
+        title, summary, body, boilerplate=boilerplate
+    )
     return cleaned_title.text, cleaned_summary.text, cleaned_body.text
 
 

@@ -22,6 +22,7 @@ COPY ml-v2/src /src/src
 RUN pip install --no-cache-dir --no-deps /src
 
 COPY ml-v2/app /app/app
+COPY ml-v2/configs/boilerplate.yaml /app/configs/boilerplate.yaml
 COPY ml-v2/taxonomy.yaml /app/taxonomy.yaml
 
 USER 10001:10001

@@ -24,8 +24,12 @@ sources:
     city: Bengaluru
 `
 
+const sourceWithMetadata = oneValidSource + `    domains: [AI, data-science]
+    added_by: 0198f3d2-1111-7000-8000-000000000001
+`
+
 func TestParseSources(t *testing.T) {
-	file, err := ParseSources(strings.NewReader(oneValidSource))
+	file, err := ParseSources(strings.NewReader(sourceWithMetadata))
 	if err != nil {
 		t.Fatalf("ParseSources: %v", err)
 	}
@@ -36,6 +40,12 @@ func TestParseSources(t *testing.T) {
 	in := file.Sources[0].Input()
 	if in.Type != domain.SourceTypeRSS || in.Country != "IN" || in.City != "Bengaluru" {
 		t.Errorf("input = %+v, want the file values carried through", in)
+	}
+	if in.Domains == nil || strings.Join(*in.Domains, ",") != "AI,data-science" {
+		t.Errorf("domains = %v, want the file values carried through", in.Domains)
+	}
+	if in.AddedBy == nil || *in.AddedBy != "0198f3d2-1111-7000-8000-000000000001" {
+		t.Errorf("added_by = %v, want the file value carried through", in.AddedBy)
 	}
 	// Omitted optional keys must stay nil so a re-sync cannot reset a tuned value.
 	if in.Enabled != nil || in.Priority != nil || in.FetchIntervalSeconds != nil {
@@ -243,7 +253,7 @@ func (e *ensurerStub) Ensure(_ context.Context, in domain.SourceInput) (*domain.
 }
 
 func TestSyncSourcesAppliesEveryInput(t *testing.T) {
-	inputs, err := ParseSources(strings.NewReader(oneValidSource))
+	inputs, err := ParseSources(strings.NewReader(sourceWithMetadata))
 	if err != nil {
 		t.Fatalf("ParseSources: %v", err)
 	}
@@ -258,6 +268,19 @@ func TestSyncSourcesAppliesEveryInput(t *testing.T) {
 	}
 	if len(stub.applied) != 1 {
 		t.Errorf("applied %d sources, want 1", len(stub.applied))
+	} else if stub.applied[0].Domains == nil || len(*stub.applied[0].Domains) != 2 || stub.applied[0].AddedBy == nil {
+		t.Errorf("sync input = %+v, want domains and owner preserved", stub.applied[0])
+	}
+}
+
+func TestParseSourcesLeavesNewOptionalFieldsUnset(t *testing.T) {
+	file, err := ParseSources(strings.NewReader(oneValidSource))
+	if err != nil {
+		t.Fatalf("ParseSources: %v", err)
+	}
+	in := file.Sources[0].Input()
+	if in.Domains != nil || in.AddedBy != nil {
+		t.Errorf("omitted fields = %v/%v, want nil", in.Domains, in.AddedBy)
 	}
 }
 

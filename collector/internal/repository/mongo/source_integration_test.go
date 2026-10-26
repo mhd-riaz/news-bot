@@ -26,6 +26,8 @@ func newSource(t *testing.T, feedURL string, mutate ...func(*domain.SourceInput)
 		Country:  "IN",
 		State:    "Karnataka",
 		City:     "Bengaluru",
+		Domains:  ptrTo([]string{"ai", "software"}),
+		AddedBy:  ptrTo("0198f3d2-1111-7000-8000-000000000002"),
 	}
 	for _, m := range mutate {
 		m(&in)
@@ -177,6 +179,9 @@ func TestCreateAndReadBack(t *testing.T) {
 	}
 	if got.Country != "IN" || got.Language != "en" {
 		t.Errorf("region round-tripped as %q/%q", got.Country, got.Language)
+	}
+	if len(got.Domains) != 2 || got.Domains[0] != "ai" || got.Domains[1] != "software" || got.AddedBy != "0198f3d2-1111-7000-8000-000000000002" {
+		t.Errorf("domains/added_by round-tripped as %v/%q", got.Domains, got.AddedBy)
 	}
 	// Round-tripping the interval must not turn seconds into nanoseconds.
 	if got.FetchIntervalSeconds != domain.DefaultFetchIntervalSeconds {

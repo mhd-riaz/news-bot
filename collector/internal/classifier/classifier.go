@@ -31,15 +31,21 @@ type Item struct {
 	Title   string `json:"title"`
 	Summary string `json:"summary"`
 	Body    string `json:"body"`
+	Source  string `json:"source,omitempty"`
 }
 
 // Result is one valid classification returned by the service.
 type Result struct {
-	ID           string
-	Topic        string
-	Confidence   float64
-	Filed        bool
-	ModelVersion string
+	ID                 string
+	Topic              string
+	Confidence         float64
+	Filed              bool
+	ModelVersion       string
+	CleanTitle         string
+	CleanSummary       string
+	CleanBody          string
+	DetectedLanguage   string
+	LanguageConfidence float64
 }
 
 // Topic is a canonical topic identifier and reader-facing label.

@@ -47,6 +47,9 @@ func TestArticleCreateAndReadBack(t *testing.T) {
 	if err := repo.Create(ctx, a); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
+	if a.InsertedAt.IsZero() || !a.InsertedAt.Equal(a.UpdatedAt) {
+		t.Errorf("insert timestamps = %v / %v, want the repository write time", a.InsertedAt, a.UpdatedAt)
+	}
 
 	got, err := repo.FindByIdentity(ctx, a.Identity())
 	if err != nil {
@@ -63,6 +66,14 @@ func TestArticleCreateAndReadBack(t *testing.T) {
 	}
 	if got.ProcessingStatus != domain.ProcessingStatusCollected {
 		t.Errorf("processing_status = %q", got.ProcessingStatus)
+	}
+	if got.PublishedAtSource != domain.PublicationDateSourceFeed || !got.DateVerified || got.ContentRev != 1 {
+		t.Errorf("C1 publication/revision fields = %q / %v / %d",
+			got.PublishedAtSource, got.DateVerified, got.ContentRev)
+	}
+	if got.InsertedAt.IsZero() || !got.InsertedAt.Equal(a.InsertedAt) ||
+		!got.UpdatedAt.Equal(a.UpdatedAt) {
+		t.Errorf("write timestamps = %v / %v, want repository-set values", got.InsertedAt, got.UpdatedAt)
 	}
 }
 

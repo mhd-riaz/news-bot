@@ -77,7 +77,13 @@ func (c *HTTPClient) Classify(ctx context.Context, items []Item) ([]Result, erro
 	results := make([]Result, len(items))
 	seen := make(map[string]struct{}, len(items))
 	for index, result := range response.Items {
-		if result.Error != "" || result.ID != items[index].ID || strings.TrimSpace(result.Topic) == "" || result.Confidence < 0 || result.Confidence > 1 {
+		if result.Error != "" || result.ID != items[index].ID ||
+			strings.TrimSpace(result.Topic) == "" ||
+			result.Confidence < 0 || result.Confidence > 1 ||
+			result.CleanTitle == nil || result.CleanSummary == nil || result.CleanBody == nil ||
+			result.Language == nil || strings.TrimSpace(*result.Language) == "" ||
+			result.LanguageConfidence == nil || *result.LanguageConfidence < 0 ||
+			*result.LanguageConfidence > 1 {
 			return nil, fmt.Errorf("%w: invalid result at index %d", ErrBadResponse, index)
 		}
 		if _, duplicate := seen[result.ID]; duplicate {
@@ -90,6 +96,8 @@ func (c *HTTPClient) Classify(ctx context.Context, items []Item) ([]Result, erro
 		results[index] = Result{
 			ID: result.ID, Topic: result.Topic, Confidence: result.Confidence,
 			Filed: result.Filed, ModelVersion: response.ModelVersion,
+			CleanTitle: *result.CleanTitle, CleanSummary: *result.CleanSummary, CleanBody: *result.CleanBody,
+			DetectedLanguage: *result.Language, LanguageConfidence: *result.LanguageConfidence,
 		}
 	}
 	return results, nil
@@ -171,11 +179,16 @@ type classifyResponse struct {
 }
 
 type classifyResult struct {
-	ID         string  `json:"id"`
-	Topic      string  `json:"topic"`
-	Confidence float64 `json:"confidence"`
-	Filed      bool    `json:"filed"`
-	Error      string  `json:"error"`
+	ID                 string   `json:"id"`
+	Topic              string   `json:"topic"`
+	Confidence         float64  `json:"confidence"`
+	Filed              bool     `json:"filed"`
+	Error              string   `json:"error"`
+	CleanTitle         *string  `json:"clean_title"`
+	CleanSummary       *string  `json:"clean_summary"`
+	CleanBody          *string  `json:"clean_body"`
+	Language           *string  `json:"language"`
+	LanguageConfidence *float64 `json:"language_confidence"`
 }
 
 type metadataResponse struct {

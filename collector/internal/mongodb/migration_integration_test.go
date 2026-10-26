@@ -76,6 +76,11 @@ func TestMigrationReplacesASupersededIndex(t *testing.T) {
 	if _, ok := names["ix_source_published_cursor"]; !ok {
 		t.Errorf("the replacement index was not created: %v", names)
 	}
+	for _, name := range []string{"ix_updated_cursor", "ix_verified_language_published"} {
+		if _, ok := names[name]; !ok {
+			t.Errorf("C1 index %q was not created: %v", name, names)
+		}
+	}
 }
 
 // A fresh database has none of the obsolete indexes, and a second run has none

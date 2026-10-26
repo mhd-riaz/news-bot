@@ -3,7 +3,7 @@
 # Create a "Docker Compose" resource in Coolify and paste this file, or point it
 # at this path in the repository. The image is built and pushed by GitHub
 # Actions (.github/workflows/news-collector.yml), so the homelab only pulls —
-# it never runs the Go build.
+# it never runs an application build.
 #
 # Coolify fills SERVICE_* itself and keeps the generated values stable across
 # deployments. Variables written as ${NAME:?} are required and must be set in
@@ -15,6 +15,8 @@ services:
   mongo:
     image: mongo:7
     restart: unless-stopped
+    command: ["mongod", "--wiredTigerCacheSizeGB", "2"]
+    mem_limit: 3g
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${SERVICE_USER_MONGO}
       # The 64-character variant is free of symbols, so it needs no escaping
@@ -42,6 +44,7 @@ services:
     image: ${NEWS_CLASSIFIER_IMAGE:-ghcr.io/mhd-riaz/news-collector-classifier:latest}
     pull_policy: always
     restart: unless-stopped
+    mem_limit: 768m
     environment:
       - NEWSML_MODEL_DIR=/models/v2-001
       - NEWSML_API_KEY=${NEWS_CLASSIFIER_API_KEY:?}
@@ -80,12 +83,13 @@ services:
     # Coolify redeploy actually picks up the new build.
     pull_policy: always
     restart: unless-stopped
+    mem_limit: 512m
     environment:
       # Asks Coolify for a domain and routes it to port 8080.
       - SERVICE_FQDN_API_8080
       - NEWS_SERVER_HOST=0.0.0.0
       - NEWS_SERVER_PORT=8080
-      - NEWS_MONGO_URI=mongodb://${SERVICE_USER_MONGO}:${SERVICE_PASSWORD_64_MONGO}@mongo:27017/?authSource=admin
+      - NEWS_MONGO_URI=mongodb://collector:${NEWS_MONGO_COLLECTOR_PASSWORD:?}@mongo:27017/?authSource=${NEWS_MONGO_DATABASE:-news}
       - NEWS_MONGO_DATABASE=${NEWS_MONGO_DATABASE:-news}
 
       # The default reads the copy baked into the image, which means a new feed

@@ -68,35 +68,111 @@ func (r *ArticleRepository) ClaimForScraping(ctx context.Context, claim domain.S
 // between; more to the point, content_hash and the identity keys are not the
 // enrichment stage's to rewrite.
 func (r *ArticleRepository) UpdateScrapeResult(ctx context.Context, id string, result domain.ScrapeResult) error {
+	state := bson.D{
+		{Key: "scrape_status", Value: result.Status},
+		{Key: "scraped_at", Value: result.At},
+	}
+	if result.Content != "" {
+		state = append(state, bson.E{Key: "content", Value: result.Content})
+	}
+	if result.Status.HasFullText() {
+		state = append(state, bson.E{Key: "processing_status", Value: domain.ProcessingStatusEnriched})
+	}
+	if result.NextAt != nil {
+		state = append(state, bson.E{Key: "next_scrape_at", Value: *result.NextAt})
+	}
+
+	unset := bson.D{}
+	if result.NextAt == nil {
+		unset = append(unset, bson.E{Key: "next_scrape_at", Value: ""})
+	}
+
+	changed := bson.A{}
 	set := bson.D{
 		{Key: "scrape_status", Value: result.Status},
 		{Key: "scraped_at", Value: result.At},
 	}
-
-	// An empty body means the attempt found nothing worth storing, so the text
-	// already held is left where it is rather than being blanked.
 	if result.Content != "" {
-		set = append(set, bson.E{Key: "content", Value: result.Content})
+		changed = append(changed, bson.D{{Key: "$ne", Value: bson.A{
+			"$content", bson.D{{Key: "$literal", Value: result.Content}},
+		}}})
+		set = append(set, bson.E{
+			Key: "content", Value: bson.D{{Key: "$literal", Value: result.Content}},
+		})
 	}
-	// The article is promoted only once its stored text is the whole story.
-	// A failure leaves it "collected", which describes what is held honestly.
+	validPageDate := result.PublishedAt != nil && !result.PublishedAt.IsZero() &&
+		!result.PublishedAt.After(result.At.Add(time.Hour))
+	if validPageDate {
+		changed = append(changed,
+			bson.D{{Key: "$ne", Value: bson.A{"$published_at", *result.PublishedAt}}},
+			bson.D{{Key: "$ne", Value: bson.A{
+				"$published_at_source", domain.PublicationDateSourcePage,
+			}}},
+			bson.D{{Key: "$ne", Value: bson.A{"$date_verified", true}}},
+		)
+		set = append(set,
+			bson.E{Key: "published_at", Value: *result.PublishedAt},
+			bson.E{Key: "published_at_source", Value: domain.PublicationDateSourcePage},
+			bson.E{Key: "date_verified", Value: true},
+		)
+	}
+	if result.ImageURL != "" {
+		imageMissing := bson.D{{Key: "$eq", Value: bson.A{
+			bson.D{{Key: "$ifNull", Value: bson.A{"$image_url", ""}}}, "",
+		}}}
+		changed = append(changed, bson.D{{Key: "$and", Value: bson.A{
+			imageMissing,
+			bson.D{{Key: "$ne", Value: bson.A{
+				"$image_url", bson.D{{Key: "$literal", Value: result.ImageURL}},
+			}}},
+		}}})
+		set = append(set, bson.E{
+			Key: "image_url",
+			Value: bson.D{{Key: "$cond", Value: bson.A{
+				imageMissing, bson.D{{Key: "$literal", Value: result.ImageURL}}, "$image_url",
+			}}},
+		})
+	}
 	if result.Status.HasFullText() {
 		set = append(set, bson.E{Key: "processing_status", Value: domain.ProcessingStatusEnriched})
 	}
 	if result.NextAt != nil {
 		set = append(set, bson.E{Key: "next_scrape_at", Value: *result.NextAt})
+	} else {
+		set = append(set, bson.E{Key: "next_scrape_at", Value: "$$REMOVE"})
 	}
 
-	update := bson.D{{Key: "$set", Value: set}}
-	if result.NextAt == nil {
-		// Removing the field, rather than leaving a stale instant behind, is
-		// what keeps a terminal article out of every future backlog query.
-		update = append(update, bson.E{
-			Key:   "$unset",
-			Value: bson.D{{Key: "next_scrape_at", Value: ""}},
-		})
+	if len(changed) > 0 {
+		set = append(set,
+			bson.E{Key: "classification_status", Value: domain.ClassificationStatusPending},
+			bson.E{Key: "classification_claimed_at", Value: "$$REMOVE"},
+			bson.E{Key: "content_rev", Value: bson.D{{Key: "$add", Value: bson.A{
+				bson.D{{Key: "$ifNull", Value: bson.A{"$content_rev", int64(0)}}}, int64(1),
+			}}}},
+			bson.E{Key: "updated_at", Value: "$$NOW"},
+		)
+		update := driver.Pipeline{
+			bson.D{{Key: "$set", Value: set}},
+		}
+		if len(unset) > 0 {
+			update = append(update, bson.D{{Key: "$unset", Value: "next_scrape_at"}})
+		}
+		res, err := r.coll.UpdateOne(ctx, bson.D{
+			{Key: "_id", Value: id},
+			{Key: "$expr", Value: bson.D{{Key: "$or", Value: changed}}},
+		}, update)
+		if err != nil {
+			return fmt.Errorf("mongo: update scrape result: %w", err)
+		}
+		if res.MatchedCount > 0 {
+			return nil
+		}
 	}
 
+	update := bson.D{{Key: "$set", Value: state}}
+	if len(unset) > 0 {
+		update = append(update, bson.E{Key: "$unset", Value: unset})
+	}
 	res, err := r.coll.UpdateByID(ctx, id, update)
 	if err != nil {
 		return fmt.Errorf("mongo: update scrape result: %w", err)

@@ -277,9 +277,9 @@ New `articles` fields. Existing fields keep their meaning; backfill writes only 
 
 ### C13. Evaluation (R15)
 
-- Every available invited reader grades, at minimum you and your brother. There are 50 cases, split evenly: 25 each for two graders or 10 each for five. A case is the grader's own profile (feed) or an opened article (related reading).
+- Every available invited reader grades, at minimum you and your brother. There are 50 cases, assigned as evenly as possible across graders (25 each for two or 10 each for five). Each grader gets one feed case from their actual profile; the remaining cases are opened articles for related reading.
 - Rubric: useful (2) means the grader would read it now; partly useful (1) is related but weak or redundant; not useful (0) is unrelated, duplicate or stale. Useful Precision@5 counts only grade 2; pooled nDCG@5 uses every grade. Pool and shuffle each method's top 5, hiding method names and scores.
-- M0 seals the rubric, the development cases (the 40 `stories-002` cases) and the acceptance sampling procedure (strata, counts and RNG seed, committed in `evaluate.py`). Their hashes go on the M0 task lines.
+- M0 seals the rubric and acceptance sampling procedure (case allocation, counts and RNG seed, committed in `evaluate.py`). Re-point the 40 `stories-002` development cases after M2.5 produces the full index and before M6 tuning; record their hash on M0.3.
 - At freeze, related-reading seeds are sampled by that procedure from story groups first seen after `T_train`. Fresh-feed candidates are articles inside the fresh window at `t_eval` from story groups first seen after `T_train`.
 - M8 freezes the manifest (model, generation, rules, labels and weights) and `t_eval`. It then persists and hashes every method's top 5 for every case before grading. Graders see only those persisted lists.
 - If R15 is met, the method that meets it becomes the default. If several meet it without a meaningful difference, choose the simpler method. If R15 is not met, the best method stays as a fallback and R15 is recorded as **not met**.
@@ -292,7 +292,7 @@ R = read · W = insert/update · D = delete · — = none. Create one MongoDB us
 | Collection | collector | batch | ranker | reader | owner |
 |---|---|---|---|---|---|
 | `articles` | R W D | R | — | R | R |
-| `sources` | R W D | — | — | R W (own `added_by` only) | R W D |
+| `sources` | R W D | — | — | R W (own `added_by` enforced by the reader application) | R W D |
 | `collection_runs` | R W | — | — | — | R |
 | `feed_cache_metadata` | R W | — | — | — | R |
 | `application_locks` | R W D | R W D | — | — | R W D |
@@ -309,6 +309,7 @@ R = read · W = insert/update · D = delete · — = none. Create one MongoDB us
 | `saved_items` | — | — | — | R W D | R D |
 | `editions` | — | — | — | R W D | R D |
 
+- MongoDB roles enforce collection-level access. `sources.added_by` ownership is enforced by reader application authorization; MongoDB does not provide row-level role policies.
 - `collector` means `cmd/api` plus the collector, scrape, seed and migrate commands. It alone holds DDL (create collection; create and drop index), because bootstrap migrates on start. Declare every collection and index, including Python-owned ones, in [collections.go](../internal/mongodb/collections.go) and the index plan.
 - `batch` covers incremental runs, reconciliation and retraining. `reader` is `cmd/reader`, including `/api/v1/agent/*`. `mcp` has no database user. `owner` uses `newsrec admin` subcommands for the allow-list, rollback, label overrides, data deletion and lease release.
 - `read_events` is legacy `cmd/api` telemetry, not a recommendation signal (R6).
@@ -344,36 +345,40 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 
 ### M0 — Baseline, guardrails and deploy path (26–27 Oct · Owner, A, B)
 
-- [ ] **M0.1** (Owner) Confirm D1, D9 and D11; decide D2 and D3
-- [ ] **M0.2** (Owner) Testers agree on the C13 rubric; grading booked for 10–13 Nov
-- [ ] **M0.3** (A) Development cases: the 40 `stories-002` cases re-pointed at the full index
-- [ ] **M0.4** (A) Acceptance sampling procedure committed in `evaluate.py`; hashes recorded here (C13)
-- [ ] **M0.5** (B) Deploy path (C15, D11): port `news-collector.yml` from `mhd-riaz/data-scientist-roadmap`; move `deployments/Dockerfile` to `golang:1.27-alpine` and build every `cmd/*`; add `deployments/recommender.Dockerfile`
-- [ ] **M0.6** (B) `deployments/mongo-users.js` creates the C14 users. The owner runs it once as root, with passwords from the environment. A probe shows each user is denied outside its row; credentials go in Coolify secrets.
-- [ ] **M0.7** (B) MongoDB `--wiredTigerCacheSizeGB 2` and the C15 memory limits in the compose file
+- [x] **M0.1** (Owner) Confirm D1, D9 and D11; decide D2 and D3
+- [~] **M0.2** (Owner, 25 Oct) C13 rubric and 10–13 Nov grading window approved; tester agreement and booking remain to be confirmed.
+- [ ] **M0.3** (A, deferred to M2.5) Re-point the 40 `stories-002` development cases at the full index and record their hash before M6 tuning.
+- [x] **M0.4** (A, 25 Oct) `evaluate.sample_acceptance` freezes one actual-profile feed case per grader and fills the 50-case balance with related-reading cases, sampled by distinct post-training story group using seed `20260823`. Procedure SHA-256: `aeecc565d67d1c634d421dbede20d973129063ef6d8d428db7fbb8eb7d90ff9d`; the frozen sample hash is recorded when M8 has the full index and profiles.
+- [~] **M0.5** (B, 25 Oct) Main-branch GitHub Actions tests and publishes the Go, classifier and recommender images to GHCR, then triggers Coolify; package every `cmd/*` in the Go image. Implementation and local image builds are complete; remote CI, publishing and deployment remain to be verified.
+- [~] **M0.6** (B, 25 Oct) `deployments/mongo-users.js` creates the C14 collection-scoped users. The owner runs it as root with distinct 64-hex passwords from the environment. The script and access boundaries passed disposable-Mongo probes; production provisioning remains pending.
+- [x] **M0.7** MongoDB `--wiredTigerCacheSizeGB 2` and the C15 memory limits for the currently deployed services are configured in the compose file and validated.
 
-**Build notes.** `deployments/Dockerfile` uses `golang:1.26-alpine` while `go.mod` requires Go 1.27, and official Go images default to `GOTOOLCHAIN=local`, so expect the image build to fail until M0.5. The image also builds no reader binary today.
+**Build notes.** `deployments/Dockerfile` uses Go 1.27 and builds every `cmd/*` binary. Go, classifier and recommender images built locally; the compose file parsed with required dummy values. MongoDB provisioning created all five users on a disposable server; each passed an allowed-operation probe and was denied an ungranted collection/operation. Collector collection and index DDL probes also passed.
 
-**Exit:** every item is done with evidence, and CI builds all three images.
+**Exit:** every item is done with evidence, and CI builds all three images. Remote CI/GHCR/Coolify evidence and production database provisioning are still pending.
 
 ### M1 — Collector hardening and sources (26–30 Oct · A; B for M1.6–M1.8)
 
-- [ ] **M1.1** (A) Sidecar `/v1/classify` items accept an optional `source` and return `clean_title`, `clean_summary`, `clean_body`, `language` and `language_confidence` (C1). Add `langdetect` to `requirements-serve.txt`, and ship the reviewed boilerplate rules in the image.
-- [ ] **M1.2** (A) Go: the classifier client parses the derived fields; `domain.Article` gains the C1 fields; the processor writes them at ingest with `published_at_source` and `date_verified`; the repository sets `inserted_at` and `updated_at` at write time
-- [ ] **M1.3** (A) The classification backlog writes derived fields and bumps `content_rev` and `updated_at` when they change. Enrichment stores the page date and image, bumps on change, and resets classification to pending.
-- [ ] **M1.4** (A) C1 indexes in `internal/mongodb`, with tests; with M1.2 and M1.3 this completes H1
-- [ ] **M1.5** (A) `cmd/backfill` and `make backfill`: sidecar-derived fields for existing articles, new fields only, resumable; run in production at low priority
-- [ ] **M1.6** (B) Source `domains` and `added_by` through `domain.Source`, `SourceInput`, `sources.yaml`, seed, sync and the sources API
+- [x] **M1.1** (A) Sidecar `/v1/classify` items accept an optional `source` and return `clean_title`, `clean_summary`, `clean_body`, `language` and `language_confidence` (C1). `langdetect==1.0.9` is pinned in `requirements-serve.txt`; the reviewed boilerplate rules ship in the image. Full ML/classifier tests pass and the classifier image builds locally.
+- [x] **M1.2** (A) Go: the classifier client parses the derived fields; `domain.Article` gains the C1 fields; the processor writes them at ingest with `published_at_source` and `date_verified`; the repository sets `inserted_at` and `updated_at` at write time. `make check` and the Mongo article create/read-back integration test pass.
+- [x] **M1.3** (A) The classification backlog writes derived fields and bumps `content_rev` and `updated_at` only when they change. Enrichment extracts page dates/images, preserves feed images, increments the revision on content metadata changes, and resets classification to pending. Go unit/race tests and the Mongo repository integration suite pass.
+- [x] **M1.4** (A) C1 indexes in `internal/mongodb`, with tests; with M1.2 and M1.3 this completes H1. `make check` and the Mongo migration integration tests pass.
+- [~] **M1.5** (A) `cmd/backfill` and `make backfill`: sidecar-derived fields for existing articles, new fields only, resumable; the bounded, low-priority implementation is verified, but the production run remains pending.
+- [x] **M1.6** Source `domains` and `added_by` through `domain.Source`, `SourceInput`, `sources.yaml`, seed, sync and the sources API. `added_by` is response-only for API clients until authenticated reader identity exists; trusted seed/internal callers may set it.
 - [ ] **M1.7** (B) Existing technology sources and sections tagged; MIT, Medium, other software, data science and AI feeds, and local or independent publications added and verified (R17)
 - [ ] **M1.8** (B) Health checks; `newsrec alerts` as a scheduled task (D3); daily encrypted `mongodump` (D2); restore rehearsed into a scratch database
 - [ ] **M1.9** (A) Verified-date share per publisher reported (input to D7)
 
 **Build notes.**
 
-- M1.1: `ml-v2/app/api.py` already cleans every item with `serve.prepare` → `clean_article`, then discards the result. Return it instead, passing `source` so per-publisher rules apply. Refactor `english_text` in `newsrec/data.py` to also return its confidence.
+- M1.1: verified with `uv run pytest -q` in `ml-v2` and a successful local classifier image build.
 - M1.2: `internal/classifier/{classifier,http}.go`, `internal/domain/article.go` (`publicationTime` also returns its provenance), `internal/processor/processor.go` and `internal/repository/mongo/article.go`.
 - M1.3: `internal/service/classification.go`, `internal/repository/mongo/article_classification.go`, `internal/extract/jsonld.go` plus meta tags (test with `fixtures/articles/*.html.gz`), `internal/service/enrichment.go` and `internal/repository/mongo/article_scrape.go`.
+- M1.3: validated with `make check`, `make test-race`, and `go test -tags=integration -count=1 ./internal/repository/mongo`.
+- M1.4: `make check` and `go test -tags=integration -count=1 ./internal/mongodb` pass; the migration test verifies both C1 indexes.
+- M1.5: `make check`, `make build`, and the Mongo backfill integration test pass. Production execution is intentionally pending until the production target is provisioned and explicitly selected.
 - M1.5: the filter `{content_rev: {$exists: false}}` makes it resumable, and batches of 50 match the sidecar batch size. It never writes topics.
+- M1.6: source domains are normalized/validated and round-trip through seed sync, API and Mongo persistence. `added_by` is UUID-validated, exposed in responses, and cannot be supplied by API clients. Focused source tests, Mongo integration tests, `make check` and `make test-race` pass.
 - M1.7: verify each feed with `make collect-source SOURCE=<id>` against a local database before enabling it.
 
 **Exit:** new and backfilled articles carry every C1 field. `collection_runs` shows no collection gap. Restore has been rehearsed. `make check`, `make test-race`, `make test-integration` and `make ml2-test` pass.
@@ -384,7 +389,7 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 - [ ] **M2.2** (A) Vectorised MinHash/LSH vendored into ml-v2; the 43 labelled pairs used by `make ml-pairs-import` still give recall ≥ 0.90 and precision ≥ 0.80 (C3)
 - [ ] **M2.3** (A) Full build: chronological split; TF-IDF, SVD and autoencoder fits; story groups; multi-topic assignment and topic-count choice (C3); peak memory recorded
 - [ ] **M2.4** (A) Ranker: hot reload; `/health/ready` reports generation, model and `activated_at`; C2 freshness, `source_ids` and verified date-window filters; responses drop `text` and carry generation and model (H2a)
-- [ ] **M2.5** (A) First full production index after the M1.5 backfill (H2b); incremental runs and nightly reconciliation live
+- [ ] **M2.5** (A) First full production index after the M1.5 backfill (H2b); incremental runs and nightly reconciliation live. Then complete deferred M0.3 before M6 tuning.
 - [ ] **M2.6** (B) Reader: Go request and metadata fields; display text built from `clean_summary` or `clean_body` with the existing display recipe; `stories.js` drops the snapshot check and per-snapshot storage key; `scripts/stories.test.mjs` updated
 - [ ] **M2.7** (B) `ranker` and `batch` deployed: `newsrec run` every 30 min and `newsrec reconcile` nightly, with C15 limits
 - [ ] **M2.8** (A) Integration tests against the local `make mongo-up` database cover:
@@ -525,7 +530,7 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
 | V1 scope, now including R17–R21, does not fit 21 days for two agents | High | High | R17–R21 stay off the ML critical path. A milestone more than a day late goes to §7 the same day; no silent cuts. |
-| No deploy path for this repo, or the Go image build fails | High | High | M0.5 on day 1: port the workflow and bump the Go image |
+| GHCR publication or Coolify deployment fails | High | High | M0.5 workflow gates deployment on checks and image publication; verify with configured secrets before closing M0 |
 | Owner inputs arrive late (D10, invites, reviews, grading) | Medium | High | Dates in §1.1; escalate the same day |
 | Sidecar outage delays derived fields | Low | Medium | Articles wait in the classification backlog and enter the index later; the SLA counts the delay |
 | Few articles have verified dates | Medium | High | Measure in M1; owner decides D7 early |
@@ -544,7 +549,7 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 |---|---|---|---|
 | D1 | Confirm the agent split in §1 | M0 | As proposed |
 | D2 | Off-machine backup target | M1 | None; blocks the M1 backup task |
-| D3 | Alert channel | M1 | None; blocks alerts |
+| D3 | Alert channel | V2 | Deferred; no V1 alert delivery |
 | D4 | Retention period for `reader_events` | M3 | Keep until the reader deletes them |
 | D5 | Load target (requests/s, p95) for M9 | M9 | 5 readers + 2 agents, p95 ≤ 500 ms |
 | D6 | Content and image rights for invited readers | M9 | Summary or excerpt plus link; images hotlinked |
@@ -552,7 +557,7 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 | D8 | Should MCP expose a reader's own saved items and notes? | M7 | Not in V1 (V2-6) |
 | D9 | Accept the simplifications marked "Proposed" in §8 | M0 | Accept |
 | D10 | Public hostname for the reader (Cloudflare Tunnel) and the Google OAuth client | 29 Oct | None; blocks M3.3 |
-| D11 | Port the old repo's GitHub Actions workflow and publish this repo's images to GHCR | 26 Oct | Yes |
+| D11 | Publish V1 images and automatically deploy on main pushes | M0 | GitHub Actions → GHCR → authenticated Coolify webhook |
 
 ## 8. Decision log
 
@@ -560,6 +565,12 @@ Newest first. Never lower a threshold or change a contract without a row here.
 
 | Date | Decision | Reason |
 |---|---|---|
+| 2026-10-25 | **C13 sampling refined:** one feed case from each grader's actual profile; fill the remainder of 50 with related-reading cases; use seed `20260823` | Owner replaced the initial 25/25 case-type split |
+| 2026-10-25 | **D1 accepted; D2 no backup target for now; D3 deferred to V2** | Owner decision |
+| 2026-10-25 | **D9 accepted:** per-request reader profiles, environment-backed MCP key hashes and the existing publication lease | Owner accepted the three proposed simplifications |
+| 2026-10-25 | **D11:** main pushes build and publish all V1 images to GHCR, then call Coolify's authenticated deploy webhook | Deploy only after successful checks and image publication |
+| 2026-10-25 | **C13 sampling (initial proposal, superseded above):** 50 cases, split 25 feed / 25 related-reading, using RNG seed `20260823` | Owner later chose one actual-profile feed case per grader |
+| 2026-10-25 | `sources.added_by` is application-enforced, not a MongoDB row-level role | MongoDB RBAC grants collection-level actions only |
 | 2026-10-25 | V1 execution plan: numbered tasks with agents, the §1.1 schedule and the §4.1 release checklist; B takes deployment, sources and operations | Agent A's chain is the critical path |
 | 2026-10-25 | **Proposed (D9):** clean text and detected language come from the existing classifier-sidecar call, not a Go port. Enrichment resets classification, so text is re-derived and the topic re-scored on the full body. | Same code as preparation, no parity fixtures, and the existing retry path |
 | 2026-10-25 | Rules and labels are mined nightly and at retrain; runs only apply them | Mining the corpus does not fit a 30-min run |
@@ -589,6 +600,10 @@ Append only. Add one line for each claim, handoff, block or finish.
 |---|---|---|---|
 | 2026-10-25 | — | Roadmap created | Built from the client expectations, the v4 review draft and the review of that draft |
 | 2026-10-25 | — | V1 execution plan added | §1.1 schedule, numbered tasks with build notes, §4.1 release checklist |
+| 2026-10-25 | B | M0.5–M0.7 | Built all three images locally; Compose validation passed; the Mongo user script and allow/deny plus collector DDL probes passed on a disposable instance. Remote CI/deployment and production provisioning are not yet verified. |
+| 2026-10-25 | Owner | M0.2–M0.4 | Approved the C13 rubric and 10–13 Nov grading window, chose to wait for M2's full index for development cases, and set acceptance sampling to 25 feed + 25 related-reading cases with RNG seed `20260823`. |
+| 2026-10-25 | Owner | M0.4 | Refined the case allocation to one actual-profile feed case per grader and the remaining cases as related reading. |
+| 2026-10-25 | A | M0.4 | Added and tested deterministic acceptance sampling, including post-training group and fresh-feed eligibility, balanced grader assignment, sample hashing and overwrite protection. Procedure SHA-256 is recorded on the M0.4 task; the sample hash awaits M8's full index and profiles. |
 
 ## 10. V2 backlog (not designed)
 

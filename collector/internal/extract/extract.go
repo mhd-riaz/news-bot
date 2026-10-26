@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"fmt"
 	"net/url"
+	"time"
 
 	"golang.org/x/net/html/charset"
 
@@ -32,6 +33,9 @@ type Result struct {
 	// when a publisher changes its markup, which extractor stopped winning is
 	// the first useful clue.
 	By string
+
+	PublishedAt *time.Time
+	ImageURL    string
 }
 
 // Words reports the length of the extracted body.
@@ -81,18 +85,28 @@ func (c *Chain) Extract(page []byte, contentType string, base *url.URL) (Result,
 	}
 
 	var best Result
+	pageMetadata := metadataFromHTML(decoded, base)
+	var structuredDate *time.Time
 	for _, e := range c.extractors {
 		got := e.Extract(decoded, base)
 		got.Text = Clean(got.Text)
 		got.By = e.Name()
+		if structuredDate == nil && got.PublishedAt != nil {
+			structuredDate = got.PublishedAt
+		}
 
 		if got.Words() > best.Words() {
 			best = got
 		}
 	}
+	best.PublishedAt = pageMetadata.PublishedAt
+	if best.PublishedAt == nil {
+		best.PublishedAt = structuredDate
+	}
+	best.ImageURL = pageMetadata.ImageURL
 
 	if best.Words() < c.minWords {
-		return Result{}, fmt.Errorf("%w: best was %d words from %q",
+		return best, fmt.Errorf("%w: best was %d words from %q",
 			domain.ErrExtractionEmpty, best.Words(), best.By)
 	}
 	return best, nil

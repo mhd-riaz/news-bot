@@ -34,12 +34,17 @@ func RetryableClassificationStatuses() []ClassificationStatus {
 
 // ClassificationResult is the narrow outcome written by a classification worker.
 type ClassificationResult struct {
-	Status       ClassificationStatus
-	Topic        string
-	Confidence   float64
-	ModelVersion string
-	At           time.Time
-	ClaimedAt    time.Time
+	Status             ClassificationStatus
+	Topic              string
+	Confidence         float64
+	ModelVersion       string
+	CleanTitle         string
+	CleanSummary       string
+	CleanBody          string
+	DetectedLanguage   string
+	LanguageConfidence float64
+	At                 time.Time
+	ClaimedAt          time.Time
 }
 
 // ClassificationClaim selects the next pending article and stamps its claim.
