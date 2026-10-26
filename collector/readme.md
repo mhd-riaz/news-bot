@@ -290,6 +290,11 @@ injected environment in the homelab, with no branch either way. A missing `.env`
 is not an error. `NEWS_ENV_FILE` (or `-env`) points at a different file, such as
 a mounted secret.
 
+Keep `.env` pointed at a local database: `make run` migrates and seeds whatever it
+points at, and starts collecting into it. Put production credentials in a separate
+gitignored file such as `.env.prod`, and select it only when you mean to:
+`NEWS_ENV_FILE=.env.prod make seed`.
+
 ## Authentication
 
 Every `/api/v1` route requires a credential. `/health/live` and `/health/ready`
@@ -410,7 +415,7 @@ this file on `main` instead and the list is read fresh on every start — adding
 then a commit and a restart, with no image rebuild:
 
 ```
-NEWS_BOOTSTRAP_SOURCES_PATH=https://raw.githubusercontent.com/mhd-riaz/data-scientist-roadmap/main/semester-1/06-supervised-ml-classification/mini-project/news/configs/sources.yaml
+NEWS_BOOTSTRAP_SOURCES_PATH=https://raw.githubusercontent.com/mhd-riaz/news-bot/main/collector/configs/sources.yaml
 ```
 
 Plaintext `http://` is refused: this file decides which URLs the collector then fetches,
@@ -439,6 +444,9 @@ sync off entirely, for a deployment that manages sources only through the API.
 set one is rejected rather than ignored. `added_by` is also server-owned in the API:
 it is returned when present, but API callers cannot set or change it until reader identity
 is available. `domains` can be supplied on create or update; an empty list clears the tags.
+The shipped file uses only the four V1 domains, `technology`, `software`, `ai` and
+`data-science`, which a reader's professional mix selects on; a test rejects any other tag
+there.
 
 ## Endpoints
 

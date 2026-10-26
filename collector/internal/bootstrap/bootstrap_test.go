@@ -171,6 +171,21 @@ func TestShippedSourcesFileIsValid(t *testing.T) {
 	if len(inputs) == 0 {
 		t.Fatal("the shipped seed file declares no sources")
 	}
+
+	// A misspelt tag is still a valid tag, so it would silently drop the source
+	// from every reader's professional pool (roadmap C8). Hold the shipped file
+	// to the V1 domains.
+	v1Domains := map[string]bool{"ai": true, "data-science": true, "software": true, "technology": true}
+	for _, in := range inputs {
+		if in.Domains == nil {
+			continue
+		}
+		for _, tag := range *in.Domains {
+			if !v1Domains[tag] {
+				t.Errorf("%s: domain tag %q is not a V1 domain", in.Name, tag)
+			}
+		}
+	}
 }
 
 func TestLoadSourcesReportsAMissingFile(t *testing.T) {

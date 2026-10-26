@@ -3,6 +3,7 @@ package ratelimit
 import (
 	"context"
 	"errors"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -14,6 +15,12 @@ type testClock struct {
 	mu   sync.Mutex
 	now  time.Time
 	naps []time.Duration
+
+	// frozen makes Sleep record its wait without advancing now. Concurrent
+	// sleepers must use it: each one adding its own wait to a shared clock
+	// moves time further than a real clock would, past slots other callers
+	// have reserved but not yet reached.
+	frozen bool
 }
 
 func newTestClock() *testClock {
@@ -33,7 +40,9 @@ func (c *testClock) Sleep(ctx context.Context, d time.Duration) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.naps = append(c.naps, d)
-	c.now = c.now.Add(d)
+	if !c.frozen {
+		c.now = c.now.Add(d)
+	}
 	return nil
 }
 
@@ -240,6 +249,7 @@ func TestAcquireStopsWhenTheContextIsCancelled(t *testing.T) {
 
 func TestConcurrentAcquireReservesDistinctSlots(t *testing.T) {
 	c := newTestClock()
+	c.frozen = true
 	l := newTestLimiter(c, Config{MinInterval: time.Second})
 
 	// Reserving under the lock is what stops concurrent callers all reading the
@@ -255,13 +265,16 @@ func TestConcurrentAcquireReservesDistinctSlots(t *testing.T) {
 	}
 	wg.Wait()
 
+	// Every caller reserved at the same frozen instant, so the first goes now
+	// and the rest wait for one distinct slot each: 1s, 2s, ... 7s.
 	naps := c.Naps()
 	if len(naps) != callers-1 {
 		t.Fatalf("%d callers produced %d waits, want %d", callers, len(naps), callers-1)
 	}
+	slices.Sort(naps)
 	for i, d := range naps {
-		if d <= 0 {
-			t.Errorf("wait %d = %v, want a positive gap", i, d)
+		if want := time.Duration(i+1) * time.Second; d != want {
+			t.Errorf("wait %d = %v, want %v", i, d, want)
 		}
 	}
 }

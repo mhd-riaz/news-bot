@@ -97,7 +97,7 @@ services:
       # instead and the list is read fresh on every start, so adding a feed is a
       # commit and a restart:
       #
-      #   https://raw.githubusercontent.com/mhd-riaz/data-scientist-roadmap/main/semester-1/06-supervised-ml-classification/mini-project/news/configs/sources.yaml
+      #   https://raw.githubusercontent.com/mhd-riaz/news-bot/main/collector/configs/sources.yaml
       #
       # https only, and a fetch that fails leaves the stored sources in place
       # rather than stopping the collector.

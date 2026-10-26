@@ -10,8 +10,8 @@ Task markers: `[ ]` todo · `[~]` in progress (agent, date) · `[x]` done (evide
 
 | Milestone | Lead (others' tasks) | Window | Needs | Status |
 |---|---|---|---|---|
-| M0 Baseline, guardrails and deploy path | Owner, A, B | 26–27 Oct | — | todo |
-| M1 Collector hardening and sources | A (B: M1.6–M1.8) | 26–30 Oct | M0 | todo |
+| M0 Baseline, guardrails and deploy path | Owner, A, B | 26–27 Oct | — | in progress |
+| M1 Collector hardening and sources | A (B: M1.6–M1.8) | 26–30 Oct | M0 | in progress |
 | M2 Revision-aware pipeline | A (B: M2.6, M2.7) | 29 Oct–3 Nov | H1 | todo |
 | M3 Accounts, settings, saved items, reader feeds | B (Owner: M3.9) | 29 Oct–4 Nov | M0, D10; H2a for the feed | todo |
 | M4 Daily edition (text) | B (Owner: M4.5) | 4–9 Nov | H2a, H3 | todo |
@@ -87,7 +87,7 @@ V1 is the web product, due 15 Nov. V2 is the audio briefing and iPhone app. Andr
 | R14 | Neural model trained for recommendation, compared with existing methods | V1 | C12 → M6 | todo |
 | R15 | Human Useful P@5 ≥ 0.65 and not below TF-IDF | V1 | C13 → M8 | todo |
 | R16 | All V1 scope, including hardening, by 15 Nov 2026 | V1 | §1 | todo |
-| R17 | Software, data science and AI sources, including MIT, Medium, local and independent publications | V1 | C1 → M1 | todo |
+| R17 | Software, data science and AI sources, including MIT, Medium, local and independent publications | V1 | C1 → M1 | done in code (M1.7); reaches production with the next deploy |
 | R18 | Save stories and topics, with notes | V1 | C8 → M3 | todo |
 | R19 | Daily edition of yesterday's relevant stories (text) | V1 | C9 → M4 | todo |
 | R20 | Settings: professional news, local news (city) or both; professional domains | V1 | C8 → M3 | todo |
@@ -350,7 +350,7 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 - [ ] **M0.3** (A, deferred to M2.5) Re-point the 40 `stories-002` development cases at the full index and record their hash before M6 tuning.
 - [x] **M0.4** (A, 25 Oct) `evaluate.sample_acceptance` freezes one actual-profile feed case per grader and fills the 50-case balance with related-reading cases, sampled by distinct post-training story group using seed `20260823`. Procedure SHA-256: `aeecc565d67d1c634d421dbede20d973129063ef6d8d428db7fbb8eb7d90ff9d`; the frozen sample hash is recorded when M8 has the full index and profiles.
 - [~] **M0.5** (B, 25 Oct) Main-branch GitHub Actions tests and publishes the Go, classifier and recommender images to GHCR, then triggers Coolify; package every `cmd/*` in the Go image. Implementation and local image builds are complete; remote CI, publishing and deployment remain to be verified.
-- [~] **M0.6** (B, 25 Oct) `deployments/mongo-users.js` creates the C14 collection-scoped users. The owner runs it as root with distinct 64-hex passwords from the environment. The script and access boundaries passed disposable-Mongo probes; production provisioning remains pending.
+- [x] **M0.6** (B, 25 Oct) `deployments/mongo-users.js` creates the C14 collection-scoped users. The owner runs it as root with distinct 64-hex passwords from the environment. The script and access boundaries passed disposable-Mongo probes; the owner confirmed production provisioning on 26 Oct.
 - [x] **M0.7** MongoDB `--wiredTigerCacheSizeGB 2` and the C15 memory limits for the currently deployed services are configured in the compose file and validated.
 
 **Build notes.** `deployments/Dockerfile` uses Go 1.27 and builds every `cmd/*` binary. Go, classifier and recommender images built locally; the compose file parsed with required dummy values. MongoDB provisioning created all five users on a disposable server; each passed an allowed-operation probe and was denied an ungranted collection/operation. Collector collection and index DDL probes also passed.
@@ -365,7 +365,7 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 - [x] **M1.4** (A) C1 indexes in `internal/mongodb`, with tests; with M1.2 and M1.3 this completes H1. `make check` and the Mongo migration integration tests pass.
 - [~] **M1.5** (A) `cmd/backfill` and `make backfill`: sidecar-derived fields for existing articles, new fields only, resumable; the bounded, low-priority implementation is verified, but the production run remains pending.
 - [x] **M1.6** Source `domains` and `added_by` through `domain.Source`, `SourceInput`, `sources.yaml`, seed, sync and the sources API. `added_by` is response-only for API clients until authenticated reader identity exists; trusted seed/internal callers may set it.
-- [ ] **M1.7** (B) Existing technology sources and sections tagged; MIT, Medium, other software, data science and AI feeds, and local or independent publications added and verified (R17)
+- [x] **M1.7** (B, 26 Oct) Existing technology sources and sections tagged; MIT, Medium, other software, data science and AI feeds, and local or independent publications added and verified (R17). 14 existing tech sources and sections carry `technology`; 25 sources were added: 20 professional (including two MIT News topics and three Medium tags) and 5 local or independent. All 25 collected into a scratch database (1,669 items, 97.6% detected English); `make check` and `make test-race` pass.
 - [ ] **M1.8** (B) Health checks; `newsrec alerts` as a scheduled task (D3); daily encrypted `mongodump` (D2); restore rehearsed into a scratch database
 - [ ] **M1.9** (A) Verified-date share per publisher reported (input to D7)
 
@@ -379,7 +379,8 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 - M1.5: `make check`, `make build`, and the Mongo backfill integration test pass. Production execution is intentionally pending until the production target is provisioned and explicitly selected.
 - M1.5: the filter `{content_rev: {$exists: false}}` makes it resumable, and batches of 50 match the sidecar batch size. It never writes topics.
 - M1.6: source domains are normalized/validated and round-trip through seed sync, API and Mongo persistence. `added_by` is UUID-validated, exposed in responses, and cannot be supplied by API clients. Focused source tests, Mongo integration tests, `make check` and `make test-race` pass.
-- M1.7: verify each feed with `make collect-source SOURCE=<id>` against a local database before enabling it.
+- M1.7: verify each feed with `make collect-source SOURCE=<id>` against a local database before enabling it. Keep `.env` on a local database and select production only explicitly (`NEWS_ENV_FILE=.env.prod`, see the readme). For a throwaway check, set `NEWS_MONGO_DATABASE` to a scratch database. The collector command also needs any `NEWS_AUTH_API_KEYS` value, although it serves no HTTP.
+- M1.7: a feed is added only if it answers with English items and no robots.txt group or licence that applies to every agent reserves AI-training or text and data mining rights (§8). Left-out feeds are recorded at the bottom of `configs/sources.yaml`.
 
 **Exit:** new and backfilled articles carry every C1 field. `collection_runs` shows no collection gap. Restore has been rehearsed. `make check`, `make test-race`, `make test-integration` and `make ml2-test` pass.
 
@@ -496,7 +497,7 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 
 ### M9 — Hardening and handover (10–15 Nov · B; A reviews)
 
-- [ ] **M9.1** (B) Flaky rate-limit test fixed; JavaScript line coverage raised
+- [~] **M9.1** (B) Flaky rate-limit test fixed; JavaScript line coverage raised. The flaky-test half was pulled forward and done on 26 Oct (§9); JavaScript coverage remains.
 - [ ] **M9.2** (B) Security review covers C10, C11 and C14 enforcement, CSP, CSRF and the MongoDB port decision (C15)
 - [ ] **M9.3** (B) Concurrent load test with testers and agents (target D5), using a small standard-library script
 - [ ] **M9.4** (B) Final backup and restore rehearsal; weekly retrain schedule enabled
@@ -548,7 +549,7 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 | # | Decision | Needed by | Default until decided |
 |---|---|---|---|
 | D1 | Confirm the agent split in §1 | M0 | As proposed |
-| D2 | Off-machine backup target | M1 | None; blocks the M1 backup task |
+| D2 | Off-machine backup target | M1 | Decided 26 Oct: a LAN disk or NAS (§8) |
 | D3 | Alert channel | V2 | Deferred; no V1 alert delivery |
 | D4 | Retention period for `reader_events` | M3 | Keep until the reader deletes them |
 | D5 | Load target (requests/s, p95) for M9 | M9 | 5 readers + 2 agents, p95 ≤ 500 ms |
@@ -556,7 +557,7 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 | D7 | Relax R3 if few dates are verified | M1 report | No |
 | D8 | Should MCP expose a reader's own saved items and notes? | M7 | Not in V1 (V2-6) |
 | D9 | Accept the simplifications marked "Proposed" in §8 | M0 | Accept |
-| D10 | Public hostname for the reader (Cloudflare Tunnel) and the Google OAuth client | 29 Oct | None; blocks M3.3 |
+| D10 | Public hostname for the reader (Cloudflare Tunnel) and the Google OAuth client | 29 Oct | Hostname decided 26 Oct: `news.mxdio.com` (§8). The OAuth client is pending and still blocks M3.3 |
 | D11 | Publish V1 images and automatically deploy on main pushes | M0 | GitHub Actions → GHCR → authenticated Coolify webhook |
 
 ## 8. Decision log
@@ -565,6 +566,14 @@ Newest first. Never lower a threshold or change a contract without a row here.
 
 | Date | Decision | Reason |
 |---|---|---|
+| 2026-10-26 | **D2: backups go to a LAN disk or NAS**, not off-site | Owner decision. A NAS keeps backups off the laptop; neither option covers a site-level loss such as theft or fire |
+| 2026-10-26 | **D10 hostname: `news.mxdio.com`**, through Cloudflare Tunnel. The OAuth redirect is `https://news.mxdio.com/auth/callback` | Owner decision; the Google OAuth client is still to be created |
+| 2026-10-26 | Production reads the sources file baked into the image; Coolify leaves `NEWS_BOOTSTRAP_SOURCES_PATH` unset | Every main merge rebuilds and redeploys (D11), so a remote copy adds a runtime dependency for no gain |
+| 2026-10-26 | Merge `v1` into `main` with a squash merge | Keeps the 21.5 MB binary added in `ecc24cc` and removed in `ddf4a15` out of `main` without rewriting pushed history |
+| 2026-10-26 | **V1 domain tags:** `technology` (general tech news), `software`, `ai` and `data-science`. `TestShippedSourcesFileIsValid` rejects any other tag in `configs/sources.yaml`; the API still accepts any valid tag. | The C8 pool rule matches source and reader domains, so a misspelt tag would silently drop a source from every professional pool |
+| 2026-10-26 | **New sources pass the Al Jazeera test:** no robots.txt group or licence that applies to every agent may reserve AI-training or text and data mining rights. The Pragmatic Engineer and MediaNama were left out (`Content-Signal: ai-train=no`). Blocks aimed only at named AI crawlers do not count. | Applies the existing Al Jazeera exclusion consistently to R17 additions |
+| 2026-10-26 | **Medium included by owner decision**, although its licence (`medium.com/license.xml`) prohibits `ai-train`; it permits search and indexing with attribution. Three tag feeds sample `ai`, `data-science` and `software`. | R17 names Medium; the owner accepted the licence risk |
+| 2026-10-26 | The M9.1 flaky rate-limit test fix was pulled forward from 10 Nov | It failed 259 of 3,000 runs at `-cpu=2` and gates every `make check` and CI run |
 | 2026-10-26 | **C1 legacy insertion estimate:** use `collected_at` when `inserted_at` is absent; never replace a known insertion time | Owner approved the explicit estimate while resolving review `ecc24cc`; original insertion timestamps are unavailable |
 | 2026-10-26 | Track synthetic feed/extraction checks; keep captured publisher HTML and gold labels private with explicit optional-data skips | Owner chose synthetic fixtures rather than redistributing publisher content; clean-checkout CI must remain self-contained |
 | 2026-10-26 | CI runs Mongo integration tests against a health-checked MongoDB 7 service | Repository races and update-pipeline invariants require the real database engine; reuse the existing integration suite without a new dependency |
@@ -609,6 +618,9 @@ Append only. Add one line for each claim, handoff, block or finish.
 | 2026-10-25 | A | M0.4 | Added and tested deterministic acceptance sampling, including post-training group and fresh-feed eligibility, balanced grader assignment, sample hashing and overwrite protection. Procedure SHA-256 is recorded on the M0.4 task; the sample hash awaits M8's full index and profiles. |
 | 2026-10-26 | Copilot | Review `ecc24cc` claimed | Owner approved all validated fixes, the legacy insertion estimate and synthetic fixtures; confirmed production provisioning is already complete. No production operations or history rewrite authorized. |
 | 2026-10-26 | Copilot | Review `ecc24cc` source fixes validated | Full Go race suite: 776 passed; full Go integration-tagged suite: 877 passed; ML suite: 203 passed; Node: 21 passed. Tracked-source-only Go CI gates passed; ML: 189 passed, 14 explicit private-data skips; Node: 21 passed. Owner chose to leave changes uncommitted and handle binary history before pushing. |
+| 2026-10-26 | Copilot | M9.1 flaky test (pulled forward) | `TestConcurrentAcquireReservesDistinctSlots` failed because the test clock added each concurrent sleep to one shared time, moving it past later reservations. A frozen test clock now makes the expected waits exactly 1–7 s: 0 failures in 12,000 runs at `-cpu` 1–8 (previously 259 of 3,000 at `-cpu=2`), and a deliberately broken reservation fails it. The limiter itself is unchanged. |
+| 2026-10-26 | Copilot | M1.7 done | Owner approved the design, included Medium and chose no action on existing sources. The 25 new feeds were probed for status, items, language, robots and licence, then seeded and collected into a scratch database on the local container (dropped afterwards). Production was not touched. If Coolify sets `NEWS_BOOTSTRAP_SOURCES_PATH` to the old `data-scientist-roadmap` URL, production will not see this change. |
+| 2026-10-26 | Owner | Review and decisions | Approved M1.7 and the M9.1 flaky-test fix. D2: a LAN disk or NAS. D10 hostname: `news.mxdio.com`. Production uses the baked sources file; the owner unsets `NEWS_BOOTSTRAP_SOURCES_PATH` in Coolify. M0.6 closed on the owner's confirmation. The local `.env` now targets localhost, and production credentials moved to a gitignored `.env.prod`. `v1` reaches `main` through a reviewed PR with a squash merge; the M1.5 production backfill runs in the api container after that deploy is healthy. Next: M2.1. |
 
 ## 10. V2 backlog (not designed)
 
