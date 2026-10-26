@@ -1,0 +1,18 @@
+# Conservative subset of artifacts/boilerplate.yaml; only unambiguous site chrome is kept.
+cleaning_version: "2.0.0"
+sources:
+  "BBC News — Entertainment and Arts":
+    - "Figure caption,"
+    - "Image source, Getty Images"
+  "BBC News — Politics":
+    - "Figure caption,"
+    - "Image source, PA Media"
+  "BBC News — World":
+    - "Figure caption,"
+    - "Image source, Getty Images"
+  CNBC:
+    - "watch now"
+  "France 24 — World":
+    - "One of your browser extensions seems to be blocking the video player from loading. To watch this content, you may need to disable it on this site."
+    - "To display this content from YouTube, you must enable tracking and audience measurement."
+    - "Cover image: © France 24"

@@ -175,6 +175,12 @@ func patchFromInput(in domain.SourceInput) domain.SourcePatch {
 	if in.City != "" {
 		patch.City = &in.City
 	}
+	if in.Domains != nil {
+		patch.Domains = in.Domains
+	}
+	if in.AddedBy != nil {
+		patch.AddedBy = in.AddedBy
+	}
 	return patch
 }
 

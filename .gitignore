@@ -7,6 +7,7 @@ __pycache__/
 *.so
 
 # Go build artifacts
+/collector/backfill
 *.exe
 *.exe~
 *.dll
@@ -27,6 +28,7 @@ __pycache__/
 **/*.csv
 **/*.xml
 **/*.gz
+!collector/fixtures/*.xml
 **/*.zip
 **/*.pptx
 **/*.ppt

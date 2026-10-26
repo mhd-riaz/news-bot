@@ -55,14 +55,51 @@ def test_classify_preserves_input_order_and_returns_unsorted(client, classifier)
     )
 
     assert response.status_code == 200
-    assert response.json == {
-        "model_version": "test-v1",
-        "items": [
-            {"id": "one", "topic": "sport", "confidence": 0.9, "filed": True},
-            {"id": "two", "topic": "unsorted", "confidence": 0.4, "filed": False},
-        ],
-    }
+    assert response.json["model_version"] == "test-v1"
+    assert [item["id"] for item in response.json["items"]] == ["one", "two"]
+    assert [item["topic"] for item in response.json["items"]] == ["sport", "unsorted"]
+    assert [item["filed"] for item in response.json["items"]] == [True, False]
+    assert [item["confidence"] for item in response.json["items"]] == [0.9, 0.4]
+    assert response.json["items"][0]["clean_title"] == "Match result"
+    assert response.json["items"][1]["clean_summary"] == "A story"
+    for item in response.json["items"]:
+        assert isinstance(item["language"], str)
+        assert 0 <= item["language_confidence"] <= 1
     assert classifier.texts == ["Match result\n", "\nA story"]
+
+
+def test_source_rules_clean_the_returned_fields_and_classifier_input(classifier):
+    app = create_app(
+        classifier=classifier,
+        topics=[],
+        boilerplate_rules={"Example Publisher": frozenset({"publisher navigation"})},
+    )
+    client = app.test_client()
+    response = client.post(
+        "/v1/classify",
+        json={
+            "items": [{
+                "id": "source-item",
+                "source": "Example Publisher",
+                "title": "Research team identifies a distant planet",
+                "summary": "Astronomers report new findings from recent observations.",
+                "body": (
+                    "Scientists observed the planet during a long sequence of clear nights. "
+                    "The measurements confirm the unusual orbit around its star.\n"
+                    "Publisher navigation"
+                ),
+            }]
+        },
+    )
+
+    assert response.status_code == 200
+    item = response.json["items"][0]
+    assert item["clean_title"] == "Research team identifies a distant planet"
+    assert item["clean_summary"] == "Astronomers report new findings from recent observations."
+    assert "Publisher navigation" not in item["clean_body"]
+    assert "Publisher navigation" not in classifier.texts[0]
+    assert item["language"] == "en"
+    assert 0 <= item["language_confidence"] <= 1
 
 
 def test_classify_returns_per_item_error_without_skipping_other_articles(client, classifier):
@@ -89,6 +126,9 @@ def test_classify_rejects_invalid_and_oversized_batches(client):
     assert client.post("/v1/classify", json={"items": []}).status_code == 400
     assert client.post("/v1/classify", json={"items": [{"id": "1"}] * 3}).status_code == 400
     assert client.post("/v1/classify", json={"items": [{"id": 1}]}).status_code == 400
+    assert client.post(
+        "/v1/classify", json={"items": [{"id": "1", "source": 1}]}
+    ).status_code == 400
 
 
 def test_metadata_and_health_are_available(client):

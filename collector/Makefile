@@ -4,6 +4,8 @@ LDFLAGS   := -s -w -X main.version=$(VERSION)
 COMPOSE   := docker compose -f deployments/docker-compose.yml
 CONFIG    ?= configs/config.yaml
 SOURCES   ?= configs/sources.yaml
+BACKFILL_LIMIT ?= 1000
+BACKFILL_DELAY ?= 1s
 
 .DEFAULT_GOAL := help
 
@@ -35,6 +37,7 @@ build: ## Build every command into $(BIN_DIR)
 	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/seed ./cmd/seed
 	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/collector ./cmd/collector
 	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/scrape ./cmd/scrape
+	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/backfill ./cmd/backfill
 	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/reader ./cmd/reader
 
 .PHONY: test
@@ -88,6 +91,10 @@ scrape: ## Run one full-text enrichment batch against scraper.batch_size
 .PHONY: scrape-limit
 scrape-limit: ## Run one enrichment batch of a given size: make scrape-limit LIMIT=10
 	go run ./cmd/scrape -config $(CONFIG) -limit $(LIMIT)
+
+.PHONY: backfill
+backfill: ## Fill missing C1 article fields in bounded, resumable batches
+	go run ./cmd/backfill -config $(CONFIG) -limit $(BACKFILL_LIMIT) -delay $(BACKFILL_DELAY)
 
 .PHONY: up
 up: ## Start MongoDB, run the migration and start the API
@@ -256,7 +263,7 @@ reader: ## Serve the read-only Stories reader at http://127.0.0.1:8090
 rec-test: ## Check recommendation Python, Go and browser-state logic without a live DB
 	cd ml-v2 && uv run --no-sync pytest tests/test_recommendations.py tests/test_evaluation_provenance.py tests/test_recommender_defaults.py
 	go test ./cmd/reader ./internal/recommendation ./internal/handler ./internal/web ./internal/config ./internal/mongodb
-	node --test scripts/stories.test.mjs
+	node --test scripts/*.test.mjs
 
 .PHONY: ml2-compare
 ml2-compare: ## Render the model comparison table from the experiment ledger

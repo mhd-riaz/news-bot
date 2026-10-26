@@ -64,11 +64,15 @@ func (f *fakeClassificationRepo) ReleaseStaleClassificationClaims(context.Contex
 type fakeBackfillClassifier struct {
 	result classifier.Result
 	err    error
+	items  *[]classifier.Item
 }
 
-func (f fakeBackfillClassifier) Classify(context.Context, []classifier.Item) ([]classifier.Result, error) {
+func (f fakeBackfillClassifier) Classify(_ context.Context, items []classifier.Item) ([]classifier.Result, error) {
 	if f.err != nil {
 		return nil, f.err
+	}
+	if f.items != nil {
+		*f.items = append(*f.items, items...)
 	}
 	return []classifier.Result{f.result}, nil
 }
@@ -84,15 +88,46 @@ func TestClassificationBacklogStoresSuccessfulAndUnsortedResults(t *testing.T) {
 		result classifier.Result
 		status domain.ClassificationStatus
 	}{
-		{"classified", classifier.Result{Topic: "politics", Confidence: 0.9, Filed: true, ModelVersion: "v2-001"}, domain.ClassificationStatusClassified},
-		{"unsorted", classifier.Result{Topic: "unsorted", Confidence: 0.4, ModelVersion: "v2-001"}, domain.ClassificationStatusUnsorted},
+		{
+			"classified", classifier.Result{
+				Topic: "politics", Confidence: 0.9, Filed: true, ModelVersion: "v2-001",
+				CleanTitle: "Clean headline", CleanSummary: "Clean summary", CleanBody: "Clean body",
+				DetectedLanguage: "en", LanguageConfidence: 0.99,
+			}, domain.ClassificationStatusClassified,
+		},
+		{
+			"unsorted", classifier.Result{
+				Topic: "unsorted", Confidence: 0.4, ModelVersion: "v2-001",
+				CleanTitle: "Clean headline", CleanSummary: "Clean summary", CleanBody: "Clean body",
+				DetectedLanguage: "und", LanguageConfidence: 0,
+			}, domain.ClassificationStatusUnsorted,
+		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			repo := &fakeClassificationRepo{article: &domain.Article{ID: "article", ClassificationStatus: domain.ClassificationStatusPending}}
-			service := NewClassificationService(ClassificationDeps{Articles: repo, Classifier: fakeBackfillClassifier{result: test.result}, MaxAttempts: 3, Clock: func() time.Time { return now }})
+			repo := &fakeClassificationRepo{article: &domain.Article{
+				ID: "article", SourceName: "Example Publisher", Title: "Headline",
+				Summary: "Summary", Content: "Body",
+				ClassificationStatus: domain.ClassificationStatusPending,
+			}}
+			var items []classifier.Item
+			service := NewClassificationService(ClassificationDeps{
+				Articles: repo, Classifier: fakeBackfillClassifier{result: test.result, items: &items},
+				MaxAttempts: 3, Clock: func() time.Time { return now },
+			})
 			got, err := service.ProcessBacklog(t.Context(), 1)
 			if err != nil || len(repo.updates) != 1 || repo.updates[0].Status != test.status {
 				t.Fatalf("ProcessBacklog = %#v, %v; update = %#v", got, err, repo.updates)
+			}
+			update := repo.updates[0]
+			if len(items) != 1 || items[0].Source != "Example Publisher" {
+				t.Errorf("classifier input = %#v, want source name", items)
+			}
+			if update.CleanTitle != test.result.CleanTitle ||
+				update.CleanSummary != test.result.CleanSummary ||
+				update.CleanBody != test.result.CleanBody ||
+				update.DetectedLanguage != test.result.DetectedLanguage ||
+				update.LanguageConfidence != test.result.LanguageConfidence {
+				t.Errorf("derived update = %+v", update)
 			}
 		})
 	}

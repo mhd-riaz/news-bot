@@ -125,7 +125,10 @@ func (p *Processor) classify(ctx context.Context, articles []*domain.Article, re
 func (p *Processor) classifyChunk(ctx context.Context, articles []*domain.Article, result *Result) {
 	items := make([]classifier.Item, len(articles))
 	for index, article := range articles {
-		items[index] = classifier.Item{ID: article.ID, Title: article.Title, Summary: article.Summary, Body: article.Content}
+		items[index] = classifier.Item{
+			ID: article.ID, Title: article.Title, Summary: article.Summary,
+			Body: article.Content, Source: article.SourceName,
+		}
 	}
 	started := time.Now()
 	classified, err := p.classifier.Classify(ctx, items)
@@ -140,6 +143,11 @@ func (p *Processor) classifyChunk(ctx context.Context, articles []*domain.Articl
 		article.Topic = prediction.Topic
 		article.Confidence = prediction.Confidence
 		article.ModelVersion = prediction.ModelVersion
+		article.CleanTitle = prediction.CleanTitle
+		article.CleanSummary = prediction.CleanSummary
+		article.CleanBody = prediction.CleanBody
+		article.DetectedLanguage = prediction.DetectedLanguage
+		article.LanguageConfidence = prediction.LanguageConfidence
 		classifiedAt := p.clock()
 		article.ClassifiedAt = &classifiedAt
 		if prediction.Filed {

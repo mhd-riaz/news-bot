@@ -3,6 +3,7 @@ package domain
 import (
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -30,12 +31,13 @@ const (
 	HealthFailing  HealthStatus = "failing"
 )
 
-// Field limits and defaults. They are deliberately conservative: a source is
-// operator-supplied configuration, not user-generated content.
+// Field limits and defaults bound both operator configuration and reader metadata.
 const (
 	MaxNameLength    = 200
 	MaxFeedURLLength = 2048
 	MaxRegionLength  = 100
+	MaxDomainLength  = 64
+	MaxDomains       = 20
 
 	MinPriority = 0
 	MaxPriority = 100
@@ -49,9 +51,8 @@ const (
 	DefaultFetchIntervalSeconds = 900
 )
 
-// Source is a configured RSS or Atom feed, its region, its schedule and its
-// health. Field names mirror the index plan in internal/mongodb, so a query
-// planner change and a model change cannot drift apart silently.
+// Source is a configured RSS or Atom feed, its metadata, schedule and health.
+// BSON names are declared here; indexed fields are planned in internal/mongodb.
 type Source struct {
 	ID       string     `bson:"_id"`
 	Name     string     `bson:"name"`
@@ -61,9 +62,11 @@ type Source struct {
 	Priority int        `bson:"priority"`
 	Language string     `bson:"language"`
 
-	Country string `bson:"country"`
-	State   string `bson:"state"`
-	City    string `bson:"city"`
+	Country string   `bson:"country"`
+	State   string   `bson:"state"`
+	City    string   `bson:"city"`
+	Domains []string `bson:"domains,omitempty"`
+	AddedBy string   `bson:"added_by,omitempty"`
 
 	// FetchIntervalSeconds is stored in seconds rather than as a time.Duration
 	// so the value is readable in the shell instead of being nanoseconds.
@@ -84,9 +87,9 @@ func (s Source) FetchInterval() time.Duration {
 	return time.Duration(s.FetchIntervalSeconds) * time.Second
 }
 
-// SourceInput is the operator-supplied part of a source. Optional fields are
+// SourceInput carries configuration from trusted callers. Optional fields are
 // pointers so "absent" is distinguishable from a meaningful zero value such as
-// priority 0 or enabled false.
+// priority 0 or an empty tag list.
 type SourceInput struct {
 	Name                 string
 	FeedURL              string
@@ -95,6 +98,8 @@ type SourceInput struct {
 	Country              string
 	State                string
 	City                 string
+	Domains              *[]string
+	AddedBy              *string
 	Enabled              *bool
 	Priority             *int
 	FetchIntervalSeconds *int
@@ -109,6 +114,8 @@ type SourcePatch struct {
 	Country              *string
 	State                *string
 	City                 *string
+	Domains              *[]string
+	AddedBy              *string
 	Enabled              *bool
 	Priority             *int
 	FetchIntervalSeconds *int
@@ -140,6 +147,12 @@ func NewSource(in SourceInput, now time.Time) (*Source, error) {
 		CreatedAt:            now,
 		UpdatedAt:            now,
 	}
+	if in.Domains != nil {
+		s.Domains = append([]string(nil), (*in.Domains)...)
+	}
+	if in.AddedBy != nil {
+		s.AddedBy = *in.AddedBy
+	}
 	if in.Enabled != nil {
 		s.Enabled = *in.Enabled
 	}
@@ -167,6 +180,10 @@ func (s *Source) Apply(patch SourcePatch, now time.Time) error {
 	assign(&s.Country, patch.Country)
 	assign(&s.State, patch.State)
 	assign(&s.City, patch.City)
+	if patch.Domains != nil {
+		s.Domains = append([]string(nil), (*patch.Domains)...)
+	}
+	assign(&s.AddedBy, patch.AddedBy)
 	assign(&s.Enabled, patch.Enabled)
 	assign(&s.Priority, patch.Priority)
 	assign(&s.FetchIntervalSeconds, patch.FetchIntervalSeconds)
@@ -253,6 +270,23 @@ func (s *Source) Normalize() {
 	s.Country = strings.ToUpper(strings.TrimSpace(s.Country))
 	s.State = strings.TrimSpace(s.State)
 	s.City = strings.TrimSpace(s.City)
+	s.AddedBy = strings.TrimSpace(s.AddedBy)
+	if id, err := uuid.Parse(s.AddedBy); err == nil {
+		s.AddedBy = id.String()
+	}
+	for i := range s.Domains {
+		s.Domains[i] = strings.ToLower(strings.TrimSpace(s.Domains[i]))
+	}
+	sort.Strings(s.Domains)
+	if len(s.Domains) > 1 {
+		unique := s.Domains[:1]
+		for _, domain := range s.Domains[1:] {
+			if domain != unique[len(unique)-1] {
+				unique = append(unique, domain)
+			}
+		}
+		s.Domains = unique
+	}
 	s.HealthStatus = HealthStatus(strings.ToLower(strings.TrimSpace(string(s.HealthStatus))))
 	if s.HealthStatus == "" {
 		s.HealthStatus = HealthUnknown
@@ -319,8 +353,34 @@ func (s *Source) Validate() error {
 	if len(s.City) > MaxRegionLength {
 		v.add("city", "must be at most %d characters", MaxRegionLength)
 	}
+	if len(s.Domains) > MaxDomains {
+		v.add("domains", "must contain at most %d tags", MaxDomains)
+	}
+	for _, domain := range s.Domains {
+		if !validDomainTag(domain) {
+			v.add("domains", "each tag must be 1-%d lowercase letters, digits or internal hyphens", MaxDomainLength)
+			break
+		}
+	}
+	if s.AddedBy != "" {
+		if _, err := uuid.Parse(s.AddedBy); err != nil {
+			v.add("added_by", "must be a valid UUID")
+		}
+	}
 
 	return v.err()
+}
+
+func validDomainTag(tag string) bool {
+	if len(tag) == 0 || len(tag) > MaxDomainLength || tag[0] == '-' || tag[len(tag)-1] == '-' {
+		return false
+	}
+	for _, r := range tag {
+		if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '-' {
+			return false
+		}
+	}
+	return true
 }
 
 // validateFeedURL checks the shape of a feed URL. The network-level SSRF guard

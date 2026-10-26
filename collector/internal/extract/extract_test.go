@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/riaz/newscollector/internal/domain"
 )
@@ -18,6 +19,9 @@ func loadFixture(t *testing.T, name string) []byte {
 	t.Helper()
 
 	f, err := os.Open(filepath.Join("..", "..", "fixtures", "articles", name+".html.gz"))
+	if errors.Is(err, os.ErrNotExist) {
+		t.Skipf("private publisher capture %q is not committed; synthetic extraction tests run without it", name)
+	}
 	if err != nil {
 		t.Fatalf("open fixture: %v", err)
 	}
@@ -144,6 +148,49 @@ func TestExtractPrefersTheLongestReading(t *testing.T) {
 	if got.Words() != structured.Words() {
 		t.Errorf("chain kept %d words, want the longest reading of %d",
 			got.Words(), structured.Words())
+	}
+}
+
+func TestExtractIncludesPageDateAndImageMetadata(t *testing.T) {
+	base := mustURL(t, "https://example.com/news/story")
+	page := []byte(`<html><head>
+		<meta property="article:published_time" content="2026-08-31T09:15:00+05:30">
+		<meta property="og:image" content="/images/story.jpg">
+	</head><body><article><p>A short story.</p></article></body></html>`)
+
+	got, err := New(1).Extract(page, "text/html", base)
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	wantDate := time.Date(2026, 8, 31, 3, 45, 0, 0, time.UTC)
+	if got.PublishedAt == nil || !got.PublishedAt.Equal(wantDate) {
+		t.Errorf("PublishedAt = %v, want %v", got.PublishedAt, wantDate)
+	}
+	if got.ImageURL != "https://example.com/images/story.jpg" {
+		t.Errorf("ImageURL = %q", got.ImageURL)
+	}
+}
+
+func TestJSONLDExtractsDatePublished(t *testing.T) {
+	page := []byte(`<script type="application/ld+json">{
+		"@type":"NewsArticle",
+		"datePublished":"2026-08-30T11:00:00Z",
+		"articleBody":"The article."
+	}</script>`)
+	got := JSONLD{}.Extract(page, mustURL(t, "https://example.com/story"))
+	want := time.Date(2026, 8, 30, 11, 0, 0, 0, time.UTC)
+	if got.PublishedAt == nil || !got.PublishedAt.Equal(want) {
+		t.Errorf("PublishedAt = %v, want %v", got.PublishedAt, want)
+	}
+}
+
+func TestPageMetadataFallsBackToTwitterImage(t *testing.T) {
+	base := mustURL(t, "https://example.com/news/story")
+	got := metadataFromHTML(
+		[]byte(`<meta name="twitter:image" content="../images/story.jpg">`), base,
+	)
+	if got.ImageURL != "https://example.com/images/story.jpg" {
+		t.Errorf("ImageURL = %q", got.ImageURL)
 	}
 }
 

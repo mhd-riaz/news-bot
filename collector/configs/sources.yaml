@@ -3,8 +3,13 @@
 #
 # Required: name, feed_url, type (rss|atom), language (ISO 639-1), country
 # (ISO 3166-1 alpha-2). Optional: state, city, enabled, priority (0-100),
-# fetch_interval_seconds (60-604800). An omitted optional key keeps whatever is
-# already stored, so a value tuned through the API is not reset by a re-seed.
+# fetch_interval_seconds (60-604800), domains (up to 20 lowercase tags), and
+# added_by (reader UUID). An omitted optional key keeps whatever is already
+# stored, so a value tuned through the API is not reset by a re-seed.
+#
+# domains is what a reader's professional mix selects on (roadmap C8). V1 uses
+# four tags: technology (general tech news), software, ai and data-science.
+# TestShippedSourcesFileIsValid rejects any other tag in this file.
 
 sources:
   - name: The Hindu — Bengaluru
@@ -120,6 +125,7 @@ sources:
     country: US
     priority: 55
     fetch_interval_seconds: 1800
+    domains: [technology]
 
   - name: The Verge
     feed_url: https://www.theverge.com/rss/index.xml
@@ -128,6 +134,7 @@ sources:
     country: US
     priority: 52
     fetch_interval_seconds: 1800
+    domains: [technology]
 
   - name: Wired
     feed_url: https://www.wired.com/feed/rss
@@ -136,6 +143,7 @@ sources:
     country: US
     priority: 48
     fetch_interval_seconds: 1800
+    domains: [technology]
 
   - name: Engadget
     feed_url: https://www.engadget.com/rss.xml
@@ -144,6 +152,7 @@ sources:
     country: US
     priority: 45
     fetch_interval_seconds: 1800
+    domains: [technology]
 
   - name: ZDNET
     feed_url: https://www.zdnet.com/news/rss.xml
@@ -152,6 +161,7 @@ sources:
     country: US
     priority: 42
     fetch_interval_seconds: 1800
+    domains: [technology]
 
   # MIT Technology Review ships the whole article in the feed (~1500 words per
   # item), so its stories need no scrape at all.
@@ -162,6 +172,7 @@ sources:
     country: US
     priority: 50
     fetch_interval_seconds: 3600
+    domains: [technology]
 
   # The Register's feed is likewise full-text (~660 words per item), which is
   # just as well: its robots.txt is default-deny and does not list this
@@ -173,6 +184,7 @@ sources:
     country: GB
     priority: 48
     fetch_interval_seconds: 1800
+    domains: [technology]
 
   # Ars Technica's feed carries a usable excerpt (~165 words). Its article pages
   # answer 202 with a JavaScript bot-check instead of the story, so they are not
@@ -184,6 +196,7 @@ sources:
     country: US
     priority: 46
     fetch_interval_seconds: 1800
+    domains: [technology]
 
   # Al Jazeera is deliberately left out. Its robots.txt permits the paths, but
   # the file's own header forbids using the content for machine learning, text
@@ -248,6 +261,7 @@ sources:
     country: IN
     priority: 72
     fetch_interval_seconds: 1800
+    domains: [technology]
 
   - name: The Hindu — Education
     feed_url: https://www.thehindu.com/education/feeder/default.rss
@@ -320,6 +334,7 @@ sources:
     country: IN
     priority: 66
     fetch_interval_seconds: 1800
+    domains: [technology]
 
   - name: The Indian Express — World
     feed_url: https://indianexpress.com/section/world/feed/
@@ -408,6 +423,7 @@ sources:
     country: IN
     priority: 66
     fetch_interval_seconds: 3600
+    domains: [technology]
 
   - name: Livemint — Sports
     feed_url: https://www.livemint.com/rss/sports
@@ -544,6 +560,7 @@ sources:
     country: GB
     priority: 66
     fetch_interval_seconds: 1800
+    domains: [technology]
 
   - name: BBC News — Business
     feed_url: https://feeds.bbci.co.uk/news/business/rss.xml
@@ -600,6 +617,7 @@ sources:
     country: GB
     priority: 66
     fetch_interval_seconds: 1800
+    domains: [technology]
 
   - name: NPR — Science
     feed_url: https://feeds.npr.org/1007/rss.xml
@@ -632,6 +650,7 @@ sources:
     country: US
     priority: 66
     fetch_interval_seconds: 3600
+    domains: [technology]
 
   # ---------------------------------------------------------------------------
   # Single-topic publications
@@ -900,6 +919,270 @@ sources:
     priority: 55
     fetch_interval_seconds: 1800
 
+  # The Hindu's Chennai desk, the counterpart of its Bengaluru feed at the top
+  # of this file. Verified live 2026-10-26.
+  - name: The Hindu — Chennai
+    feed_url: https://www.thehindu.com/news/cities/chennai/feeder/default.rss
+    type: rss
+    language: en
+    country: IN
+    state: Tamil Nadu
+    city: Chennai
+    priority: 70
+    fetch_interval_seconds: 1800
+
+  # ---------------------------------------------------------------------------
+  # Professional feeds: software, data science and AI (R17), tagged with the
+  # domains a reader's professional mix selects on (C8).
+  #
+  # Verified 2026-10-26: each answered 200 with English items, and no robots.txt
+  # group or licence that applies to every agent reserves AI-training or text
+  # and data mining rights — the test Al Jazeera fails above. Feeds that failed
+  # it are recorded at the bottom of this file. Medium, last in this block, is
+  # the one exception, by owner decision.
+  # ---------------------------------------------------------------------------
+
+  - name: MIT News — Artificial intelligence
+    feed_url: https://news.mit.edu/topic/mitartificial-intelligence2-rss.xml
+    type: rss
+    language: en
+    country: US
+    priority: 50
+    fetch_interval_seconds: 3600
+    domains: [ai]
+
+  # MIT News' CSAIL topic. It shares only 9 of 51 stories with the AI topic
+  # above; the machine-learning topic shares 23, so it is left out.
+  - name: MIT News — CSAIL
+    feed_url: https://news.mit.edu/topic/mitcomputers-rss.xml
+    type: rss
+    language: en
+    country: US
+    priority: 50
+    fetch_interval_seconds: 3600
+    domains: [ai, software]
+
+  - name: InfoQ
+    feed_url: https://feed.infoq.com/
+    type: rss
+    language: en
+    country: CA
+    priority: 50
+    fetch_interval_seconds: 3600
+    domains: [software]
+
+  - name: GitHub — Blog
+    feed_url: https://github.blog/feed/
+    type: rss
+    language: en
+    country: US
+    priority: 48
+    fetch_interval_seconds: 3600
+    domains: [software]
+
+  # Subscriber-only stories are marked "[$]" and open to everyone a week later;
+  # the headline and summary are what the feed carries either way.
+  - name: LWN.net
+    feed_url: https://lwn.net/headlines/rss
+    type: rss
+    language: en
+    country: US
+    priority: 48
+    fetch_interval_seconds: 3600
+    domains: [software]
+
+  - name: Martin Fowler
+    feed_url: https://martinfowler.com/feed.atom
+    type: atom
+    language: en
+    country: US
+    priority: 45
+    fetch_interval_seconds: 7200
+    domains: [software]
+
+  - name: Simon Willison's Weblog
+    feed_url: https://simonwillison.net/atom/everything/
+    type: atom
+    language: en
+    country: US
+    priority: 48
+    fetch_interval_seconds: 3600
+    domains: [ai, software]
+
+  # These two feeds carry their whole archive (about 900 and 1,300 items); the
+  # first collection keeps the newest 500, which land in the archive, not the
+  # fresh feed.
+  - name: Hugging Face — Blog
+    feed_url: https://huggingface.co/blog/feed.xml
+    type: rss
+    language: en
+    country: US
+    priority: 48
+    fetch_interval_seconds: 3600
+    domains: [ai]
+
+  - name: OpenAI — News
+    feed_url: https://openai.com/news/rss.xml
+    type: rss
+    language: en
+    country: US
+    priority: 48
+    fetch_interval_seconds: 3600
+    domains: [ai]
+
+  - name: Google Research — Blog
+    feed_url: https://research.google/blog/rss/
+    type: rss
+    language: en
+    country: US
+    priority: 48
+    fetch_interval_seconds: 3600
+    domains: [ai]
+
+  - name: Google DeepMind — News
+    feed_url: https://deepmind.google/blog/rss.xml
+    type: rss
+    language: en
+    country: GB
+    priority: 48
+    fetch_interval_seconds: 3600
+    domains: [ai]
+
+  # IEEE Spectrum's robots.txt blocks named AI-training crawlers only; its "*"
+  # group, which this collector falls under, allows articles.
+  - name: IEEE Spectrum — Artificial intelligence
+    feed_url: https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss
+    type: rss
+    language: en
+    country: US
+    priority: 50
+    fetch_interval_seconds: 3600
+    domains: [ai]
+
+  - name: Analytics India Magazine
+    feed_url: https://analyticsindiamag.com/feed/
+    type: rss
+    language: en
+    country: IN
+    priority: 50
+    fetch_interval_seconds: 1800
+    domains: [ai]
+
+  # Weekly and monthly newsletters, so they are polled less often.
+  - name: Import AI
+    feed_url: https://importai.substack.com/feed
+    type: rss
+    language: en
+    country: US
+    priority: 45
+    fetch_interval_seconds: 7200
+    domains: [ai]
+
+  - name: Ahead of AI
+    feed_url: https://magazine.sebastianraschka.com/feed
+    type: rss
+    language: en
+    country: US
+    priority: 45
+    fetch_interval_seconds: 7200
+    domains: [ai, data-science]
+
+  # Independent of Medium since 2025; its robots.txt carries no licence line.
+  - name: Towards Data Science
+    feed_url: https://towardsdatascience.com/feed
+    type: rss
+    language: en
+    country: CA
+    priority: 50
+    fetch_interval_seconds: 3600
+    domains: [ai, data-science]
+
+  - name: KDnuggets
+    feed_url: https://www.kdnuggets.com/feed
+    type: rss
+    language: en
+    country: US
+    priority: 48
+    fetch_interval_seconds: 3600
+    domains: [ai, data-science]
+
+  # Medium, added by owner decision on 2026-10-26 because the client asked for
+  # it by name. Its licence (medium.com/license.xml, linked from robots.txt)
+  # permits search and indexing with attribution but prohibits ai-train.
+  # A tag feed holds only the latest 10 stories with an excerpt, so these sample
+  # each tag at the rate fetch_interval_seconds sets. Article pages answer 403
+  # (Cloudflare) to this collector, so stories keep the feed excerpt.
+  - name: Medium — Artificial intelligence
+    feed_url: https://medium.com/feed/tag/artificial-intelligence
+    type: rss
+    language: en
+    country: US
+    priority: 40
+    fetch_interval_seconds: 7200
+    domains: [ai]
+
+  - name: Medium — Data science
+    feed_url: https://medium.com/feed/tag/data-science
+    type: rss
+    language: en
+    country: US
+    priority: 40
+    fetch_interval_seconds: 7200
+    domains: [data-science]
+
+  - name: Medium — Software engineering
+    feed_url: https://medium.com/feed/tag/software-engineering
+    type: rss
+    language: en
+    country: US
+    priority: 40
+    fetch_interval_seconds: 7200
+    domains: [software]
+
+  # ---------------------------------------------------------------------------
+  # Independent publications (R17). General news, so they carry no domains: a
+  # reader gets them by choosing them as sources, or with empty settings (C8).
+  # Verified 2026-10-26 by the same test as the professional feeds.
+  #
+  # Citizen Matters covers several cities from one feed, so, like Deccan Herald,
+  # it carries no state or city. It runs the occasional Tamil story; the
+  # detected-language filter (C1) keeps those out of the index.
+  # ---------------------------------------------------------------------------
+
+  - name: Citizen Matters
+    feed_url: https://citizenmatters.in/feed/
+    type: rss
+    language: en
+    country: IN
+    priority: 55
+    fetch_interval_seconds: 3600
+
+  # Both Quintype stories.rss feeds hold only the latest few stories (5 and 2
+  # when checked), so they are polled every 15 minutes to keep up.
+  - name: The News Minute
+    feed_url: https://www.thenewsminute.com/stories.rss
+    type: rss
+    language: en
+    country: IN
+    priority: 60
+    fetch_interval_seconds: 900
+
+  - name: Newslaundry
+    feed_url: https://www.newslaundry.com/stories.rss
+    type: rss
+    language: en
+    country: IN
+    priority: 55
+    fetch_interval_seconds: 900
+
+  - name: Mongabay India
+    feed_url: https://india.mongabay.com/feed/
+    type: rss
+    language: en
+    country: IN
+    priority: 50
+    fetch_interval_seconds: 3600
+
 # -----------------------------------------------------------------------------
 # Verified dead, 2026-08-23. Recorded so they are not rediscovered and retried.
 #
@@ -931,4 +1214,13 @@ sources:
 #   Oxford, Cambridge   No autodiscovery link; guessed patterns 403/404
 #   MIT OCW, IEA, IPCC  No autodiscovery link on their news pages
 #   IMF Blog            Already recorded above (?rss=1 403)
+#
+# Left out, 2026-10-26 (R17 search). The first two fail the Al Jazeera test:
+#
+#   The Pragmatic Engineer  robots.txt sends Content-Signal ai-train=no to every
+#                           agent; most posts are paywalled as well
+#   MediaNama               robots.txt sends Content-Signal ai-train=no to every
+#                           agent and makes the signals a condition of access
+#   DT Next                 /rss 404
+#   Citizen Matters cities  /bengaluru/feed/ times out; /chennai/feed/ has no items
 # -----------------------------------------------------------------------------

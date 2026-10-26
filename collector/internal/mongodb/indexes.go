@@ -159,6 +159,18 @@ func IndexPlan() []CollectionIndexes {
 					Options: options.Index().SetName("ix_classification_backlog"),
 				},
 				{
+					Keys:    bson.D{{Key: "updated_at", Value: 1}, {Key: "_id", Value: 1}},
+					Options: options.Index().SetName("ix_updated_cursor"),
+				},
+				{
+					Keys: bson.D{
+						{Key: "date_verified", Value: 1},
+						{Key: "detected_language", Value: 1},
+						{Key: "published_at", Value: -1},
+					},
+					Options: options.Index().SetName("ix_verified_language_published"),
+				},
+				{
 					Keys: bson.D{
 						{Key: "topic", Value: 1},
 						{Key: "published_at", Value: -1},

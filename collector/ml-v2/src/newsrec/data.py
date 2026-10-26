@@ -14,9 +14,10 @@ from typing import Any
 from pymongo import MongoClient
 
 from newsmlv2 import config
-from newsmlv2.admit import Admitted, Policy, judge, non_latin_share
+from newsmlv2.admit import Admitted, Policy, judge
 from newsmlv2.boilerplate import as_lookup, discover
 from newsmlv2.clean import clean_article
+from newsmlv2.language import detect_language
 from newsmlv2.load import _to_article
 
 SEED = config.SEED
@@ -64,19 +65,13 @@ def clip_words(text: str, count: int) -> str:
     return " ".join(words[:count]) + (" ..." if len(words) > count else "")
 
 
-def english_text(text: str) -> bool:
+def english_text(text: str) -> tuple[bool, float]:
     """A deterministic language gate; uncertain very short Latin headlines survive."""
-    from langdetect import DetectorFactory, LangDetectException, detect_langs
-
-    DetectorFactory.seed = SEED
-    if non_latin_share(text) > 0.15:
-        return False
-    try:
-        detected = detect_langs(text[:1500])
-    except LangDetectException:
-        return False
-    best = detected[0]
-    return best.lang == "en" or (len(text.split()) < 12 and best.prob < 0.95)
+    language, confidence = detect_language(text)
+    accepted = language == "en" or (
+        language != "und" and len(text.split()) < 12 and confidence < 0.95
+    )
+    return accepted, confidence
 
 
 def input_text(title: str, summary: str, body: str) -> tuple[str, str]:
@@ -150,7 +145,8 @@ def freeze(
             rejected[str(reason.reason)] += 1
             continue
         text, kind = input_text(title.text, summary.text, body.text)
-        if not english_text(text):
+        is_english, language_confidence = english_text(text)
+        if not is_english:
             rejected["not_english_or_uncertain"] += 1
             continue
         if summary.text and summary.text.casefold() != title.text.casefold():
@@ -170,6 +166,7 @@ def freeze(
             "published_at": published.isoformat() if published else None,
             "collected_at": collected.isoformat() if collected else None,
             "date_kind": "Collected" if published == collected else "Stored publication date",
+            "language_confidence": language_confidence,
             "content_hash": article.content_hash,
             "normalized_url": document.get("normalized_url") or article.url,
         })

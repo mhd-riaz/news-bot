@@ -190,17 +190,29 @@ func TestUpdateScrapeResultStoresTextAndPromotesTheArticle(t *testing.T) {
 	repo := newTestArticleRepo(t)
 	ctx := testContext(t)
 
-	a := pendingArticle(t, repo, "https://example.com/story/1", "story-1")
+	a := newArticle(t, "https://example.com/story/1", "story-1")
+	classifiedAt := a.CollectedAt
+	a.ClassificationStatus = domain.ClassificationStatusClassified
+	a.ClassifiedAt = &classifiedAt
+	a.Topic = "politics"
+	a.Confidence = 0.9
+	a.ModelVersion = "v2-001"
+	if err := repo.Create(ctx, a); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
 	now := dueAfter(a)
 	if _, err := repo.ClaimForScraping(ctx, defaultClaim(now)); err != nil {
 		t.Fatalf("ClaimForScraping: %v", err)
 	}
 
 	body := longBody(240)
+	published := a.PublishedAt.Add(-time.Hour)
 	if err := repo.UpdateScrapeResult(ctx, a.ID, domain.ScrapeResult{
-		Status:  domain.ScrapeStatusSuccess,
-		Content: body,
-		At:      now,
+		Status:      domain.ScrapeStatusSuccess,
+		Content:     body,
+		PublishedAt: &published,
+		ImageURL:    "https://example.com/story/image.jpg",
+		At:          now,
 	}); err != nil {
 		t.Fatalf("UpdateScrapeResult: %v", err)
 	}
@@ -218,6 +230,16 @@ func TestUpdateScrapeResultStoresTextAndPromotesTheArticle(t *testing.T) {
 	if got.ProcessingStatus != domain.ProcessingStatusEnriched {
 		t.Errorf("ProcessingStatus = %q, want %q", got.ProcessingStatus, domain.ProcessingStatusEnriched)
 	}
+	if got.PublishedAtSource != domain.PublicationDateSourcePage || !got.DateVerified ||
+		!got.PublishedAt.Equal(published) || got.ImageURL != "https://example.com/story/image.jpg" {
+		t.Errorf("page metadata = %v / %q / %v / %q",
+			got.PublishedAt, got.PublishedAtSource, got.DateVerified, got.ImageURL)
+	}
+	if got.ContentRev != 2 || !got.UpdatedAt.After(a.UpdatedAt) ||
+		got.ClassificationStatus != domain.ClassificationStatusPending {
+		t.Errorf("content revision/classification state = %d / %q / %v",
+			got.ContentRev, got.ClassificationStatus, got.UpdatedAt)
+	}
 	// Frozen: the hash identifies the feed's text and is a deduplication key.
 	if got.ContentHash != a.ContentHash {
 		t.Errorf("ContentHash changed: %q -> %q", a.ContentHash, got.ContentHash)
@@ -229,6 +251,33 @@ func TestUpdateScrapeResultStoresTextAndPromotesTheArticle(t *testing.T) {
 	}
 	if _, err := repo.ClaimForScraping(ctx, defaultClaim(now.Add(24*time.Hour))); !errors.Is(err, repository.ErrNotFound) {
 		t.Errorf("a finished article was offered again: %v", err)
+	}
+}
+
+func TestUpdateScrapeResultDoesNotReplaceAnExistingImage(t *testing.T) {
+	repo := newTestArticleRepo(t)
+	ctx := testContext(t)
+	a := newArticle(t, "https://example.com/story/image", "story-image")
+	a.ImageURL = "https://feed.example/image.jpg"
+	if err := repo.Create(ctx, a); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	now := dueAfter(a)
+	if _, err := repo.ClaimForScraping(ctx, defaultClaim(now)); err != nil {
+		t.Fatalf("ClaimForScraping: %v", err)
+	}
+	if err := repo.UpdateScrapeResult(ctx, a.ID, domain.ScrapeResult{
+		Status: domain.ScrapeStatusSuccess, Content: longBody(240),
+		ImageURL: "https://page.example/image.jpg", At: now,
+	}); err != nil {
+		t.Fatalf("UpdateScrapeResult: %v", err)
+	}
+	got, err := repo.GetByID(ctx, a.ID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if got.ImageURL != "https://feed.example/image.jpg" {
+		t.Errorf("ImageURL = %q, want feed image retained", got.ImageURL)
 	}
 }
 
@@ -258,6 +307,9 @@ func TestUpdateScrapeResultLeavesStoredTextAloneOnFailure(t *testing.T) {
 	}
 	if got.Content != before {
 		t.Errorf("a failed attempt overwrote the stored text: %q -> %q", before, got.Content)
+	}
+	if got.ContentRev != 1 || !got.UpdatedAt.Equal(a.UpdatedAt) {
+		t.Errorf("failed attempt changed revision/timestamp: %d / %v", got.ContentRev, got.UpdatedAt)
 	}
 	if got.ProcessingStatus != domain.ProcessingStatusCollected {
 		t.Errorf("ProcessingStatus = %q, want %q after a failure",

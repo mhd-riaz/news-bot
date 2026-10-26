@@ -191,10 +191,21 @@ as it is up.
 make mongo-up                      # MongoDB only, on localhost:27017
 make run                           # migrate, apply sources.yaml, serve on :8080
 make collect                       # collect everything currently due, once
+make backfill                      # backfill up to 1000 legacy articles
 ```
 
 `make migrate` and `make seed` do the two startup steps on their own, against a
 database the API is already serving.
+
+The C1 backfill processes at most 50 articles per classifier request, pauses one
+second between full batches, and resumes from articles missing required C1 fields.
+Each run advances by `_id` so completed or concurrently changed articles are not
+rescanned. It fills absent cleaned text, language, date provenance and timestamps;
+existing derived values, page provenance, raw text and topics are preserved.
+Updates require the revision read for that batch; a concurrent change defers the
+article to a later run. Legacy records without `inserted_at` use `collected_at` as
+an explicit estimate, not measured ingestion latency. Set `BACKFILL_LIMIT` or
+`BACKFILL_DELAY` to adjust a run, then rerun `make backfill` until no work remains.
 
 ## Verification gates
 
@@ -210,6 +221,11 @@ make ml-test                       # offline ML suite (Python, see below)
 
 Unit tests never contact a network service. The integration tests are behind the
 `integration` build tag, use a database name unique per run, and drop it afterwards.
+CI starts MongoDB 7 with a readiness check and runs the integration suite.
+Synthetic feed and extraction cases are self-contained; captured publisher pages
+remain private and their tests skip explicitly when the captures are absent.
+Gold-label-dependent ML checks likewise skip without the private label file;
+synthetic label-loader and filtering checks still run.
 
 ## Configuration
 
@@ -274,6 +290,11 @@ injected environment in the homelab, with no branch either way. A missing `.env`
 is not an error. `NEWS_ENV_FILE` (or `-env`) points at a different file, such as
 a mounted secret.
 
+Keep `.env` pointed at a local database: `make run` migrates and seeds whatever it
+points at, and starts collecting into it. Put production credentials in a separate
+gitignored file such as `.env.prod`, and select it only when you mean to:
+`NEWS_ENV_FILE=.env.prod make seed`.
+
 ## Authentication
 
 Every `/api/v1` route requires a credential. `/health/live` and `/health/ready`
@@ -305,10 +326,12 @@ curl -u operator:secret    localhost:8080/api/v1/sources        # browser, curl
 
 ## Deployment
 
-[.github/workflows/news-collector.yml](../../../../.github/workflows/news-collector.yml)
-runs Go and Flask tests, smoke-tests the mounted model image, and publishes both
-the API and classifier images tagged `latest` and with the commit SHA. The
-homelab only ever pulls finished images, so no build runs on it.
+[../.github/workflows/news-collector.yml](../.github/workflows/news-collector.yml)
+runs the Go, classifier, ML and recommender checks on pull requests and pushes to
+`main`. A successful `main` build publishes the Go, classifier and recommender
+images to GHCR, then calls Coolify's authenticated deploy webhook. The Go image
+contains every `cmd/*` executable; the API and (after M3 authentication is ready)
+the reader use the same image with different commands.
 
 On the Coolify side, create a **Docker Compose** resource from
 [deployments/coolify.compose.yml](deployments/coolify.compose.yml). It brings up
@@ -328,11 +351,34 @@ unguarded API:
 | `NEWS_AUTH_API_KEYS`          | `openssl rand -hex 32`, comma-separated          |
 | `NEWS_AUTH_BASIC_USERNAME`    |                                                  |
 | `NEWS_AUTH_BASIC_PASSWORD`    | at least 16 characters                           |
+| `NEWS_MONGO_COLLECTOR_PASSWORD` | 64 hex characters; database-scoped collector user |
 | `NEWS_IMAGE`                  | optional; pin to a SHA tag to roll back          |
 | `NEWS_BOOTSTRAP_SOURCES_PATH` | optional; an https URL to change feeds unrebuilt |
 | `NEWS_CLASSIFIER_API_KEY`     | shared internal API key for the classifier       |
 | `NEWS_CLASSIFIER_MODEL_SHA256`| `sha256sum` of `v2-001/bundle.joblib`            |
-| `NEWS_CLASSIFIER_IMAGE`       | optional; pin classifier to a SHA tag            |
+| `NEWS_CLASSIFIER_IMAGE`       | optional; pin to a compatible classifier SHA tag |
+
+The C1 collector requires classifier responses containing cleaned text, language
+and language confidence. Pre-M1.1 classifier images do not satisfy that contract;
+roll back to a compatible image, or roll back the collector and classifier as a
+compatible pair.
+
+Before the first production deploy, provision the database users as MongoDB
+root. Supply `NEWS_MONGO_ROOT_URI`, `NEWS_MONGO_DATABASE`, and distinct
+`NEWS_MONGO_{COLLECTOR,BATCH,RANKER,READER,OWNER}_PASSWORD` values through a
+secure environment; each password must be generated as 64 hex characters (for
+example, `openssl rand -hex 32`). Run:
+
+```bash
+mongosh "$NEWS_MONGO_ROOT_URI" --quiet --file deployments/mongo-users.js
+```
+
+Store the generated passwords in Coolify secrets. MongoDB enforces each
+principal's collection permissions; ownership of reader-added sources is
+checked by the reader application, not by MongoDB roles.
+The script can be rerun: it updates managed roles and reapplies the supplied
+passwords and role assignments to existing users. Keep the supplied passwords in
+sync with the corresponding Coolify secrets.
 
 And these as GitHub repository secrets:
 
@@ -341,9 +387,9 @@ And these as GitHub repository secrets:
 | `COOLIFY_WEBHOOK` | the resource's Deploy Webhook URL        |
 | `COOLIFY_TOKEN`   | Coolify API token with deploy permission |
 
-If either is missing the deploy step is skipped with a warning and the image is
-still published, so the pipeline is usable before Coolify is wired up. Roll back
-by setting `NEWS_IMAGE` to a previous `sha-` tag and redeploying.
+Both are required for a successful `main` deployment. The deploy-only token is
+sent in the `Authorization` header and neither secret is written to logs. Roll
+back by setting `NEWS_IMAGE` to a previous `sha-` tag and redeploying.
 
 `GITHUB_TOKEN` covers the GHCR push. If the package is private, authenticate the
 homelab's Docker daemon once:
@@ -369,7 +415,7 @@ this file on `main` instead and the list is read fresh on every start — adding
 then a commit and a restart, with no image rebuild:
 
 ```
-NEWS_BOOTSTRAP_SOURCES_PATH=https://raw.githubusercontent.com/mhd-riaz/data-scientist-roadmap/main/semester-1/06-supervised-ml-classification/mini-project/news/configs/sources.yaml
+NEWS_BOOTSTRAP_SOURCES_PATH=https://raw.githubusercontent.com/mhd-riaz/news-bot/main/collector/configs/sources.yaml
 ```
 
 Plaintext `http://` is refused: this file decides which URLs the collector then fetches,
@@ -387,13 +433,20 @@ sync off entirely, for a deployment that manages sources only through the API.
 | `language`               | yes      | two-letter ISO 639-1 code              |
 | `country`                | yes      | two-letter ISO 3166-1 alpha-2 code     |
 | `state`, `city`          | no       | up to 100 characters                   |
+| `domains`                | no       | up to 20 lowercase slug tags (64 chars each) |
+| `added_by`               | no       | reader UUID; seed/internal only        |
 | `enabled`                | no       | defaults to `true`                     |
 | `priority`               | no       | 0-100, defaults to 50                  |
 | `fetch_interval_seconds` | no       | 60-604800, defaults to 900             |
 
 `health_status`, `consecutive_failures`, `last_error`, `last_collected_at`,
 `next_scheduled_at` and the timestamps are owned by the server. A request that tries to
-set one is rejected rather than ignored.
+set one is rejected rather than ignored. `added_by` is also server-owned in the API:
+it is returned when present, but API callers cannot set or change it until reader identity
+is available. `domains` can be supplied on create or update; an empty list clears the tags.
+The shipped file uses only the four V1 domains, `technology`, `software`, `ai` and
+`data-science`, which a reader's professional mix selects on; a test rejects any other tag
+there.
 
 ## Endpoints
 

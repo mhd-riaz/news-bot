@@ -400,6 +400,7 @@ func TestProcessBacklogStopsWhenTheBacklogIsEmpty(t *testing.T) {
 
 func TestProcessBacklogRecordsASuccess(t *testing.T) {
 	repo := newFakeEnrichmentRepo(*enrichArticle())
+	published := time.Date(2026, 8, 20, 8, 0, 0, 0, time.UTC)
 	svc := NewEnrichmentService(EnrichmentDeps{
 		Articles: repo,
 		Robots:   &fakeRobots{decision: allowedDecision()},
@@ -407,7 +408,9 @@ func TestProcessBacklogRecordsASuccess(t *testing.T) {
 		Fetcher: &fakeFetcher{resp: &httpclient.Response{
 			StatusCode: 200, FinalURL: "https://www.thehindu.com/news/cities/mumbai/article71380097.ece",
 		}},
-		Extractor: &fakeExtractor{result: extract.Result{Text: longWords(250)}},
+		Extractor: &fakeExtractor{result: extract.Result{
+			Text: longWords(250), PublishedAt: &published, ImageURL: "https://example.com/image.jpg",
+		}},
 	})
 
 	res, err := svc.ProcessBacklog(context.Background(), 10)
@@ -430,6 +433,26 @@ func TestProcessBacklogRecordsASuccess(t *testing.T) {
 	}
 	if got.NextAt != nil {
 		t.Error("a terminal success carried a retry time")
+	}
+	if got.PublishedAt == nil || !got.PublishedAt.Equal(published) ||
+		got.ImageURL != "https://example.com/image.jpg" {
+		t.Errorf("page metadata = %v / %q", got.PublishedAt, got.ImageURL)
+	}
+}
+
+func TestResultForKeepsPageMetadataWithoutReplacingFeedImage(t *testing.T) {
+	now := time.Date(2026, 8, 31, 10, 0, 0, 0, time.UTC)
+	published := now.Add(-time.Hour)
+	article := enrichArticle(func(a *domain.Article) { a.ImageURL = "https://feed.example/image.jpg" })
+	service := NewEnrichmentService(EnrichmentDeps{Clock: func() time.Time { return now }})
+	result := service.resultFor(article, extract.Result{
+		PublishedAt: &published, ImageURL: "https://page.example/image.jpg",
+	}, domain.ErrNoNewContent)
+	if result.PublishedAt == nil || !result.PublishedAt.Equal(published) {
+		t.Errorf("page date = %v, want %v", result.PublishedAt, published)
+	}
+	if result.ImageURL != "" {
+		t.Errorf("ImageURL = %q, want no replacement for the feed image", result.ImageURL)
 	}
 }
 

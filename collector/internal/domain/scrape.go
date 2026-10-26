@@ -263,7 +263,9 @@ type ScrapeResult struct {
 
 	// Content is written only when it is set, so a failed attempt leaves the
 	// stored text alone rather than blanking it.
-	Content string
+	Content     string
+	PublishedAt *time.Time
+	ImageURL    string
 
 	At time.Time
 

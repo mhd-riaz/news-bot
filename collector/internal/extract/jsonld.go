@@ -53,6 +53,9 @@ func fromNode(node map[string]any) Result {
 	if s, ok := node["headline"].(string); ok {
 		out.Title = s
 	}
+	if s, ok := node["datePublished"].(string); ok {
+		out.PublishedAt = parsePageDate(s)
+	}
 	return out
 }
 

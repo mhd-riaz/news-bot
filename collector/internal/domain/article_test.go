@@ -67,6 +67,9 @@ func TestNewArticleCarriesTheSourceRegion(t *testing.T) {
 	if a.ClassificationStatus != ClassificationStatusPending {
 		t.Errorf("ClassificationStatus = %q, want pending", a.ClassificationStatus)
 	}
+	if a.ContentRev != 1 || !a.InsertedAt.IsZero() || !a.UpdatedAt.IsZero() {
+		t.Errorf("revision/write timestamps = %d / %v / %v", a.ContentRev, a.InsertedAt, a.UpdatedAt)
+	}
 }
 
 func TestNewArticleStripsMarkup(t *testing.T) {
@@ -93,14 +96,28 @@ func TestNewArticlePublicationTime(t *testing.T) {
 	slightlyAhead := collectedAt.Add(10 * time.Minute)
 
 	tests := []struct {
-		name      string
-		published *time.Time
-		want      time.Time
+		name             string
+		published        *time.Time
+		want             time.Time
+		wantSource       PublicationDateSource
+		wantDateVerified bool
 	}{
-		{name: "absent", published: nil, want: collectedAt},
-		{name: "zero", published: &time.Time{}, want: collectedAt},
-		{name: "far future", published: &future, want: collectedAt},
-		{name: "within the clock skew", published: &slightlyAhead, want: slightlyAhead},
+		{
+			name: "absent", published: nil, want: collectedAt,
+			wantSource: PublicationDateSourceCollectedFallback,
+		},
+		{
+			name: "zero", published: &time.Time{}, want: collectedAt,
+			wantSource: PublicationDateSourceCollectedFallback,
+		},
+		{
+			name: "far future", published: &future, want: collectedAt,
+			wantSource: PublicationDateSourceCollectedFallback,
+		},
+		{
+			name: "within the clock skew", published: &slightlyAhead, want: slightlyAhead,
+			wantSource: PublicationDateSourceFeed, wantDateVerified: true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -108,6 +125,10 @@ func TestNewArticlePublicationTime(t *testing.T) {
 			a := newTestArticle(t, func(i *FeedItem) { i.PublishedAt = tc.published })
 			if !a.PublishedAt.Equal(tc.want) {
 				t.Errorf("PublishedAt = %s, want %s", a.PublishedAt, tc.want)
+			}
+			if a.PublishedAtSource != tc.wantSource || a.DateVerified != tc.wantDateVerified {
+				t.Errorf("publication provenance = %q / %v, want %q / %v",
+					a.PublishedAtSource, a.DateVerified, tc.wantSource, tc.wantDateVerified)
 			}
 		})
 	}
@@ -297,6 +318,14 @@ func TestArticleValidate(t *testing.T) {
 		{name: "bad language", mutate: func(a *Article) { a.Language = "eng" }, wantField: "language"},
 		{name: "bad country", mutate: func(a *Article) { a.Country = "IND" }, wantField: "country"},
 		{name: "zero published", mutate: func(a *Article) { a.PublishedAt = time.Time{} }, wantField: "published_at"},
+		{
+			name: "verified fallback date",
+			mutate: func(a *Article) {
+				a.PublishedAtSource = PublicationDateSourceCollectedFallback
+				a.DateVerified = true
+			},
+			wantField: "date_verified",
+		},
 		{name: "zero collected", mutate: func(a *Article) { a.CollectedAt = time.Time{} }, wantField: "collected_at"},
 		{name: "unknown status", mutate: func(a *Article) { a.ProcessingStatus = "done" }, wantField: "processing_status"},
 	}

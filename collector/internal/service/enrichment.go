@@ -152,8 +152,8 @@ func (s *EnrichmentService) ProcessBacklog(ctx context.Context, limit int) (Back
 		}
 		res.Claimed++
 
-		content, scrapeErr := s.ScrapeArticle(ctx, a)
-		result := s.resultFor(a, content, scrapeErr)
+		extracted, scrapeErr := s.scrapeArticle(ctx, a)
+		result := s.resultFor(a, extracted, scrapeErr)
 
 		if err := s.deps.Articles.UpdateScrapeResult(ctx, a.ID, result); err != nil {
 			if errors.Is(err, repository.ErrNotFound) {
@@ -193,28 +193,33 @@ func (s *EnrichmentService) ProcessBacklog(ctx context.Context, limit int) (Back
 // transient transport problem that is none of those. The caller tells the two
 // apart with errors.Is, exactly as it would classify any other Go error.
 func (s *EnrichmentService) ScrapeArticle(ctx context.Context, a *domain.Article) (string, error) {
+	result, err := s.scrapeArticle(ctx, a)
+	return result.Text, err
+}
+
+func (s *EnrichmentService) scrapeArticle(ctx context.Context, a *domain.Article) (extract.Result, error) {
 	host := robots.Host(a.URL)
 	if host == "" {
-		return "", fmt.Errorf("enrichment: %q has no host to fetch from", a.URL)
+		return extract.Result{}, fmt.Errorf("enrichment: %q has no host to fetch from", a.URL)
 	}
 
 	// Checked before robots.txt is even consulted: a host resting after
 	// consecutive failures should not pay for a robots.txt lookup either, cached
 	// or not.
 	if s.deps.Limiter.Resting(host) {
-		return "", ratelimit.ErrCircuitOpen
+		return extract.Result{}, ratelimit.ErrCircuitOpen
 	}
 
 	decision, err := s.deps.Robots.Allowed(ctx, a.URL)
 	if err != nil {
-		return "", err
+		return extract.Result{}, err
 	}
 	if !decision.Allowed {
-		return "", domain.ErrRobotsDisallowed
+		return extract.Result{}, domain.ErrRobotsDisallowed
 	}
 
 	if err := s.deps.Limiter.Acquire(ctx, host, decision.CrawlDelay); err != nil {
-		return "", err
+		return extract.Result{}, err
 	}
 
 	resp, err := s.deps.Fetcher.Fetch(ctx, httpclient.Request{
@@ -223,12 +228,12 @@ func (s *EnrichmentService) ScrapeArticle(ctx context.Context, a *domain.Article
 	})
 	if err != nil {
 		s.deps.Limiter.Failure(host)
-		return "", classifyFetchError(err)
+		return extract.Result{}, classifyFetchError(err)
 	}
 	s.deps.Limiter.Success(host)
 
 	if err := checkRedirect(a.URL, resp.FinalURL); err != nil {
-		return "", err
+		return extract.Result{}, err
 	}
 
 	base, parseErr := url.Parse(resp.FinalURL)
@@ -238,12 +243,12 @@ func (s *EnrichmentService) ScrapeArticle(ctx context.Context, a *domain.Article
 
 	result, err := s.deps.Extractor.Extract(resp.Body, resp.ContentType, base)
 	if err != nil {
-		return "", err
+		return result, err
 	}
 	if !domain.BetterContent(a.Content, result.Text) {
-		return "", domain.ErrNoNewContent
+		return result, domain.ErrNoNewContent
 	}
-	return result.Text, nil
+	return result, nil
 }
 
 // classifyFetchError turns a fetch failure into the sentinel that describes it.
@@ -294,20 +299,41 @@ func trimWWW(host string) string {
 }
 
 // resultFor turns one attempt's outcome into the write the repository makes.
-func (s *EnrichmentService) resultFor(a *domain.Article, content string, scrapeErr error) domain.ScrapeResult {
+func (s *EnrichmentService) resultFor(
+	a *domain.Article, extracted extract.Result, scrapeErr error,
+) domain.ScrapeResult {
 	now := s.deps.Clock()
+	imageURL := extracted.ImageURL
+	if a.ImageURL != "" {
+		imageURL = ""
+	}
 
 	if scrapeErr == nil {
-		return domain.ScrapeResult{Status: domain.ScrapeStatusSuccess, Content: content, At: now}
+		return domain.ScrapeResult{
+			Status: domain.ScrapeStatusSuccess, Content: extracted.Text,
+			PublishedAt: pageDate(extracted.PublishedAt, now), ImageURL: imageURL, At: now,
+		}
 	}
 
 	status, retryable := s.classify(a, scrapeErr)
 	result := domain.ScrapeResult{Status: status, At: now}
+	if errors.Is(scrapeErr, domain.ErrNoNewContent) || errors.Is(scrapeErr, domain.ErrExtractionEmpty) {
+		result.PublishedAt = pageDate(extracted.PublishedAt, now)
+		result.ImageURL = imageURL
+	}
 	if retryable {
 		next := now.Add(domain.ScrapeBackoff(s.deps.RetryBase, a.ScrapeAttempts))
 		result.NextAt = &next
 	}
 	return result
+}
+
+func pageDate(publishedAt *time.Time, now time.Time) *time.Time {
+	if publishedAt == nil || publishedAt.IsZero() || publishedAt.After(now.Add(time.Hour)) {
+		return nil
+	}
+	published := publishedAt.UTC()
+	return &published
 }
 
 // classify maps a ScrapeArticle error onto a status and whether it is worth

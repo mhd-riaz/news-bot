@@ -73,6 +73,8 @@ func sampleSource() *domain.Source {
 		Country:              "IN",
 		State:                "Karnataka",
 		City:                 "Bengaluru",
+		Domains:              []string{"ai", "software"},
+		AddedBy:              "0198f3d2-1111-7000-8000-000000000002",
 		FetchIntervalSeconds: 900,
 		NextScheduledAt:      time.Date(2026, 8, 22, 10, 30, 0, 0, time.UTC),
 		HealthStatus:         domain.HealthUnknown,
@@ -161,7 +163,7 @@ func TestCreateSourceResponseUsesTheWireContract(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
 		t.Fatalf("decode body: %v", err)
 	}
-	for _, key := range []string{"id", "feed_url", "fetch_interval_seconds", "health_status", "created_at"} {
+	for _, key := range []string{"id", "feed_url", "domains", "added_by", "fetch_interval_seconds", "health_status", "created_at"} {
 		if _, ok := raw[key]; !ok {
 			t.Errorf("response is missing %q: %v", key, raw)
 		}
@@ -173,7 +175,7 @@ func TestCreateSourceResponseUsesTheWireContract(t *testing.T) {
 
 // A caller must not be able to set fields the server owns.
 func TestCreateSourceRejectsServerOwnedFields(t *testing.T) {
-	tests := []string{"health_status", "consecutive_failures", "created_at", "id", "last_error", "next_scheduled_at"}
+	tests := []string{"health_status", "consecutive_failures", "created_at", "id", "last_error", "next_scheduled_at", "added_by"}
 
 	for _, field := range tests {
 		t.Run(field, func(t *testing.T) {
@@ -456,6 +458,37 @@ func TestUpdateSourceCarriesTypeIntoThePatch(t *testing.T) {
 	}
 	if mgr.lastPtch.Type == nil || *mgr.lastPtch.Type != domain.SourceTypeAtom {
 		t.Errorf("type patch = %v, want atom", mgr.lastPtch.Type)
+	}
+}
+
+func TestCreateSourceCarriesDomainsIntoTheInput(t *testing.T) {
+	mgr := &fakeSourceManager{source: sampleSource()}
+	body := `{"name":"n","feed_url":"https://e.com/f","type":"rss","language":"en","country":"IN","domains":["AI","software"]}`
+	rec := request(t, newSourceServer(t, mgr), http.MethodPost, "/api/v1/sources", body)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201: %s", rec.Code, rec.Body.String())
+	}
+	if mgr.lastIn.Domains == nil || strings.Join(*mgr.lastIn.Domains, ",") != "AI,software" {
+		t.Errorf("domains = %v, want the request values carried through", mgr.lastIn.Domains)
+	}
+}
+
+func TestUpdateSourceCarriesDomainsAndRejectsAddedBy(t *testing.T) {
+	mgr := &fakeSourceManager{source: sampleSource()}
+	path := "/api/v1/sources/0198f3d2-1111-7000-8000-000000000001"
+	rec := request(t, newSourceServer(t, mgr), http.MethodPatch, path, `{"domains":[]}`)
+	if rec.Code != http.StatusOK || mgr.lastPtch.Domains == nil || len(*mgr.lastPtch.Domains) != 0 {
+		t.Fatalf("PATCH domains response = %d %s, patch=%v", rec.Code, rec.Body.String(), mgr.lastPtch.Domains)
+	}
+
+	mgr = &fakeSourceManager{source: sampleSource()}
+	rec = request(t, newSourceServer(t, mgr), http.MethodPatch, path, `{"added_by":"0198f3d2-1111-7000-8000-000000000001"}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("added_by patch status = %d, want 400", rec.Code)
+	}
+	if mgr.calls != 0 {
+		t.Error("service was called despite a caller-supplied added_by")
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
@@ -30,6 +31,9 @@ var _ repository.ArticleRepository = (*ArticleRepository)(nil)
 // uq_source_feed_guid may reject it; all three mean the same thing to a caller,
 // so all three come back as ErrDuplicate.
 func (r *ArticleRepository) Create(ctx context.Context, a *domain.Article) error {
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	a.InsertedAt = now
+	a.UpdatedAt = now
 	if _, err := r.coll.InsertOne(ctx, a); err != nil {
 		if driver.IsDuplicateKeyError(err) {
 			return repository.ErrDuplicate

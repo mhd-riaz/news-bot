@@ -52,7 +52,11 @@ func (f *fakeClassifier) Classify(_ context.Context, items []classifier.Item) ([
 	// batch of any size can be verified without the caller wiring up each chunk.
 	results := make([]classifier.Result, len(items))
 	for index, item := range items {
-		results[index] = classifier.Result{ID: item.ID, Topic: "politics", Confidence: 0.9, Filed: true, ModelVersion: "v2-001"}
+		results[index] = classifier.Result{
+			ID: item.ID, Topic: "politics", Confidence: 0.9, Filed: true, ModelVersion: "v2-001",
+			CleanTitle: item.Title, CleanSummary: item.Summary, CleanBody: item.Body,
+			DetectedLanguage: "en", LanguageConfidence: 0.99,
+		}
 	}
 	return results, nil
 }
@@ -189,6 +193,8 @@ func TestProcessClassifiesBeforeStoring(t *testing.T) {
 	repo := &fakeArticleRepo{}
 	model := &fakeClassifier{results: []classifier.Result{{
 		ID: "", Topic: "politics", Confidence: 0.9, Filed: true, ModelVersion: "v2-001",
+		CleanTitle: "One", CleanSummary: "Clean summary", CleanBody: "Clean body",
+		DetectedLanguage: "en", LanguageConfidence: 0.99,
 	}}}
 	result, err := New(repo, fixedClock, model).Process(t.Context(), testSource(), []domain.FeedItem{
 		item("One", "https://news.example.com/1", "g-1"),
@@ -201,6 +207,15 @@ func TestProcessClassifiesBeforeStoring(t *testing.T) {
 	}
 	if result.Unclassified != 0 || result.Classified != 1 || !result.ClassifierAvailable {
 		t.Errorf("classification result = %+v, want one available classified result", result)
+	}
+	if model.items[0].Source != "Mysuru Daily" {
+		t.Errorf("classifier source = %q, want publisher name", model.items[0].Source)
+	}
+	stored := repo.stored[0]
+	if stored.CleanTitle != "One" || stored.CleanSummary != "Clean summary" ||
+		stored.CleanBody != "Clean body" || stored.DetectedLanguage != "en" ||
+		stored.LanguageConfidence != 0.99 {
+		t.Errorf("stored derived fields = %+v", stored)
 	}
 }
 

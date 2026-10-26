@@ -201,6 +201,42 @@ func TestArticleDeduplicationIndexesAreUnique(t *testing.T) {
 	}
 }
 
+func TestArticleIndexesSupportC1WatermarksAndEligibility(t *testing.T) {
+	want := map[string]bson.D{
+		"ix_updated_cursor": bson.D{{Key: "updated_at", Value: 1}, {Key: "_id", Value: 1}},
+		"ix_verified_language_published": bson.D{
+			{Key: "date_verified", Value: 1},
+			{Key: "detected_language", Value: 1},
+			{Key: "published_at", Value: -1},
+		},
+	}
+	found := map[string]bson.D{}
+	for _, collection := range IndexPlan() {
+		if collection.Collection != CollectionArticles {
+			continue
+		}
+		for _, model := range collection.Models {
+			options := resolveOptions(t, model)
+			if options.Name == nil {
+				continue
+			}
+			if _, needed := want[*options.Name]; needed {
+				found[*options.Name] = model.Keys.(bson.D)
+			}
+		}
+	}
+	for name, keys := range want {
+		got, ok := found[name]
+		if !ok {
+			t.Errorf("articles is missing C1 index %q", name)
+			continue
+		}
+		if fmt.Sprint(got) != fmt.Sprint(keys) {
+			t.Errorf("%s keys = %v, want %v", name, got, keys)
+		}
+	}
+}
+
 func TestFeedGUIDUniquenessIsPartial(t *testing.T) {
 	for _, ci := range IndexPlan() {
 		if ci.Collection != CollectionArticles {
