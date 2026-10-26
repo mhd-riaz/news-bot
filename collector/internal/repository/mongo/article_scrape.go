@@ -68,25 +68,6 @@ func (r *ArticleRepository) ClaimForScraping(ctx context.Context, claim domain.S
 // between; more to the point, content_hash and the identity keys are not the
 // enrichment stage's to rewrite.
 func (r *ArticleRepository) UpdateScrapeResult(ctx context.Context, id string, result domain.ScrapeResult) error {
-	state := bson.D{
-		{Key: "scrape_status", Value: result.Status},
-		{Key: "scraped_at", Value: result.At},
-	}
-	if result.Content != "" {
-		state = append(state, bson.E{Key: "content", Value: result.Content})
-	}
-	if result.Status.HasFullText() {
-		state = append(state, bson.E{Key: "processing_status", Value: domain.ProcessingStatusEnriched})
-	}
-	if result.NextAt != nil {
-		state = append(state, bson.E{Key: "next_scrape_at", Value: *result.NextAt})
-	}
-
-	unset := bson.D{}
-	if result.NextAt == nil {
-		unset = append(unset, bson.E{Key: "next_scrape_at", Value: ""})
-	}
-
 	changed := bson.A{}
 	set := bson.D{
 		{Key: "scrape_status", Value: result.Status},
@@ -143,36 +124,23 @@ func (r *ArticleRepository) UpdateScrapeResult(ctx context.Context, id string, r
 	}
 
 	if len(changed) > 0 {
-		set = append(set,
-			bson.E{Key: "classification_status", Value: domain.ClassificationStatusPending},
-			bson.E{Key: "classification_claimed_at", Value: "$$REMOVE"},
-			bson.E{Key: "content_rev", Value: bson.D{{Key: "$add", Value: bson.A{
+		conditional := bson.D{
+			{Key: "classification_status", Value: domain.ClassificationStatusPending},
+			{Key: "classification_attempts", Value: 0},
+			{Key: "classification_claimed_at", Value: "$$REMOVE"},
+			{Key: "content_rev", Value: bson.D{{Key: "$add", Value: bson.A{
 				bson.D{{Key: "$ifNull", Value: bson.A{"$content_rev", int64(0)}}}, int64(1),
 			}}}},
-			bson.E{Key: "updated_at", Value: "$$NOW"},
-		)
-		update := driver.Pipeline{
-			bson.D{{Key: "$set", Value: set}},
+			{Key: "updated_at", Value: "$$NOW"},
 		}
-		if len(unset) > 0 {
-			update = append(update, bson.D{{Key: "$unset", Value: "next_scrape_at"}})
-		}
-		res, err := r.coll.UpdateOne(ctx, bson.D{
-			{Key: "_id", Value: id},
-			{Key: "$expr", Value: bson.D{{Key: "$or", Value: changed}}},
-		}, update)
-		if err != nil {
-			return fmt.Errorf("mongo: update scrape result: %w", err)
-		}
-		if res.MatchedCount > 0 {
-			return nil
+		for _, field := range conditional {
+			set = append(set, bson.E{Key: field.Key, Value: bson.D{{Key: "$cond", Value: bson.A{
+				bson.D{{Key: "$or", Value: changed}}, field.Value, "$" + field.Key,
+			}}}})
 		}
 	}
 
-	update := bson.D{{Key: "$set", Value: state}}
-	if len(unset) > 0 {
-		update = append(update, bson.E{Key: "$unset", Value: unset})
-	}
+	update := driver.Pipeline{bson.D{{Key: "$set", Value: set}}}
 	res, err := r.coll.UpdateByID(ctx, id, update)
 	if err != nil {
 		return fmt.Errorf("mongo: update scrape result: %w", err)

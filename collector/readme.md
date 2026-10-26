@@ -198,11 +198,14 @@ make backfill                      # backfill up to 1000 legacy articles
 database the API is already serving.
 
 The C1 backfill processes at most 50 articles per classifier request, pauses one
-second between full batches, and resumes from articles without `content_rev`.
-It writes cleaned text, detected language and date provenance only; raw article
-text and existing topics are left untouched. Set `BACKFILL_LIMIT` or
-`BACKFILL_DELAY` to adjust a run, then rerun `make backfill` until no work
-remains.
+second between full batches, and resumes from articles missing required C1 fields.
+Each run advances by `_id` so completed or concurrently changed articles are not
+rescanned. It fills absent cleaned text, language, date provenance and timestamps;
+existing derived values, page provenance, raw text and topics are preserved.
+Updates require the revision read for that batch; a concurrent change defers the
+article to a later run. Legacy records without `inserted_at` use `collected_at` as
+an explicit estimate, not measured ingestion latency. Set `BACKFILL_LIMIT` or
+`BACKFILL_DELAY` to adjust a run, then rerun `make backfill` until no work remains.
 
 ## Verification gates
 
@@ -218,6 +221,11 @@ make ml-test                       # offline ML suite (Python, see below)
 
 Unit tests never contact a network service. The integration tests are behind the
 `integration` build tag, use a database name unique per run, and drop it afterwards.
+CI starts MongoDB 7 with a readiness check and runs the integration suite.
+Synthetic feed and extraction cases are self-contained; captured publisher pages
+remain private and their tests skip explicitly when the captures are absent.
+Gold-label-dependent ML checks likewise skip without the private label file;
+synthetic label-loader and filtering checks still run.
 
 ## Configuration
 
@@ -343,9 +351,14 @@ unguarded API:
 | `NEWS_BOOTSTRAP_SOURCES_PATH` | optional; an https URL to change feeds unrebuilt |
 | `NEWS_CLASSIFIER_API_KEY`     | shared internal API key for the classifier       |
 | `NEWS_CLASSIFIER_MODEL_SHA256`| `sha256sum` of `v2-001/bundle.joblib`            |
-| `NEWS_CLASSIFIER_IMAGE`       | optional; pin classifier to a SHA tag            |
+| `NEWS_CLASSIFIER_IMAGE`       | optional; pin to a compatible classifier SHA tag |
 
-Before the first production deploy, create the database users once as MongoDB
+The C1 collector requires classifier responses containing cleaned text, language
+and language confidence. Pre-M1.1 classifier images do not satisfy that contract;
+roll back to a compatible image, or roll back the collector and classifier as a
+compatible pair.
+
+Before the first production deploy, provision the database users as MongoDB
 root. Supply `NEWS_MONGO_ROOT_URI`, `NEWS_MONGO_DATABASE`, and distinct
 `NEWS_MONGO_{COLLECTOR,BATCH,RANKER,READER,OWNER}_PASSWORD` values through a
 secure environment; each password must be generated as 64 hex characters (for
@@ -358,6 +371,9 @@ mongosh "$NEWS_MONGO_ROOT_URI" --quiet --file deployments/mongo-users.js
 Store the generated passwords in Coolify secrets. MongoDB enforces each
 principal's collection permissions; ownership of reader-added sources is
 checked by the reader application, not by MongoDB roles.
+The script can be rerun: it updates managed roles and reapplies the supplied
+passwords and role assignments to existing users. Keep the supplied passwords in
+sync with the corresponding Coolify secrets.
 
 And these as GitHub repository secrets:
 

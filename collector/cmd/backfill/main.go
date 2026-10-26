@@ -1,6 +1,6 @@
 // Command backfill fills C1 fields on legacy articles without changing their
 // existing topics or raw article text. Re-running it safely resumes at the
-// first article that still lacks content_rev.
+// first article that still lacks required C1 fields.
 package main
 
 import (

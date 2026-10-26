@@ -3,6 +3,7 @@
 These are cheap invariants that have each already failed somewhere in v1's history.
 """
 
+import json
 from datetime import UTC, datetime
 
 import pytest
@@ -17,7 +18,26 @@ def taxonomy():
 
 @pytest.fixture(scope="module")
 def gold():
+    if not config.LABEL_PATH.exists():
+        pytest.skip("private gold labels are not committed")
     return labels.read_gold()
+
+
+def test_gold_helpers_without_private_dataset(tmp_path, taxonomy):
+    """Synthetic rows cover loading, duplicate IDs and filtering without private labels."""
+    path = tmp_path / "gold.jsonl"
+    topic = taxonomy.classes[0]
+    rows = [
+        {"article_id": "known", "topic": "old-label"},
+        {"article_id": "known", "topic": topic},
+        {"article_id": "abstain", "topic": config.UNSORTED},
+        {"article_id": "unknown", "topic": "not-in-taxonomy"},
+    ]
+    path.write_text("\n" + "\n".join(json.dumps(row) for row in rows) + "\n\n", encoding="utf-8")
+    gold = labels.read_gold(path)
+    assert gold["known"] == topic
+    assert labels.trainable(gold, taxonomy) == {"known": topic}
+    assert labels.abstention_set(gold) == ("abstain",)
 
 
 def test_taxonomy_is_the_flat_13_class_v4(taxonomy):

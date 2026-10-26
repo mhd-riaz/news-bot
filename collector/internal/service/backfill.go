@@ -9,15 +9,18 @@ import (
 	"github.com/riaz/newscollector/internal/domain"
 )
 
+// MaxDerivedBackfillBatchSize bounds each sidecar request and database batch.
 const MaxDerivedBackfillBatchSize = 50
 
+// DerivedFieldBackfillRepository reads incomplete articles and conditionally fills their C1 fields.
 type DerivedFieldBackfillRepository interface {
-	ListMissingContentRevision(context.Context, int) ([]domain.Article, error)
+	ListMissingDerivedFields(context.Context, string, int) ([]domain.Article, error)
 	BackfillDerivedFieldsIfMissing(
-		context.Context, string, domain.ArticleDerivedFields,
+		context.Context, string, int64, domain.ArticleDerivedFields,
 	) (bool, error)
 }
 
+// DerivedFieldBackfillDeps supplies persistence, classification and batch limits.
 type DerivedFieldBackfillDeps struct {
 	Articles   DerivedFieldBackfillRepository
 	Classifier classifier.Client
@@ -25,10 +28,12 @@ type DerivedFieldBackfillDeps struct {
 	BatchDelay time.Duration
 }
 
+// DerivedFieldBackfillService fills missing C1 fields without replacing live results.
 type DerivedFieldBackfillService struct {
 	deps DerivedFieldBackfillDeps
 }
 
+// DerivedFieldBackfillResult counts work completed or deferred by one run.
 type DerivedFieldBackfillResult struct {
 	Batches int
 	Scanned int
@@ -36,6 +41,7 @@ type DerivedFieldBackfillResult struct {
 	Skipped int
 }
 
+// NewDerivedFieldBackfillService bounds batches to the sidecar's supported maximum.
 func NewDerivedFieldBackfillService(deps DerivedFieldBackfillDeps) *DerivedFieldBackfillService {
 	if deps.BatchSize <= 0 || deps.BatchSize > MaxDerivedBackfillBatchSize {
 		deps.BatchSize = MaxDerivedBackfillBatchSize
@@ -43,6 +49,7 @@ func NewDerivedFieldBackfillService(deps DerivedFieldBackfillDeps) *DerivedField
 	return &DerivedFieldBackfillService{deps: deps}
 }
 
+// Run visits at most limit incomplete articles, deferring concurrently changed snapshots.
 func (s *DerivedFieldBackfillService) Run(
 	ctx context.Context, limit int,
 ) (DerivedFieldBackfillResult, error) {
@@ -61,12 +68,14 @@ func (s *DerivedFieldBackfillService) Run(
 	}
 
 	var result DerivedFieldBackfillResult
+	// ponytail: cursor resets per run; checkpoint it with deferred IDs if restart scans become costly.
+	var afterID string
 	for result.Scanned < limit {
 		if err := ctx.Err(); err != nil {
 			return result, err
 		}
 		requestSize := min(batchSize, limit-result.Scanned)
-		articles, err := s.deps.Articles.ListMissingContentRevision(ctx, requestSize)
+		articles, err := s.deps.Articles.ListMissingDerivedFields(ctx, afterID, requestSize)
 		if err != nil {
 			return result, fmt.Errorf("backfill: list missing articles: %w", err)
 		}
@@ -118,7 +127,7 @@ func (s *DerivedFieldBackfillService) Run(
 				PublishedAtSource:  legacyDateSource(article),
 			}
 			fields.DateVerified = fields.PublishedAtSource != domain.PublicationDateSourceCollectedFallback
-			updated, err := s.deps.Articles.BackfillDerivedFieldsIfMissing(ctx, article.ID, fields)
+			updated, err := s.deps.Articles.BackfillDerivedFieldsIfMissing(ctx, article.ID, article.ContentRev, fields)
 			if err != nil {
 				return result, fmt.Errorf("backfill: update article %s: %w", article.ID, err)
 			}
@@ -128,6 +137,7 @@ func (s *DerivedFieldBackfillService) Run(
 				result.Skipped++
 			}
 		}
+		afterID = articles[len(articles)-1].ID
 
 		if result.Scanned < limit && len(articles) == requestSize && s.deps.BatchDelay > 0 {
 			timer := time.NewTimer(s.deps.BatchDelay)
@@ -148,6 +158,9 @@ func (s *DerivedFieldBackfillService) Run(
 }
 
 func legacyDateSource(article domain.Article) domain.PublicationDateSource {
+	if article.PublishedAtSource != "" {
+		return article.PublishedAtSource
+	}
 	if article.PublishedAt.Equal(article.CollectedAt) {
 		return domain.PublicationDateSourceCollectedFallback
 	}

@@ -23,7 +23,7 @@ const readWrite = [...read, ...write];
 const crud = [...readWrite, ...remove];
 
 const collections = {
-  articles: { collector: crud, batch: [], ranker: [], reader: read, owner: read },
+  articles: { collector: crud, batch: read, ranker: [], reader: read, owner: read },
   sources: { collector: crud, batch: [], ranker: [], reader: readWrite, owner: crud },
   collection_runs: { collector: readWrite, batch: [], ranker: [], reader: [], owner: read },
   feed_cache_metadata: { collector: readWrite, batch: [], ranker: [], reader: [], owner: read },
@@ -64,12 +64,15 @@ for (const name of accountNames) {
     }));
   if (name === "collector") privileges.push(...ddlPrivileges);
 
-  database.createRole({ role, privileges, roles: [] });
-  database.createUser({
-    user: name,
+  const roleDefinition = { privileges, roles: [] };
+  if (database.getRole(role)) database.updateRole(role, roleDefinition);
+  else database.createRole({ role, ...roleDefinition });
+  const userDefinition = {
     pwd: passwords[name],
     roles: [{ role, db: databaseName }],
-  });
+  };
+  if (database.getUser(name)) database.updateUser(name, userDefinition);
+  else database.createUser({ user: name, ...userDefinition });
 }
 
 print(`Provisioned MongoDB service users for database ${databaseName}.`);

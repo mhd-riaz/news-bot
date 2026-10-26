@@ -93,11 +93,11 @@ type Article struct {
 	PublishedAtSource PublicationDateSource `bson:"published_at_source"`
 	DateVerified      bool                  `bson:"date_verified"`
 
-	CleanTitle         string  `bson:"clean_title,omitempty"`
-	CleanSummary       string  `bson:"clean_summary,omitempty"`
-	CleanBody          string  `bson:"clean_body,omitempty"`
-	DetectedLanguage   string  `bson:"detected_language,omitempty"`
-	LanguageConfidence float64 `bson:"language_confidence,omitempty"`
+	CleanTitle         string  `bson:"clean_title"`
+	CleanSummary       string  `bson:"clean_summary"`
+	CleanBody          string  `bson:"clean_body"`
+	DetectedLanguage   string  `bson:"detected_language"`
+	LanguageConfidence float64 `bson:"language_confidence"`
 
 	ContentRev int64     `bson:"content_rev"`
 	InsertedAt time.Time `bson:"inserted_at"`

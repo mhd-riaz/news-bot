@@ -5,13 +5,26 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ping: 1}).ok'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -21,7 +34,7 @@ jobs:
           cache-dependency-path: collector/go.sum
       - name: Go checks
         working-directory: collector
-        run: make check && make test-race
+        run: make fmt-check vet test-race test-integration
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

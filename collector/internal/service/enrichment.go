@@ -243,7 +243,7 @@ func (s *EnrichmentService) scrapeArticle(ctx context.Context, a *domain.Article
 
 	result, err := s.deps.Extractor.Extract(resp.Body, resp.ContentType, base)
 	if err != nil {
-		return extract.Result{}, err
+		return result, err
 	}
 	if !domain.BetterContent(a.Content, result.Text) {
 		return result, domain.ErrNoNewContent
@@ -317,7 +317,7 @@ func (s *EnrichmentService) resultFor(
 
 	status, retryable := s.classify(a, scrapeErr)
 	result := domain.ScrapeResult{Status: status, At: now}
-	if errors.Is(scrapeErr, domain.ErrNoNewContent) {
+	if errors.Is(scrapeErr, domain.ErrNoNewContent) || errors.Is(scrapeErr, domain.ErrExtractionEmpty) {
 		result.PublishedAt = pageDate(extracted.PublishedAt, now)
 		result.ImageURL = imageURL
 	}

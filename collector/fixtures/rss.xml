@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  RSS 2.0 fixture. Deliberately mixed: an absolute link, a relative link, an
+  entry with no link at all, CDATA, a dc:creator author, an image enclosure and
+  a title split across lines. Tests assert the collector copes with all of it.
+-->
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>Mysuru Daily — City</title>
+    <link>https://news.example.com/mysuru</link>
+    <description>City news from Mysuru</description>
+    <language>en-in</language>
+    <lastBuildDate>Tue, 12 Aug 2025 09:30:00 +0530</lastBuildDate>
+
+    <item>
+      <title>Metro line extension cleared for Mysuru</title>
+      <link>https://news.example.com/mysuru/metro-line-extension</link>
+      <guid isPermaLink="false">mysuru-daily-10241</guid>
+      <description><![CDATA[<p>The state cabinet approved the extension on Monday.</p>]]></description>
+      <pubDate>Tue, 12 Aug 2025 08:15:00 +0530</pubDate>
+      <dc:creator>Anita Rao</dc:creator>
+      <category>Infrastructure</category>
+      <category>Transport</category>
+      <enclosure url="https://cdn.example.com/img/metro.jpg" length="48211" type="image/jpeg" />
+    </item>
+
+    <item>
+      <title>
+        Heavy rain forecast
+        for the district
+      </title>
+      <link>/mysuru/heavy-rain-forecast</link>
+      <guid isPermaLink="false">mysuru-daily-10240</guid>
+      <description>The weather office issued a yellow alert.</description>
+      <pubDate>Mon, 11 Aug 2025 19:40:00 +0530</pubDate>
+      <category>Weather</category>
+      <category>weather</category>
+    </item>
+
+    <item>
+      <title>Entry with no link at all</title>
+      <guid isPermaLink="false">mysuru-daily-10239</guid>
+      <description>Nothing here can be opened, so the collector drops it.</description>
+      <pubDate>Mon, 11 Aug 2025 11:00:00 +0530</pubDate>
+    </item>
+
+    <item>
+      <title>Entry with an unusable scheme</title>
+      <link>javascript:alert(1)</link>
+      <guid isPermaLink="false">mysuru-daily-10238</guid>
+      <description>Dropped for the same reason.</description>
+      <pubDate>Sun, 10 Aug 2025 07:05:00 +0530</pubDate>
+    </item>
+  </channel>
+</rss>

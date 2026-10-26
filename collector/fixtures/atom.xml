@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Atom 1.0 fixture. Entries carry only <updated>, which is where the collector's
+  fallback from published to updated is exercised, and links appear as <link
+  rel="alternate"> rather than as element text.
+-->
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+  <title>Coastal Karnataka Wire</title>
+  <subtitle>Regional reporting from the coast</subtitle>
+  <link href="https://atom.example.org/" rel="alternate" type="text/html" />
+  <link href="https://atom.example.org/feed.atom" rel="self" type="application/atom+xml" />
+  <id>urn:uuid:9c1f0f0e-1c2a-4f24-9a3f-8f9f2a0a5c11</id>
+  <updated>2025-08-12T04:00:00Z</updated>
+
+  <entry>
+    <title type="text">Fishing ban lifted along the coast</title>
+    <link href="https://atom.example.org/2025/08/fishing-ban-lifted" rel="alternate" />
+    <id>urn:uuid:1b0f4a10-19d1-4a55-9d9a-6f01f0c8b001</id>
+    <updated>2025-08-12T03:45:00Z</updated>
+    <author>
+      <name>Suhas Kamath</name>
+      <email>suhas@atom.example.org</email>
+    </author>
+    <category term="Fisheries" />
+    <summary type="text">Trawlers returned to sea after the annual monsoon ban ended.</summary>
+    <content type="html">&lt;p&gt;Trawlers returned to sea on Tuesday morning.&lt;/p&gt;</content>
+  </entry>
+
+  <entry>
+    <title type="text">Port handles record cargo volume</title>
+    <link href="/2025/08/port-record-cargo" rel="alternate" />
+    <id>urn:uuid:1b0f4a10-19d1-4a55-9d9a-6f01f0c8b002</id>
+    <updated>2025-08-11T12:20:00Z</updated>
+    <summary type="text">Volumes rose sharply over the quarter.</summary>
+  </entry>
+</feed>
