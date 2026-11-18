@@ -13,7 +13,10 @@
 
 services:
   mongo:
-    image: mongo:7
+    # Pinned rather than `mongo:7`: only `api` sets pull_policy: always, so a
+    # floating tag stays on whatever image the host cached first and silently
+    # misses patch releases. Bump this explicitly.
+    image: mongo:7.0.48
     restart: unless-stopped
     command: ["mongod", "--wiredTigerCacheSizeGB", "2"]
     mem_limit: 3g
@@ -22,12 +25,13 @@ services:
       # The 64-character variant is free of symbols, so it needs no escaping
       # when it is embedded in the connection URI below.
       - MONGO_INITDB_ROOT_PASSWORD=${SERVICE_PASSWORD_64_MONGO}
-    # Published for direct Compass/mongosh access from trusted LAN clients.
-    # Root auth is already enforced above; restrict at the host firewall too
-    # (e.g. `ufw allow from <client-ip> to any port 27017`) since anyone who
-    # can reach this port can attempt to authenticate.
+    # Published on the host's loopback only, for Compass/mongosh. Docker
+    # publishes ports ahead of the host firewall, so a `ufw allow ...` rule
+    # cannot restrict an all-interfaces mapping. Clients reach this port
+    # through an SSH tunnel to the host (Compass: Advanced Connection Options >
+    # Proxy/SSH) or a Cloudflare Access TCP tunnel; root auth is still enforced.
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongo-data:/data/db
     healthcheck:
