@@ -20,6 +20,7 @@ Task markers: `[ ]` todo · `[~]` in progress (agent, date) · `[x]` done (evide
 | M7 MCP server | B (A: M7.2) | 6–8 Nov | H2a; H5 for rule tools | todo |
 | M8 Freeze and human evaluation | Owner, A | 9–13 Nov | M3–M6 | todo |
 | M9 Hardening and handover | B; A reviews | 10–15 Nov | M7, M8 | todo |
+| ML4 Classifier V4 candidate labels (separate from V1/M8) | Copilot | on demand | owner approval | candidates verified; PR/review and balanced gold pending |
 
 Milestones overlap only through these handoffs. A dependent task starts when its handoff is marked done here.
 
@@ -506,6 +507,13 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 
 **Exit:** p95 under the agreed load meets the target. C14 is verified, docs are updated and restore is rehearsed.
 
+### ML4 — Classifier V4 candidate labels (separate from V1/M8)
+
+- [~] **ML4.1** (Copilot, 10 Nov) Read-only, fixed-cut local export in `ml-v4/` reuses V1/V2 CSV writing, admission, dedup and taxonomy hints. `make ml4-labels-export` produced 2,287 distinct unlabeled candidates in four private CSVs (2,347 sheet rows including 60 intentional overlaps); 0 old-gold ID overlap and 0 repeated content hashes or near-duplicate groups among selected rows. None of the 8,151 old-gold IDs exists in this local DB, so cross-corpus near-duplicate comparison could not be verified. The 200/class target is **not met** for conflict/war (141, short 59), crime/justice (92, short 108), disaster/accident (83, short 117) and education (171, short 29). `make ml4-labels-verify RUN=v4-20261110T120557Z`: 2,287 checked, 0 missing/changed in the DB or CSVs, 0 label conflicts. The combined classifier and V4 tests: 189 passed, 0 failed/skipped. No human labels were created; task closure awaits a PR and automated review.
+- [!] **ML4.2** (Owner) Balanced training gold waits for human completion of the blind sheets, additional rights-approved articles or screening of uncertain/title-only material for the four short classes, and a publisher-rights decision (D12). Do not reduce the 200/class target or treat provisional topics as gold.
+
+**Exit:** ML4.1 has candidate sheets and a measured shortfall report. ML4 stays blocked until human labels are validated, training rights are decided and the 200/class target is met or explicitly recorded as not met. No candidate is called gold before review.
+
 ### 4.1 V1 release checklist
 
 - [ ] Every V1 requirement in §2 is done or recorded as not met, with evidence
@@ -559,6 +567,7 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 | D9 | Accept the simplifications marked "Proposed" in §8 | M0 | Accept |
 | D10 | Public hostname for the reader (Cloudflare Tunnel) and the Google OAuth client | 29 Oct | Hostname decided 26 Oct: `news.mxdio.com` (§8). The OAuth client is pending and still blocks M3.3 |
 | D11 | Publish V1 images and automatically deploy on main pushes | M0 | GitHub Actions → GHCR → authenticated Coolify webhook |
+| D12 | How to source and human-label enough rights-approved V4 examples in the four short classes, and which shipped publishers permit classifier training? | Before ML4.2/training | Keep V4 candidates private; do not train, reuse old labels, or lower 200/class |
 
 ## 8. Decision log
 
@@ -566,6 +575,8 @@ Newest first. Never lower a threshold or change a contract without a row here.
 
 | Date | Decision | Reason |
 |---|---|---|
+| 2026-11-10 | V4 provisional strata use fresh-only local TF-IDF against the 13 taxonomy descriptions plus existing feed/category/publisher hints; the 200/class target is unchanged | The local database had 7,494 articles but zero `topic` predictions, and no fitted classifier bundle was available. Owner approved the alternative; it needs no new dependency and does not train on old gold |
+| 2026-11-10 | Owner approved a separate `ml-v4/` classifier sampling project: local MongoDB read-only, up to 200 fresh candidates per class, AI-assisted sampling and human-validated gold | Existing `ml/data/labels/v3` is an earlier annotation round; keep it and all V1/V2 datasets intact. No old labels are copied into V4 |
 | 2026-10-26 | **D2: backups go to a LAN disk or NAS**, not off-site | Owner decision. A NAS keeps backups off the laptop; neither option covers a site-level loss such as theft or fire |
 | 2026-10-26 | **D10 hostname: `news.mxdio.com`**, through Cloudflare Tunnel. The OAuth redirect is `https://news.mxdio.com/auth/callback` | Owner decision; the Google OAuth client is still to be created |
 | 2026-10-26 | Production reads the sources file baked into the image; Coolify leaves `NEWS_BOOTSTRAP_SOURCES_PATH` unset | Every main merge rebuilds and redeploys (D11), so a remote copy adds a runtime dependency for no gain |
@@ -621,6 +632,9 @@ Append only. Add one line for each claim, handoff, block or finish.
 | 2026-10-26 | Copilot | M9.1 flaky test (pulled forward) | `TestConcurrentAcquireReservesDistinctSlots` failed because the test clock added each concurrent sleep to one shared time, moving it past later reservations. A frozen test clock now makes the expected waits exactly 1–7 s: 0 failures in 12,000 runs at `-cpu` 1–8 (previously 259 of 3,000 at `-cpu=2`), and a deliberately broken reservation fails it. The limiter itself is unchanged. |
 | 2026-10-26 | Copilot | M1.7 done | Owner approved the design, included Medium and chose no action on existing sources. The 25 new feeds were probed for status, items, language, robots and licence, then seeded and collected into a scratch database on the local container (dropped afterwards). Production was not touched. If Coolify sets `NEWS_BOOTSTRAP_SOURCES_PATH` to the old `data-scientist-roadmap` URL, production will not see this change. |
 | 2026-10-26 | Owner | Review and decisions | Approved M1.7 and the M9.1 flaky-test fix. D2: a LAN disk or NAS. D10 hostname: `news.mxdio.com`. Production uses the baked sources file; the owner unsets `NEWS_BOOTSTRAP_SOURCES_PATH` in Coolify. M0.6 closed on the owner's confirmation. The local `.env` now targets localhost, and production credentials moved to a gitignored `.env.prod`. `v1` reaches `main` through a reviewed PR with a squash merge; the M1.5 production backfill runs in the api container after that deploy is healthy. Next: M2.1. |
+| 2026-11-10 | Copilot | ML4.1 claimed | Owner approved an independent classifier V4 sampling effort, distinct from M8 recommender evaluation. Existing label rounds and their gold files remain untouched. |
+| 2026-11-10 | Copilot | ML4.1 candidate export complete; ML4.2 blocked | Fixed-cut rerun reproduced all 2,287 candidate IDs and class counts. Local verification found 0 changed/missing articles or sheets; 189 combined tests passed. Four classes are short by 313 candidates total, and no labels are gold until human review. D12 records the owner decision needed for more eligible material and rights. |
+| 2026-11-10 | Copilot | ML4.1 closure correction | The preceding "complete" describes the candidate export, not task closure: no PR or automated review was requested, so ML4.1 stays `[~]`. Standard-library trace coverage: sampler 89%, export CLI 84%, verifier 82%; below the 90% backend and 95% critical-logic targets because no isolated Mongo test instance is available. The read-only local export and verifier exercised the database paths separately. |
 
 ## 10. V2 backlog (not designed)
 

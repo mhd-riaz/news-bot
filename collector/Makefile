@@ -169,6 +169,32 @@ ml-labels-export: ## Write blind labelling sheets: make ml-labels-export SIZE=15
 ml-labels-import: ## Validate completed sheets and write the gold set: make ml-labels-import SHEETS="a.csv b.csv"
 	cd ml && uv run newsml import-labels --sheets $(SHEETS)
 
+.PHONY: ml4-labels-export
+ml4-labels-export: ## Export fresh, balanced classifier candidates: make ml4-labels-export CUT=2026-11-10T00:00:00+00:00
+	@test -n "$$NEWS_ML_MONGO_URI" || { echo "Set NEWS_ML_MONGO_URI to a local read-only MongoDB URI (do not print it)" >&2; exit 1; }
+	cd ml && PYTHONPATH=../ml-v4/src uv run python -m newsmlv4.cli \
+		$(if $(CUT),--cut $(CUT),) $(if $(OUT),--out ../ml-v4/data/$(OUT),) \
+		$(if $(SEED),--seed $(SEED),) $(if $(PER_CLASS),--per-class $(PER_CLASS),) \
+		$(if $(SCAN_LIMIT),--scan-limit $(SCAN_LIMIT),) \
+		$(foreach path,$(REVIEWED_GOLDS),--reviewed-gold ../ml-v4/data/$(path))
+
+.PHONY: ml4-test
+ml4-test: ## Test the V4 classifier candidate sampler using the existing ML environment
+	cd ml && PYTHONPATH=../ml-v4/src uv run pytest -q ../ml-v4/tests
+
+.PHONY: ml4-labels-verify
+ml4-labels-verify: ## Verify exported V4 text has not changed: make ml4-labels-verify RUN=v4-20261110T120557Z
+	@test -n "$$NEWS_ML_MONGO_URI" || { echo "Set NEWS_ML_MONGO_URI to a local read-only MongoDB URI (do not print it)" >&2; exit 1; }
+	@test -n "$(RUN)" || { echo "Set RUN to the name of a directory inside ml-v4/data/" >&2; exit 1; }
+	cd ml && PYTHONPATH=../ml-v4/src uv run python -m newsmlv4.verify --run ../ml-v4/data/$(RUN)
+
+.PHONY: ml4-labels-import
+ml4-labels-import: ## Validate completed V4 sheets and write human gold: make ml4-labels-import RUN=<run>
+	@test -n "$(RUN)" || { echo "Set RUN to the name of a directory inside ml-v4/data/" >&2; exit 1; }
+	@test ! -e "ml-v4/data/$(RUN)/gold.jsonl" || { echo "Refusing to overwrite V4 gold" >&2; exit 1; }
+	$(MAKE) ml4-labels-verify RUN=$(RUN)
+	cd ml && uv run newsml import-labels --sheets ../ml-v4/data/$(RUN)/*.csv --out ../ml-v4/data/$(RUN)/gold.jsonl
+
 .PHONY: ml-pairs-export
 ml-pairs-export: ## Write the blind near-duplicate sheet: make ml-pairs-export SNAPSHOT=data/snapshots/20260825-120
 	cd ml && uv run newsml export-pairs --snapshot $(SNAPSHOT)
