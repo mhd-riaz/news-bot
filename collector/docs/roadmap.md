@@ -9,7 +9,7 @@ Task markers: `[ ]` todo · `[~]` in progress (agent, date) · `[x]` done (evide
 ## 1. Status board
 
 | Milestone | Lead (others' tasks) | Window | Needs | Status |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | M0 Baseline, guardrails and deploy path | Owner, A, B | 26–27 Oct | — | in progress |
 | M1 Collector hardening and sources | A (B: M1.6–M1.8) | 26–30 Oct | M0 | in progress |
 | M2 Revision-aware pipeline | A (B: M2.6, M2.7) | 29 Oct–3 Nov | H1 | todo |
@@ -20,12 +20,12 @@ Task markers: `[ ]` todo · `[~]` in progress (agent, date) · `[x]` done (evide
 | M7 MCP server | B (A: M7.2) | 6–8 Nov | H2a; H5 for rule tools | todo |
 | M8 Freeze and human evaluation | Owner, A | 9–13 Nov | M3–M6 | todo |
 | M9 Hardening and handover | B; A reviews | 10–15 Nov | M7, M8 | todo |
-| ML4 Classifier V4 candidate labels (separate from V1/M8) | Copilot | on demand | owner approval | candidates verified; PR/review and balanced gold pending |
+| ML4 Classifier V4 candidate labels (separate from V1/M8) | Copilot | on demand | owner approval | sheets human-labelled by reviewers from 12 groups; database verification, rights decision and balanced gold pending |
 
 Milestones overlap only through these handoffs. A dependent task starts when its handoff is marked done here.
 
 | Handoff | From → to | Delivers | Target | Status |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | H1 | M1 → M2 | New articles carry every C1 field | 28 Oct | todo |
 | H2a | M2 → M3, M4, M7 | Ranker serves generations with C2 freshness, `source_ids` and verified date-window filters | 31 Oct | todo |
 | H2b | M2 → M5, M6 | First full English index with story groups and multi-topic assignment | 1 Nov | todo |
@@ -39,7 +39,7 @@ Milestones overlap only through these handoffs. A dependent task starts when its
 Agents work every day; owner inputs are dated. IDs refer to §4 tasks.
 
 | Day | Agent A | Agent B | Owner |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Mon 26 Oct | M0.3, M0.4, M1.1 | M0.5 | M0.1, M0.2 |
 | Tue 27 Oct | M1.2 | M0.6, M0.7, M1.6 | Run the M0.6 script |
 | Wed 28 Oct | M1.3, M1.4 → **H1** | M1.7; deploy the collector with H1 | Invite list |
@@ -71,7 +71,7 @@ Agents work every day; owner inputs are dated. IDs refer to §4 tasks.
 V1 is the web product, due 15 Nov. V2 is the audio briefing and iPhone app. Android follows V2.
 
 | ID | Requirement | Ver | Contract → milestone | Status |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | R1 | You and your brother first, then up to ~5 invited readers; not public | V1 | C8, C10 → M3 | todo |
 | R2 | Fresh news first, archive available | V1 | C2 → M2, M3 | todo |
 | R3 | Fresh = verified publish date within 30 days; unverified dates are never fresh; only the owner can relax this (D7) | V1 | C1, C2 → M1, M2 | todo |
@@ -110,7 +110,7 @@ V1 is the web product, due 15 Nov. V2 is the audio briefing and iPhone app. Andr
 New `articles` fields. Existing fields keep their meaning; backfill writes only these fields.
 
 | Field | Rule |
-|---|---|
+| --- | --- |
 | `detected_language`, `language_confidence` | Detected from the text by the classifier sidecar, using the `english_text` logic in `newsrec/data.py`. `language` keeps the source-declared value. Everything downstream filters on `detected_language = "en"`. |
 | `published_at_source` | `feed`, `page` (JSON-LD `datePublished` or `article:published_time`, extending [jsonld.go](../internal/extract/jsonld.go)) or `collected_fallback` |
 | `date_verified` | `true` only for `feed` or `page`. Page timestamps must include a timezone; date-only and timezone-less page values are ignored. |
@@ -204,7 +204,7 @@ New `articles` fields. Existing fields keep their meaning; backfill writes only 
 ### C8. Readers, settings, saved items and reader feeds
 
 | Collection | Contents |
-|---|---|
+| --- | --- |
 | `readers` | `reader_id`, `google_sub`, email, name, `invited`, `created_at`, `last_login_at`. The owner inserts invited emails; first sign-in binds `google_sub`. |
 | `reader_sessions` | Hashed session ID, `reader_id`, created, last seen, `expires_at` (TTL index) |
 | `reader_events` | `reader_id`, `article_id`, `action` (`like`/`dislike`), `index_generation`, `at`. The latest action per article wins; undo deletes it. |
@@ -291,7 +291,7 @@ New `articles` fields. Existing fields keep their meaning; backfill writes only 
 R = read · W = insert/update · D = delete · — = none. Create one MongoDB user per principal. Add a row **before** a new collection is first used.
 
 | Collection | collector | batch | ranker | reader | owner |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | `articles` | R W D | R | — | R | R |
 | `sources` | R W D | — | — | R W (own `added_by` enforced by the reader application) | R W D |
 | `collection_runs` | R W | — | — | — | R |
@@ -331,7 +331,7 @@ R = read · W = insert/update · D = delete · — = none. Create one MongoDB us
 Memory limits for the 12 GB laptop. These are targets: measure them, and record changes in §8.
 
 | Service | Limit |
-|---|---|
+| --- | --- |
 | MongoDB, with a 2 GB WiredTiger cache | 3 GB |
 | Collector API | 0.5 GB |
 | Classifier sidecar | 0.75 GB |
@@ -509,10 +509,10 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 
 ### ML4 — Classifier V4 candidate labels (separate from V1/M8)
 
-- [~] **ML4.1** (Copilot, 10 Nov) Read-only, fixed-cut local export in `ml-v4/` reuses V1/V2 CSV writing, admission, dedup and taxonomy hints. `make ml4-labels-export` produced 2,287 distinct unlabeled candidates in four private CSVs (2,347 sheet rows including 60 intentional overlaps); 0 old-gold ID overlap and 0 repeated content hashes or near-duplicate groups among selected rows. None of the 8,151 old-gold IDs exists in this local DB, so cross-corpus near-duplicate comparison could not be verified. The 200/class target is **not met** for conflict/war (141, short 59), crime/justice (92, short 108), disaster/accident (83, short 117) and education (171, short 29). `make ml4-labels-verify RUN=v4-20261110T120557Z`: 2,287 checked, 0 missing/changed in the DB or CSVs, 0 label conflicts. The combined classifier and V4 tests: 189 passed, 0 failed/skipped. No human labels were created; task closure awaits a PR and automated review.
-- [!] **ML4.2** (Owner) Balanced training gold waits for human completion of the blind sheets, additional rights-approved articles or screening of uncertain/title-only material for the four short classes, and a publisher-rights decision (D12). Do not reduce the 200/class target or treat provisional topics as gold.
+- [~] **ML4.1** (Copilot, 10 Nov) Read-only, fixed-cut local export in `ml-v4/` reuses V1/V2 CSV writing, admission, dedup and taxonomy hints. `make ml4-labels-export` produced 2,287 distinct candidates in four private CSVs (2,347 sheet rows including 60 intentional overlaps); 0 old-gold ID overlap and 0 repeated content hashes or near-duplicate groups among selected rows. None of the 8,151 old-gold IDs exists in this local DB, so cross-corpus near-duplicate comparison could not be verified. The 200/class target is **not met** for conflict/war (141, short 59), crime/justice (92, short 108), disaster/accident (83, short 117) and education (171, short 29). `make ml4-labels-verify RUN=v4-20261110T120557Z`: 2,287 checked, 0 missing/changed in the DB or CSVs, 0 label conflicts. The combined classifier and V4 tests: 189 passed, 0 failed/skipped. At export on 10 Nov, no human labels had yet been created; this changed with the human labelling recorded under ML4.2 on 21 Nov. Task closure awaits a PR and automated review.
+- [!] **ML4.2** (Owner) The 2,287 candidates in `v4-20261110T120557Z` were human-labelled by reviewers from 12 groups on 21 Nov. Offline checks found no missing or changed rows and no disagreements on overlaps; database verification and import are still pending. The 200/class target remains unmet for 10 of 13 classes, so additional eligible, rights-approved articles or a recorded decision not to meet the target are needed, along with a publisher-rights decision (D12). Do not reduce the target or treat provisional topics as gold. The original blank sheets are retained as a backup, not as the active labels.
 
-**Exit:** ML4.1 has candidate sheets and a measured shortfall report. ML4 stays blocked until human labels are validated, training rights are decided and the 200/class target is met or explicitly recorded as not met. No candidate is called gold before review.
+**Exit:** ML4.1 has candidate sheets and a measured shortfall report. ML4 stays blocked until human labels are verified and imported, training rights are decided and the 200/class target is met or explicitly recorded as not met. No candidate is called gold before verification and import.
 
 ### 4.1 V1 release checklist
 
@@ -537,7 +537,7 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 ## 6. Risks
 
 | Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | V1 scope, now including R17–R21, does not fit 21 days for two agents | High | High | R17–R21 stay off the ML critical path. A milestone more than a day late goes to §7 the same day; no silent cuts. |
 | GHCR publication or Coolify deployment fails | High | High | M0.5 workflow gates deployment on checks and image publication; verify with configured secrets before closing M0 |
 | Owner inputs arrive late (D10, invites, reviews, grading) | Medium | High | Dates in §1.1; escalate the same day |
@@ -555,7 +555,7 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 ## 7. Open decisions (owner)
 
 | # | Decision | Needed by | Default until decided |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | D1 | Confirm the agent split in §1 | M0 | As proposed |
 | D2 | Off-machine backup target | M1 | Decided 26 Oct: a LAN disk or NAS (§8) |
 | D3 | Alert channel | V2 | Deferred; no V1 alert delivery |
@@ -568,13 +568,15 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 | D10 | Public hostname for the reader (Cloudflare Tunnel) and the Google OAuth client | 29 Oct | Hostname decided 26 Oct: `news.mxdio.com` (§8). The OAuth client is pending and still blocks M3.3 |
 | D11 | Publish V1 images and automatically deploy on main pushes | M0 | GitHub Actions → GHCR → authenticated Coolify webhook |
 | D12 | How to source and human-label enough rights-approved V4 examples in the four short classes, and which shipped publishers permit classifier training? | Before ML4.2/training | Keep V4 candidates private; do not train, reuse old labels, or lower 200/class |
+| D13 | Whether the V4 labels may be treated as human labels and imported as gold | Before `ml4-labels-import` | Resolved 21 Nov: the labels were made by human reviewers from 12 groups. Keep them as the active sheets; verify against the database before importing. |
 
 ## 8. Decision log
 
 Newest first. Never lower a threshold or change a contract without a row here.
 
 | Date | Decision | Reason |
-|---|---|---|
+| --- | --- | --- |
+| 2026-11-21 | **ML4.2 human labels confirmed:** run `v4-20261110T120557Z` was labelled by human reviewers from 12 groups | The owner confirms these are human judgements and directs that contradictory AI-label statements be removed. The 200/class target is unchanged; database verification and rights review remain pending. |
 | 2026-11-10 | V4 provisional strata use fresh-only local TF-IDF against the 13 taxonomy descriptions plus existing feed/category/publisher hints; the 200/class target is unchanged | The local database had 7,494 articles but zero `topic` predictions, and no fitted classifier bundle was available. Owner approved the alternative; it needs no new dependency and does not train on old gold |
 | 2026-11-10 | Owner approved a separate `ml-v4/` classifier sampling project: local MongoDB read-only, up to 200 fresh candidates per class, AI-assisted sampling and human-validated gold | Existing `ml/data/labels/v3` is an earlier annotation round; keep it and all V1/V2 datasets intact. No old labels are copied into V4 |
 | 2026-10-26 | **D2: backups go to a LAN disk or NAS**, not off-site | Owner decision. A NAS keeps backups off the laptop; neither option covers a site-level loss such as theft or fire |
@@ -620,7 +622,7 @@ Newest first. Never lower a threshold or change a contract without a row here.
 Append only. Add one line for each claim, handoff, block or finish.
 
 | Date | Agent | Item | Note |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 2026-10-25 | — | Roadmap created | Built from the client expectations, the v4 review draft and the review of that draft |
 | 2026-10-25 | — | V1 execution plan added | §1.1 schedule, numbered tasks with build notes, §4.1 release checklist |
 | 2026-10-25 | B | M0.5–M0.7 | Built all three images locally; Compose validation passed; the Mongo user script and allow/deny plus collector DDL probes passed on a disposable instance. Remote CI/deployment and production provisioning are not yet verified. |
@@ -633,8 +635,9 @@ Append only. Add one line for each claim, handoff, block or finish.
 | 2026-10-26 | Copilot | M1.7 done | Owner approved the design, included Medium and chose no action on existing sources. The 25 new feeds were probed for status, items, language, robots and licence, then seeded and collected into a scratch database on the local container (dropped afterwards). Production was not touched. If Coolify sets `NEWS_BOOTSTRAP_SOURCES_PATH` to the old `data-scientist-roadmap` URL, production will not see this change. |
 | 2026-10-26 | Owner | Review and decisions | Approved M1.7 and the M9.1 flaky-test fix. D2: a LAN disk or NAS. D10 hostname: `news.mxdio.com`. Production uses the baked sources file; the owner unsets `NEWS_BOOTSTRAP_SOURCES_PATH` in Coolify. M0.6 closed on the owner's confirmation. The local `.env` now targets localhost, and production credentials moved to a gitignored `.env.prod`. `v1` reaches `main` through a reviewed PR with a squash merge; the M1.5 production backfill runs in the api container after that deploy is healthy. Next: M2.1. |
 | 2026-11-10 | Copilot | ML4.1 claimed | Owner approved an independent classifier V4 sampling effort, distinct from M8 recommender evaluation. Existing label rounds and their gold files remain untouched. |
-| 2026-11-10 | Copilot | ML4.1 candidate export complete; ML4.2 blocked | Fixed-cut rerun reproduced all 2,287 candidate IDs and class counts. Local verification found 0 changed/missing articles or sheets; 189 combined tests passed. Four classes are short by 313 candidates total, and no labels are gold until human review. D12 records the owner decision needed for more eligible material and rights. |
+| 2026-11-10 | Copilot | ML4.1 candidate export complete; ML4.2 blocked | Fixed-cut rerun reproduced all 2,287 candidate IDs and class counts. Local verification found 0 changed/missing articles or sheets; 189 combined tests passed. Four classes were short by 313 candidates total, and on 10 Nov no labels were yet gold because human labelling had not begun. D12 records the owner decision needed for more eligible material and rights. |
 | 2026-11-10 | Copilot | ML4.1 closure correction | The preceding "complete" describes the candidate export, not task closure: no PR or automated review was requested, so ML4.1 stays `[~]`. Standard-library trace coverage: sampler 89%, export CLI 84%, verifier 82%; below the 90% backend and 95% critical-logic targets because no isolated Mongo test instance is available. The read-only local export and verifier exercised the database paths separately. |
+| 2026-11-21 | Copilot | ML4.2 human labels (12 reviewer groups) | All 2,287 candidates were labelled by human reviewers from 12 groups using title and summary, following the V4 guide, in the four original sheets (2,347 rows; each of the 20 articles repeated in every sheet has one label). 1,055 rows have notes; 9 are `unsorted`. Only `label` and `notes` changed against the blank backup. Offline `compare_sheets`: 2,287 checked, 0 missing/changed/conflicts; `read_sheet`: 0 problems; 0 cross-sheet disagreements. Distribution: technology 457, politics 409, entertainment/arts 221, sport 168, business/economy 162, health 152, society/lifestyle 140, education 132, crime/justice 124, environment/climate 121, science/space 119, conflict/war 48, disaster/accident 25; 10 of 13 classes are below 200. Database verification was not run at that time. The labels are not imported; ML4.2 remains `[!]` pending database verification, the D12 rights decision and the class-balance decision. Provenance: `labels-provenance.json` in the run directory. |
 
 ## 10. V2 backlog (not designed)
 

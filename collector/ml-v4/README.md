@@ -1,6 +1,11 @@
-# Classifier V4: fresh human-label candidates
+# Classifier V4: fresh human-label workflow
 
 Human reviewers: start with [reviewer instructions](reviewer-instructions.md) before editing a candidate CSV.
+
+The run `v4-20261110T120557Z` has been labelled by human reviewers from 12
+groups. The completed labels remain private and have not yet been verified
+against the database or imported as gold. The class-balance and publisher-rights
+decisions are also still pending.
 
 This is a new, small sampling workflow, not a copy of the V1 or V2 classifier.
 It reuses the installed `newsml` cleaning, admission, near-duplicate grouping,
@@ -69,11 +74,13 @@ and overlapping-label conflicts, and fails if anything has changed. Missing
 or changed articles require fresh review rather than silently training on
 different text. Keep the completed CSVs in their original run directory.
 
-## After human review
+## Verify and import the completed human labels
 
-Keep the `article_id` column unchanged, fill `label` with a current taxonomy
-class, and resolve disagreements on overlapping rows. Keep the four completed
-CSVs inside their run directory. From `collector/`, run
+Keep `article_id` unchanged and keep the four completed CSVs inside their run
+directory. The labels for `v4-20261110T120557Z` were supplied by human reviewers
+from 12 groups. From `collector/`, first run
+`make ml4-labels-verify RUN=v4-20261110T120557Z` with
+`NEWS_ML_MONGO_URI` set. If verification succeeds, run
 `make ml4-labels-import RUN=<run>` with `NEWS_ML_MONGO_URI` still set. This
 verifies text and overlap agreement, calls the existing `newsml import-labels`
 validator without `--force`, and refuses to overwrite an existing gold file.
@@ -85,7 +92,8 @@ For later rounds, pass all reviewed files as a space-separated quoted list.
 The exporter refuses a new run while any earlier candidate lacks a human
 label, and rejects labels for IDs outside V4 exports.
 
-Only after human review, build a new `newsml snapshot` using **only** that
-V4 gold file via `--gold`, then train with the existing `newsml train` command.
-Keep the existing human held-out test cases sealed; do not tune on them or
-describe model predictions as gold labels.
+Only after verification, import, the publisher-rights decision and an explicit
+decision on the class-balance shortfall, build a new `newsml snapshot` using
+**only** that V4 gold file via `--gold`, then train with the existing `newsml
+train` command. Keep the existing human held-out test cases sealed; do not tune
+on them or describe model predictions as gold labels.
