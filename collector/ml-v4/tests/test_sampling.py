@@ -591,3 +591,208 @@ def test_cli_does_not_log_database_error_details(monkeypatch, capsys):
     error = capsys.readouterr().err
     assert "PyMongoError" in error
     assert "private connection detail" not in error
+
+
+def test_agent_topics_replace_provisional_topics_and_prior_sheet_stories_stay_excluded(taxonomy):
+    disaster, sport = "disaster_accident", "sport"
+    title = "Flood waters cut off villages after record monsoon rain in the hills"
+    summary = (
+        "Rescue teams used boats to reach families stranded by rising water, officials said, "
+        "as roads collapsed and power failed across the district overnight."
+    )
+    # Rebuilt from an earlier sheet: no source, no dates, an ID today's database lacks.
+    prior_sheet_doc = {"_id": "round-1-id", "title": title, "summary": summary, "content_hash": "old-hash"}
+    documents = [
+        article_doc("same-story", sport, title=title, summary=summary),
+        article_doc("judged", sport),
+        article_doc("not-judged", sport),
+    ]
+    result = sampling.sample_documents(
+        taxonomy,
+        old_documents=[prior_sheet_doc],
+        documents=documents,
+        cut=CUT,
+        per_class=200,
+        seed=1,
+        old_ids=frozenset(),
+        source_ids=frozenset({"source-1"}),
+        topics={
+            "same-story": (disaster, 0.9, sampling.AGENT_METHOD),
+            "judged": (disaster, 0.6, sampling.AGENT_METHOD),
+        },
+    )
+    assert [(c.article.id, c.topic, c.sampling_method) for c in result.selected] == [
+        ("judged", disaster, sampling.AGENT_METHOD)
+    ]
+    assert result.skipped["prior_near_duplicate"] == 1
+    assert result.skipped["no_provisional_topic"] == 1
+
+
+def write_proposals(directory, *records):
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "agent.jsonl").write_text(
+        "".join(json.dumps(record) + "\n" for record in records), encoding="utf-8"
+    )
+
+
+def test_agent_proposals_drop_disagreements_and_keep_the_surest_repeat(tmp_path, monkeypatch, taxonomy):
+    monkeypatch.setattr(sampling, "PROPOSALS_ROOT", tmp_path / "proposals")
+    judged = lambda article_id, topic, confidence: {  # noqa: E731
+        "article_id": article_id, "topic": topic, "confidence": confidence, "target": "conflict_war",
+    }
+    write_proposals(
+        tmp_path / "proposals" / "r2",
+        judged("a", "conflict_war", "low"), judged("a", "conflict_war", "high"),
+        judged("b", "conflict_war", "high"), judged("b", "politics", "medium"),
+        judged("c", "unsorted", "medium"),
+    )
+    proposals, provenance = sampling.load_proposals(tmp_path / "proposals" / "r2", taxonomy)
+    assert proposals == {
+        "a": sampling.Proposal("conflict_war", "high", "conflict_war"),
+        "c": sampling.Proposal("unsorted", "medium", "conflict_war"),
+    }
+    assert (provenance["judgements"], provenance["disputed_dropped"]) == (5, 1)
+
+    write_proposals(tmp_path / "proposals" / "bad", judged("d", "war", "high"))
+    with pytest.raises(ValueError, match="taxonomy topic"):
+        sampling.load_proposals(tmp_path / "proposals" / "bad", taxonomy)
+    write_proposals(tmp_path / "elsewhere", judged("e", "sport", "high"))
+    with pytest.raises(ValueError, match="inside"):
+        sampling.load_proposals(tmp_path / "elsewhere", taxonomy)
+
+
+def test_prior_documents_come_from_sheets_and_current_ids(tmp_path):
+    run = tmp_path / "data" / "round-1"
+    run.mkdir(parents=True)
+    (run / "selection.jsonl").write_text(
+        json.dumps({"article_id": "old-id", "content_hash": "h1"}) + "\n", encoding="utf-8"
+    )
+    with (run / "labels-01.csv").open("w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["article_id", "title", "summary", "label", "notes"])
+        writer.writeheader()
+        writer.writerow({"article_id": "old-id", "title": sampling.safe_cell("-5% rate cut"),
+                         "summary": "Markets fell", "label": "business_economy", "notes": ""})
+    (run / "current-ids.jsonl").write_text(
+        json.dumps({"article_id": "old-id", "current_id": "new-id"}) + "\n", encoding="utf-8"
+    )
+    documents, current = sampling.prior_documents(tmp_path / "data")
+    assert documents == [{"_id": "old-id", "title": "-5% rate cut", "summary": "Markets fell", "content_hash": "h1"}]
+    assert current == frozenset({"new-id"})
+
+
+def test_weak_labels_are_written_once_as_ai_agent_judgements(tmp_path, taxonomy):
+    chosen = candidate("fresh", "conflict_war")
+    proposals = {"fresh": sampling.Proposal("conflict_war", "medium", "conflict_war")}
+    path = sampling.write_weak_labels(tmp_path, [chosen], proposals, taxonomy)
+    assert json.loads(path.read_text(encoding="utf-8")) == {
+        "article_id": "fresh", "topic": "conflict_war", "confidence": "medium",
+        "target": "conflict_war", "label_source": "ai-agent",
+        "method": sampling.AGENT_METHOD, "taxonomy_version": taxonomy.version,
+    }
+    with pytest.raises(FileExistsError):
+        sampling.write_weak_labels(tmp_path, [chosen], proposals, taxonomy)
+
+
+class FakeCursor(list):
+    def sort(self, *_):
+        return self
+
+    def limit(self, count):
+        return FakeCursor(self[:count])
+
+    def close(self):
+        pass
+
+
+class FakeArticles:
+    """Enough of a collection for `sample`: `$in` and `$lt` filters, sort, limit."""
+
+    def __init__(self, docs):
+        self.docs = docs
+
+    def find(self, query, projection=None, **_):
+        def matches(doc):
+            for field, condition in query.items():
+                value = doc.get(field)
+                if "$in" in condition and value not in condition["$in"]:
+                    return False
+                if "$lt" in condition and not value < condition["$lt"]:
+                    return False
+            return True
+
+        return FakeCursor(doc for doc in self.docs if matches(doc))
+
+
+def test_scan_excludes_earlier_round_stories_and_counts_only_old_gold_found(taxonomy):
+    topic = sorted(taxonomy.ids)[0]
+    title = "Researchers examine a new international study of urban health"
+    summary = (
+        "An independent research team compared public health responses in several "
+        "cities and described its methods, findings, and practical limitations."
+    )
+    # An earlier round rebuilt from its sheet: today's database holds it under another ID and hash.
+    rebuilt = {"_id": "round-1-id", "title": title, "summary": summary, "content_hash": "round-1-hash"}
+    documents = [article_doc("same-story", topic, title=title, summary=summary), article_doc("old-gold", topic)]
+    result = sampling.sample(
+        FakeArticles(documents), taxonomy, cut=CUT, per_class=2, scan_limit=50, seed=3,
+        old_ids=frozenset({"old-gold", "absent-gold"}), source_ids=frozenset({"source-1"}),
+        prior_docs=[rebuilt],
+    )
+    assert result.selected == ()
+    assert result.skipped["prior_near_duplicate"] == 1
+    assert result.old_documents_found == 1
+
+
+class FakeClient:
+    def __init__(self, _uri):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+    def get_database(self, _name):
+        return SimpleNamespace(get_collection=lambda name: name)
+
+
+def test_default_export_excludes_earlier_rounds_by_text_and_current_id(tmp_path, monkeypatch, taxonomy):
+    monkeypatch.setattr(cli, "DATA_ROOT", tmp_path / "data")
+    run = cli.DATA_ROOT / "round-1"
+    run.mkdir(parents=True)
+    (run / "selection.jsonl").write_text(
+        json.dumps({"article_id": "old-id", "content_hash": "h1"}) + "\n", encoding="utf-8"
+    )
+    with (run / "labels-01.csv").open("w", encoding="utf-8-sig", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["article_id", "title", "summary", "label", "notes"])
+        writer.writeheader()
+        writer.writerow({"article_id": "old-id", "title": "A story", "summary": "Its summary",
+                         "label": "sport", "notes": ""})
+    (run / "current-ids.jsonl").write_text(
+        json.dumps({"article_id": "old-id", "current_id": "new-id"}) + "\n", encoding="utf-8"
+    )
+    gold = run / "gold.jsonl"
+    gold.write_text(json.dumps({
+        "article_id": "old-id", "topic": "sport",
+        "label_source": "human", "taxonomy_version": taxonomy.version,
+    }) + "\n", encoding="utf-8")
+    captured = {}
+
+    def stop(_collection, _taxonomy, **kwargs):
+        captured.update(kwargs)
+        raise RuntimeError("stop before writing")
+
+    monkeypatch.setattr(cli, "sample", stop)
+    monkeypatch.setattr(cli, "local_uri", lambda: "mongodb://localhost:27017/news")
+    monkeypatch.setattr(cli, "MongoClient", FakeClient)
+    monkeypatch.setattr(cli, "approved_source_ids", lambda *_: frozenset({"source-1"}))
+    monkeypatch.setattr(cli, "approved_feed_urls", lambda: frozenset())
+    monkeypatch.setattr(cli, "old_gold_ids", lambda: frozenset())
+    monkeypatch.setattr(cli.os, "umask", lambda _mask: 0)
+    args = SimpleNamespace(cut="2026-11-10T00:00:00+00:00", out=cli.DATA_ROOT / "new", seed=1,
+                           per_class=200, scan_limit=26000, reviewed_gold=[gold])
+    with pytest.raises(RuntimeError, match="stop"):
+        cli.export(args)
+    assert captured["prior_candidates"] == frozenset({"old-id", "new-id"})
+    assert [doc["_id"] for doc in captured["prior_docs"]] == ["old-id"]

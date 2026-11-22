@@ -176,11 +176,31 @@ ml4-labels-export: ## Export fresh, balanced classifier candidates: make ml4-lab
 		$(if $(CUT),--cut $(CUT),) $(if $(OUT),--out ../ml-v4/data/$(OUT),) \
 		$(if $(SEED),--seed $(SEED),) $(if $(PER_CLASS),--per-class $(PER_CLASS),) \
 		$(if $(SCAN_LIMIT),--scan-limit $(SCAN_LIMIT),) \
+		$(if $(PROPOSALS),--proposals ../ml-v4/data/proposals/$(PROPOSALS),) \
+		$(if $(START),--start $(START),) \
 		$(foreach path,$(REVIEWED_GOLDS),--reviewed-gold ../ml-v4/data/$(path))
 
 .PHONY: ml4-test
-ml4-test: ## Test the V4 classifier candidate sampler using the existing ML environment
-	cd ml && PYTHONPATH=../ml-v4/src uv run pytest -q ../ml-v4/tests
+ml4-test: ## Test the V4 sampler (ml/ environment) and trainer (ml-v2 environment; run make rec-setup once)
+	cd ml && PYTHONPATH=../ml-v4/src uv run pytest -q ../ml-v4/tests --ignore=../ml-v4/tests/test_train.py --ignore=../ml-v4/tests/test_pool.py
+	cd ml-v2 && PYTHONPATH=../ml-v4/src:../ml/src uv run --no-sync pytest -q ../ml-v4/tests/test_train.py ../ml-v4/tests/test_pool.py
+
+.PHONY: ml4-pool
+ml4-pool: ## Build a truthful pooled AI-label corpus from old labels and private MCP exports (roadmap D16)
+	@test -n "$(ARTICLES)" -a -n "$(SOURCES)" || { echo "Set ARTICLES and SOURCES to private local MCP JSON exports" >&2; exit 1; }
+	cd ml-v2 && PYTHONPATH=../ml-v4/src:../ml/src uv run --no-sync python -m newsmlv4.pool \
+		--articles "$(ARTICLES)" --sources "$(SOURCES)" $(if $(OUT),--out ../ml-v4/data/$(OUT),)
+
+# The trainer needs ml-v2's environment (sentence-transformers, TensorFlow/Keras) plus
+# the ml/ and ml-v4 sources. --no-sync keeps the optional groups rec-setup installed.
+.PHONY: ml4-train
+ml4-train: ## Choose and save a local V4 classifier: DATASET=<AI pool> or RUNS="<genuine human runs>"
+	@test -n "$(RUNS)$(DATASET)" || { echo "Set DATASET to an AI pool or RUNS to genuine human-reviewed runs" >&2; exit 1; }
+	@if test -n "$(DATASET)" -a -n "$(RUNS)"; then echo "DATASET and RUNS are mutually exclusive" >&2; exit 1; fi
+	cd ml-v2 && PYTHONPATH=../ml-v4/src:../ml/src uv run --no-sync python -m newsmlv4.train \
+		$(if $(DATASET),--dataset ../ml-v4/data/$(DATASET),$(foreach run,$(RUNS),--run $(run))) $(if $(MODELS),--models $(MODELS),) \
+		$(foreach run,$(WEAK_RUNS),--weak-run $(run)) \
+		$(if $(ACCEPT_SHORTFALL),--accept-shortfall,)
 
 .PHONY: ml4-labels-verify
 ml4-labels-verify: ## Verify exported V4 text has not changed: make ml4-labels-verify RUN=v4-20261110T120557Z
@@ -194,6 +214,14 @@ ml4-labels-import: ## Validate completed V4 sheets and write human gold: make ml
 	@test ! -e "ml-v4/data/$(RUN)/gold.jsonl" || { echo "Refusing to overwrite V4 gold" >&2; exit 1; }
 	$(MAKE) ml4-labels-verify RUN=$(RUN)
 	cd ml && uv run newsml import-labels --sheets ../ml-v4/data/$(RUN)/*.csv --out ../ml-v4/data/$(RUN)/gold.jsonl
+
+# Only for a run whose export database is gone (roadmap D14): checks the sheets against
+# the export fingerprints, records a re-check against today's database, then writes gold.
+.PHONY: ml4-labels-import-exported
+ml4-labels-import-exported: ## Write V4 human gold on the export-time DB check: make ml4-labels-import-exported RUN=<run>
+	@test -n "$$NEWS_ML_MONGO_URI" || { echo "Set NEWS_ML_MONGO_URI to a local read-only MongoDB URI (do not print it)" >&2; exit 1; }
+	@test -n "$(RUN)" || { echo "Set RUN to the name of a directory inside ml-v4/data/" >&2; exit 1; }
+	cd ml && PYTHONPATH=../ml-v4/src uv run python -m newsmlv4.importer --run ../ml-v4/data/$(RUN)
 
 .PHONY: ml-pairs-export
 ml-pairs-export: ## Write the blind near-duplicate sheet: make ml-pairs-export SNAPSHOT=data/snapshots/20260825-120

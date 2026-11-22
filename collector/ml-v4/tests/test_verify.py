@@ -7,7 +7,8 @@ import pytest
 from pymongo.errors import PyMongoError
 
 from newsml.annotate import COLUMNS
-from newsmlv4 import sampling, verify
+from newsml.labels import load_taxonomy
+from newsmlv4 import importer, sampling, verify
 
 
 def article_doc(article_id, *, summary="The same original summary", content_hash="hash-1"):
@@ -215,3 +216,58 @@ def test_many_selected_documents_verify_without_a_network(tmp_path):
     assert verify.compare_documents(verify.load_selection(run, data), docs) == (500, 0, 0)
     write_sheet(run, docs)
     assert verify.compare_sheets(run, verify.load_selection(run, data)) == (500, 0, 0, 0)
+
+
+class FakeCursor(list):
+    def close(self):
+        pass
+
+
+class FakeArticles:
+    def __init__(self, docs):
+        self.docs = docs
+
+    def find(self, query, projection=None, **_):
+        (field, condition), = query.items()
+        return FakeCursor(doc for doc in self.docs if doc.get(field) in condition["$in"])
+
+
+def test_export_verified_import_writes_newsml_gold_and_records_the_recheck(tmp_path):
+    kept = article_doc("kept-old")
+    gone = article_doc("gone", summary="A summary that was later removed", content_hash="hash-2")
+    data, run = run_with_selection(tmp_path, [selection_record(kept), selection_record(gone)])
+    write_sheet(run, [kept, gone], {"kept-old": "sport", "gone": "unsorted"})
+    # Today's database holds the kept article under a new ID; same title, other text does not count.
+    today = FakeArticles([{**kept, "_id": "kept-new"}])
+    taxonomy = load_taxonomy(sampling.TAXONOMY_PATH)
+
+    record = importer.import_gold(run, today, taxonomy=taxonomy, data_root=data)
+
+    gold = [json.loads(line) for line in (run / "gold.jsonl").read_text(encoding="utf-8").splitlines()]
+    common = {"annotator": "sheet", "label_source": "human", "taxonomy_version": taxonomy.version}
+    assert gold == [
+        {**common, "article_id": "gone", "topic": "unsorted"},
+        {**common, "article_id": "kept-old", "topic": "sport"},
+    ]
+    assert sampling.reviewed_labels([run / "gold.jsonl"], taxonomy) == {"gone": "unsorted", "kept-old": "sport"}
+    assert (run / "current-ids.jsonl").read_text(encoding="utf-8") == (
+        '{"article_id": "kept-old", "current_id": "kept-new"}\n'
+    )
+    assert record["current_database"] == {
+        "identical_text": 1, "not_rechecked": 1, "not_rechecked_by_label": {"unsorted": 1},
+    }
+    with pytest.raises(FileExistsError):
+        importer.import_gold(run, today, taxonomy=taxonomy, data_root=data)
+
+
+def test_export_verified_import_needs_every_row_labelled_and_unchanged(tmp_path):
+    doc = article_doc("fresh")
+    data, run = run_with_selection(tmp_path, [selection_record(doc)])
+    taxonomy = load_taxonomy(sampling.TAXONOMY_PATH)
+    write_sheet(run, [doc])
+    with pytest.raises(ValueError, match="no label"):
+        importer.import_gold(run, FakeArticles([]), taxonomy=taxonomy, data_root=data)
+    write_sheet(run, [{**doc, "summary": "Edited after export"}], {"fresh": "sport"})
+    with pytest.raises(ValueError, match="1 changed"):
+        importer.import_gold(run, FakeArticles([]), taxonomy=taxonomy, data_root=data)
+    assert not (run / "gold.jsonl").exists()

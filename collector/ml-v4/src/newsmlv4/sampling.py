@@ -9,7 +9,7 @@ from collections import Counter
 from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 from urllib.parse import urlsplit
 
 import yaml
@@ -30,6 +30,11 @@ OLD_LABELS_ROOTS = (
     COLLECTOR_ROOT / "ml" / "data" / "labels",
     COLLECTOR_ROOT / "ml-v2" / "data" / "labels",
 )
+PROPOSALS_ROOT = DATA_ROOT / "proposals"
+AGENT_METHOD = "ai-agent-mcp-v1"
+# Agent confidence as a sampling score, so `_choose` still mixes sure and unsure picks.
+CONFIDENCE = {"high": 0.9, "medium": 0.6, "low": 0.3}
+WEAK_LABELS = "weak-labels.jsonl"
 
 PROJECTION = {
     key: 1
@@ -193,6 +198,102 @@ def prior_candidate_ids(data_root: Path = DATA_ROOT) -> frozenset[str]:
     return frozenset(ids)
 
 
+def prior_documents(data_root: Path = DATA_ROOT) -> tuple[list[dict[str, Any]], frozenset[str]]:
+    """Earlier V4 candidates rebuilt from their sheets, plus the IDs they have today.
+
+    The sheets hold exactly the exported text, so a later round can exclude the same
+    stories and content hashes even when the database the earlier round came from is
+    gone. `current-ids.jsonl`, written by the export-verified import, adds the IDs those
+    articles carry in today's database.
+    """
+    root = data_root.resolve()
+    documents: list[dict[str, Any]] = []
+    current: set[str] = set()
+    for selection_path in sorted(data_root.glob("*/selection.jsonl")):
+        run = selection_path.parent
+        paths = [selection_path, *sorted(run.glob("*.csv")), run / "current-ids.jsonl"]
+        if any(path.exists() and not path.resolve().is_relative_to(root) for path in paths):
+            raise ValueError("a prior candidate file points outside the private data directory")
+        hashes = {
+            str(record.get("article_id")): str(record.get("content_hash") or "")
+            for _, _, record in _records((selection_path,))
+        }
+        for article_id, (title, summary) in annotate.read_sheet_texts(sorted(run.glob("*.csv"))).items():
+            documents.append({
+                "_id": article_id,
+                "title": unescape_cell(title),
+                "summary": unescape_cell(summary),
+                "content_hash": hashes.get(article_id, ""),
+            })
+        if (run / "current-ids.jsonl").is_file():
+            for path, number, record in _records((run / "current-ids.jsonl",)):
+                current_id = record.get("current_id")
+                if not isinstance(current_id, str) or not current_id:
+                    raise ValueError(f"{path}:{number}: invalid current_id")
+                current.add(current_id)
+    return documents, frozenset(current)
+
+
+@dataclass(frozen=True)
+class Proposal:
+    """One AI-agent judgement: the class it gave an article, how sure, and what it sought."""
+
+    topic: str
+    confidence: str
+    target: str
+
+
+def load_proposals(directory: Path, taxonomy: Taxonomy) -> tuple[dict[str, Proposal], dict[str, Any]]:
+    """AI-agent class judgements from `*.jsonl` files, plus provenance for the manifest.
+
+    An article judged twice with different classes is dropped, because the agents
+    disagree and neither class is a usable weak label. Repeats of the same class keep
+    the most confident judgement.
+    """
+    root = PROPOSALS_ROOT.resolve()
+    if not directory.resolve().is_relative_to(root) or not directory.is_dir():
+        raise ValueError(f"proposals must be a directory inside {PROPOSALS_ROOT}")
+    paths = sorted(directory.glob("*.jsonl"))
+    if not paths:
+        raise ValueError(f"{directory}: no proposal files")
+    if any(not path.resolve().is_relative_to(root) for path in paths):
+        raise ValueError("a proposal file points outside the private proposals directory")
+    allowed = taxonomy.ids | {taxonomy.unsorted}
+    kept: dict[str, Proposal] = {}
+    disputed: set[str] = set()
+    judgements = 0
+    for path, number, record in _records(paths):
+        article_id = record.get("article_id")
+        topic, confidence, target = (record.get(key) for key in ("topic", "confidence", "target"))
+        if (
+            not isinstance(article_id, str)
+            or not article_id
+            or topic not in allowed
+            or confidence not in CONFIDENCE
+            or target not in taxonomy.ids
+        ):
+            raise ValueError(
+                f"{path}:{number}: expected article_id, a taxonomy topic, "
+                "confidence high/medium/low and a target class"
+            )
+        judgements += 1
+        previous = kept.get(article_id)
+        if previous is not None and previous.topic != topic:
+            disputed.add(article_id)
+        elif previous is None or CONFIDENCE[confidence] > CONFIDENCE[previous.confidence]:
+            kept[article_id] = Proposal(topic, confidence, target)
+    for article_id in disputed:
+        kept.pop(article_id, None)
+    provenance = {
+        "files": {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in paths},
+        "judgements": judgements,
+        "articles": len(kept),
+        "disputed_dropped": len(disputed),
+        "topics": dict(sorted(Counter(p.topic for p in kept.values()).items())),
+    }
+    return kept, provenance
+
+
 def _article(doc: dict[str, Any]) -> Article:
     prepared = dict(doc)
     if not prepared.get("summary"):
@@ -351,7 +452,14 @@ def sample_documents(
     source_ids: frozenset[str],
     confirmed: dict[str, str] | None = None,
     prior_candidates: frozenset[str] = frozenset(),
+    topics: Mapping[str, tuple[str, float | None, str]] | None = None,
 ) -> Sample:
+    """Choose candidates per class from `documents`.
+
+    `topics` replaces the TF-IDF provisional topic with judgements made elsewhere, such
+    as the AI agents of a later round; articles it does not cover are skipped. Every
+    eligibility, exclusion and diversity rule applies either way.
+    """
     if per_class < 1 or cut.tzinfo is None:
         raise ValueError("per_class must be positive and cut timezone-aware")
     if not source_ids:
@@ -400,7 +508,14 @@ def sample_documents(
         for article in raw.values()
     ]
     admitted, rejected = admit.partition(pairs, now=cut, check_language=True)
-    inferred = provisional_topics(admitted, taxonomy)
+    if topics is None:
+        inferred = provisional_topics(admitted, taxonomy)
+    else:
+        inferred = {
+            row.article.id: topics[row.article.id]
+            for row in admitted
+            if row.article.id in topics and topics[row.article.id][0] in taxonomy.ids
+        }
     texts = dict(old_texts)
     texts.update({row.article.id: row.cleaned.text for row in admitted})
     grouping = neardup.group(texts)
@@ -447,7 +562,14 @@ def sample(
     source_ids: frozenset[str],
     confirmed: dict[str, str] | None = None,
     prior_candidates: frozenset[str] = frozenset(),
+    prior_docs: Sequence[dict[str, Any]] = (),
 ) -> Sample:
+    """Scan recent articles and sample them by TF-IDF provisional topic.
+
+    `prior_docs` are earlier V4 rounds rebuilt from their sheets (`prior_documents`):
+    their stories and content hashes are excluded like old gold, but only documents of
+    the older gold actually found in the database count as `old_documents_found`.
+    """
     if scan_limit < per_class or per_class < 1 or cut.tzinfo is None:
         raise ValueError("scan_limit must be at least a positive per_class and cut timezone-aware")
     if not source_ids:
@@ -465,9 +587,10 @@ def sample(
         documents = list(cursor)
     finally:
         cursor.close()
-    return sample_documents(
+    old = _read_old(collection, old_ids)
+    result = sample_documents(
         taxonomy,
-        old_documents=_read_old(collection, old_ids),
+        old_documents=[*old, *prior_docs],
         documents=documents,
         cut=cut,
         per_class=per_class,
@@ -477,10 +600,101 @@ def sample(
         confirmed=confirmed,
         prior_candidates=prior_candidates,
     )
+    return replace(result, old_documents_found=len(old))
+
+
+def sample_proposals(
+    collection: Collection[dict[str, Any]],
+    taxonomy: Taxonomy,
+    *,
+    proposals: Mapping[str, Proposal],
+    start: datetime,
+    cut: datetime,
+    per_class: int,
+    seed: int,
+    old_ids: frozenset[str],
+    source_ids: frozenset[str],
+    confirmed: dict[str, str],
+    prior_candidates: frozenset[str],
+    prior_docs: Sequence[dict[str, Any]],
+) -> Sample:
+    """Like `sample`, but each article's class comes from an AI-agent judgement.
+
+    Only proposed articles collected in [start, cut) are read. Earlier rounds are
+    excluded by ID, by content hash and by near-duplicate story through `prior_docs`.
+    """
+    if start.tzinfo is None or cut.tzinfo is None or start >= cut:
+        raise ValueError("start must be timezone-aware and before the cut")
+    topics = {
+        article_id: (proposal.topic, CONFIDENCE[proposal.confidence], AGENT_METHOD)
+        for article_id, proposal in proposals.items()
+        if proposal.topic in taxonomy.ids
+    }
+    ids = sorted(topics)
+    documents: list[dict[str, Any]] = []
+    for offset in range(0, len(ids), 200):
+        cursor = collection.find(
+            {"_id": {"$in": ids[offset:offset + 200]}, "collected_at": {"$gte": start, "$lt": cut}},
+            PROJECTION,
+            batch_size=128,
+            max_time_ms=30_000,
+        )
+        try:
+            documents.extend(cursor)
+        finally:
+            cursor.close()
+    old = _read_old(collection, old_ids)
+    result = sample_documents(
+        taxonomy,
+        old_documents=[*old, *prior_docs],
+        documents=documents,
+        cut=cut,
+        per_class=per_class,
+        seed=seed,
+        old_ids=old_ids,
+        source_ids=source_ids,
+        confirmed=confirmed,
+        prior_candidates=prior_candidates,
+        topics=topics,
+    )
+    skipped = dict(result.skipped)
+    skipped["proposal_unsorted"] = len(proposals) - len(ids)
+    skipped["proposal_outside_window_or_missing"] = len(ids) - len(documents)
+    return replace(result, skipped=skipped, old_documents_found=len(old))
+
+
+def write_weak_labels(
+    run: Path, selected: Sequence[Candidate], proposals: Mapping[str, Proposal], taxonomy: Taxonomy
+) -> Path:
+    """The AI agents' class for each selected candidate, kept apart from human gold."""
+    path = run / WEAK_LABELS
+    with path.open("x", encoding="utf-8") as handle:
+        for candidate in sorted(selected, key=lambda c: c.article.id):
+            proposal = proposals[candidate.article.id]
+            handle.write(json.dumps({
+                "article_id": candidate.article.id,
+                "topic": candidate.topic,
+                "confidence": proposal.confidence,
+                "target": proposal.target,
+                "label_source": "ai-agent",
+                "method": AGENT_METHOD,
+                "taxonomy_version": taxonomy.version,
+            }, sort_keys=True) + "\n")
+    return path
+
+
+FORMULA_PREFIXES = ("=", "+", "-", "@")
 
 
 def safe_cell(value: str) -> str:
-    return "'" + value if value.lstrip().startswith(("=", "+", "-", "@")) else value
+    return "'" + value if value.lstrip().startswith(FORMULA_PREFIXES) else value
+
+
+def unescape_cell(value: str) -> str:
+    """Undo `safe_cell`, and only where it added the apostrophe."""
+    if value.startswith("'") and value[1:].lstrip().startswith(FORMULA_PREFIXES):
+        return value[1:]
+    return value
 
 
 def write_sample(
@@ -494,6 +708,7 @@ def write_sample(
     taxonomy: Taxonomy,
     shards: int = 4,
     overlap: int = 20,
+    extra: Mapping[str, Any] | None = None,
 ) -> list[Path]:
     if not sample_data.selected:
         raise ValueError("no eligible new candidates; inspect the reported class shortages")
@@ -547,6 +762,9 @@ def write_sample(
             ).hexdigest(),
             "status": "unlabeled_candidates_not_gold",
         }
+        if clash := set(extra or {}) & set(manifest):
+            raise ValueError(f"extra manifest fields would overwrite {sorted(clash)}")
+        manifest.update(extra or {})
         (stage / "manifest.json").write_text(
             json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )

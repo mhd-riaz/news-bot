@@ -60,6 +60,13 @@ def load_selection(run: Path, data_root: Path = DATA_ROOT) -> dict[str, dict[str
     return selection
 
 
+def sheet_digest(doc: dict[str, Any]) -> str:
+    """Fingerprint of a database article's text exactly as the export writes it to a sheet."""
+    article = _article(doc)
+    sheet = replace(article, title=safe_cell(article.title), summary=safe_cell(article.summary))
+    return hashlib.sha256((sheet.title + "\n" + sheet.lede).encode("utf-8")).hexdigest()
+
+
 def compare_documents(
     selection: dict[str, dict[str, Any]], documents: Iterable[dict[str, Any]]
 ) -> tuple[int, int, int]:
@@ -70,12 +77,7 @@ def compare_documents(
         if article.id not in selection or article.id in seen:
             raise ValueError("local MongoDB returned an unexpected or duplicate candidate ID")
         seen.add(article.id)
-        sheet = replace(
-            article, title=safe_cell(article.title), summary=safe_cell(article.summary)
-        )
-        digest = hashlib.sha256(
-            (sheet.title + "\n" + sheet.lede).encode("utf-8")
-        ).hexdigest()
+        digest = sheet_digest(doc)
         expected = selection[article.id]
         if article.content_hash != expected["content_hash"] or digest != expected["sheet_text_sha256"]:
             changed += 1

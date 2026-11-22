@@ -1,29 +1,100 @@
-# Classifier V4: fresh human-label workflow
+# Classifier V4: local AI-label candidate and human-review workflow
 
 Human reviewers: start with [reviewer instructions](reviewer-instructions.md) before editing a candidate CSV.
 
-The run `v4-20261110T120557Z` has been labelled by human reviewers from 12
-groups. The completed labels remain private and have not yet been verified
-against the database or imported as gold. The class-balance and publisher-rights
-decisions are also still pending.
+On 22 Nov the owner confirmed that **all old and new classifier labels are
+AI-generated**, including round 1 previously described as human gold. Those
+human-provenance claims are withdrawn (roadmap D16). Original datasets and model
+artifacts remain private and unchanged; a separate provenance correction records
+their actual origin. Existing classifier scores measure agreement with AI labels,
+not human-validated accuracy.
 
-This is a new, small sampling workflow, not a copy of the V1 or V2 classifier.
+The owner approved a larger local V4 candidate using usable old and new labels,
+including the existing AI-sampled proposal effort. No AI judgement becomes human
+gold. Human validation and the 200 human labels/class target are **not met**, and
+this task does not promote a model to production.
+
+## Pooled AI-label candidate (D16)
+
+The pool keeps truthful `label_source: ai-agent` attribution, source hashes and
+per-record origins. It accounts for unusable text, conflicting labels, duplicate
+stories, and protected historical evaluation articles before training. Confidence
+labels are not invented for older annotations that did not record them. Original
+labels and annotation sheets are preserved, rather than rewritten to hide their
+origins.
+
+Use a private, read-only MongoDB MCP export of the round-2 title/summary window and
+the source feed metadata; no full bodies or credentials are needed. From
+`collector/`:
+
+```bash
+make ml4-pool ARTICLES="<private article export>" SOURCES="<private source export>" OUT="<new pool>"
+make ml4-train DATASET="<new pool>" ACCEPT_SHORTFALL=1
+```
+
+The measured pool `v4-ai-pooled-20261122T000000Z` contains **8,594** usable
+AI-labelled articles. It reuses 3,281 articles from the complete round-2 AI effort,
+including **2,582 additional articles** beyond the original 809-sheet selection.
+Legacy and round-1 source memberships are 3,522 and 1,814; 23 articles have both
+origins, so these memberships are not disjoint. Every AI-labelled class has at
+least 379 articles. Historical evaluation ID/alias overlap is zero, and the old
+model's 456 reserved test IDs were reproduced against its recorded hash.
+The private [dataset audit](data/v4-ai-pooled-20261122T000000Z/manifest.json)
+records every exclusion and the source fingerprints.
+
+The MCP export files are temporary. The pool preserves private copies under its
+`inputs/` directory; use those copies for reproducible later runs rather than
+depending on the extension's export cache. The pool refuses to overwrite an
+existing output directory. Use this measured pool without lowering any target:
+
+```bash
+make ml4-train DATASET=v4-ai-pooled-20261122T000000Z
+```
+
+The completed local candidate is
+[`v4-ai-072b01a9ceaf-hybrid_svc`](data/models/v4-ai-072b01a9ceaf/model-card.md).
+It compares all eight rungs and selects the lexical-plus-MiniLM linear model.
+It learns from 6,875 development articles, including 2,627 AI-sampled round-2
+articles; 1,719 articles are reserved for the once-opened test split.
+Held-out **AI-label agreement**: macro-F1 0.8246 [0.8056, 0.8442], accuracy 0.829.
+Sigmoid calibration has lower development log loss than isotonic (0.5742 versus
+0.6041). The provisional cut 0.2059 gives 0.8143 out-of-fold AI-label agreement
+with 100% coverage. This does not demonstrate human accuracy.
+
+The full run took 863.36 seconds with a 5.23 GB peak resident set on the local
+machine. The saved bundle was reloaded in a fresh process with the Hub offline,
+and three fictional inference probes passed; this checks operation, not human
+validation. `make ml4-test` passed 75 sampler/verifier tests and 26 trainer/pool
+tests. The model, manifest, split IDs and training log stay private under
+`data/models/v4-ai-072b01a9ceaf/`; production promotion is not approved.
+
+`ACCEPT_SHORTFALL=1` records any remaining AI-label class deficits as not met; it
+does not change the target or satisfy the human-label requirement. The model card
+and manifest explicitly report **AI-label agreement only**. Its calibration and
+confidence cut are provisional on AI labels, not a demonstrated probability of
+being correct against human judgement. The new model saves its development/test
+IDs, and cannot reopen the same corpus's test split.
+
+## Candidate sampler
+
+This is a small sampling workflow, not a copy of the V1 or V2 classifier.
 It reuses the installed `newsml` cleaning, admission, near-duplicate grouping,
 taxonomy, weak source/category hints, and CSV writer. It fits a local TF-IDF
 representation to **fresh, eligible articles and the current taxonomy
 descriptions**, then uses semantic similarity and source/category hints only
 to form provisional strata. It does not use database `topic`, old gold labels,
-or a model bundle; this local database has no topics and the workspace has no
-loadable classifier bundle. No generative AI service receives article text.
+or a model bundle. Sampling mechanics do not establish label authorship; all
+existing labels are AI-generated by the owner's correction above.
 Similarities are not calibrated
 probabilities, and the provisional topic is never a training label.
 
 The output uses the same blind UTF-8 CSV columns as V1/V2:
 `article_id,title,summary,label,notes`. `label` and `notes` start empty; the
 predicted topic is kept in a separate private file, not shown to annotators.
-The older `ml/data/labels/v3` and `gold-combined.jsonl` are not copied or
-changed. All prior gold is used **only** to exclude already-labeled IDs and
-near-duplicate stories.
+The sampler leaves the older `ml/data/labels/v3` and `gold-combined.jsonl`
+unchanged and uses prior labels to exclude already-labelled IDs and near-duplicate
+stories. The separate D16 pooled training path reuses eligible old labels with
+accurate attribution.
 
 ## Export
 
@@ -55,11 +126,12 @@ The scan cap, admission rules, and source policy may leave a class below
 200; shortfalls are reported as **not balanced**. A balanced candidate pool
 does **not** prove balanced human labels.
 
-The local run `v4-20261110T120557Z` scanned 7,469 articles and exported
+At its original export, `v4-20261110T120557Z` scanned 7,469 articles and exported
 2,287 distinct candidates toward the 2,600 target. Conflict/war is short
 59, crime/justice 108, disaster/accident 117, and education 29 (313 total).
 All 2,287 DB records and review rows matched the saved fingerprints when
-checked; these are **unlabeled candidates**, not balanced training gold.
+checked. They were unlabeled candidates then; their later labels are AI-generated
+(D16), not human gold.
 The run directory is local and ignored by Git.
 
 Generated CSVs, the manifest, and `selection.jsonl` stay under ignored
@@ -77,8 +149,11 @@ different text. Keep the completed CSVs in their original run directory.
 ## Verify and import the completed human labels
 
 Keep `article_id` unchanged and keep the four completed CSVs inside their run
-directory. The labels for `v4-20261110T120557Z` were supplied by human reviewers
-from 12 groups. From `collector/`, first run
+directory. The old labels for `v4-20261110T120557Z` are AI-generated (D16), despite their
+historical `gold.jsonl` filename and stored human-origin claims. They are inputs
+to the pooled candidate, not human gold. The following workflow is for **future
+genuine human review**, not for importing AI judgements as human labels. From
+`collector/`, first run
 `make ml4-labels-verify RUN=v4-20261110T120557Z` with
 `NEWS_ML_MONGO_URI` set. If verification succeeds, run
 `make ml4-labels-import RUN=<run>` with `NEWS_ML_MONGO_URI` still set. This
@@ -92,8 +167,98 @@ For later rounds, pass all reviewed files as a space-separated quoted list.
 The exporter refuses a new run while any earlier candidate lacks a human
 label, and rejects labels for IDs outside V4 exports.
 
-Only after verification, import, the publisher-rights decision and an explicit
-decision on the class-balance shortfall, build a new `newsml snapshot` using
-**only** that V4 gold file via `--gold`, then train with the existing `newsml
-train` command. Keep the existing human held-out test cases sealed; do not tune
-on them or describe model predictions as gold labels.
+If the database a run was exported from is gone, `make ml4-labels-verify`
+cannot find its IDs and the import above refuses. Only with an owner decision
+(roadmap D14) run `make ml4-labels-import-exported RUN=<run>` instead. It checks
+the sheets against the export fingerprints, requires every candidate to be
+labelled with no conflicting overlaps, and writes gold in the same format. It
+also records which articles today's database still holds with identical text:
+`current-ids.jsonl` maps their IDs, and `import.json` counts the rest. Round 1
+was imported this way on 21 Nov: 1,628 of 2,287 articles were re-checked, and
+659 could not be.
+
+## Round 2: AI-agent selection from the class descriptions
+
+By owner decision on 21 Nov, round 2 is chosen by AI agents rather than by the
+TF-IDF strata. The agents read titles and the first 400 characters of
+summaries through the VS Code MongoDB MCP server, which is connected read-only
+to the local `news` database. For each class below its target, they split the
+taxonomy description into facets, draw matches day by day, and judge each
+article against the labelling guide. They write only IDs and judgements to
+`ml-v4/data/proposals/<round>/*.jsonl`, one
+`{"article_id", "topic", "confidence", "target"}` object per line. Then, from
+`collector/`:
+
+```bash
+make ml4-labels-export PROPOSALS=<round> START=<window start> CUT=<window end> \
+    REVIEWED_GOLDS="v4-20261110T120557Z/gold.jsonl"
+```
+
+The export reads only proposed articles collected inside `[START, CUT)` and
+applies every round-1 eligibility rule. The original round-2 quotas counted gaps
+against the round-1 labels whose human-origin claim was later withdrawn (D16);
+they do not prove a balanced human corpus. Earlier candidates are excluded by
+original ID, by today's ID, by content hash and by near-duplicate story. When
+agents disagree on an article it is dropped. The export writes the usual blind
+sheets for reviewers, and `weak-labels.jsonl` with the agents' class and
+confidence (`label_source: ai-agent`). Those weak labels are never gold. They
+may help fit a model, but never score one.
+
+## Train from future genuine human labels
+
+Training waits for verification and import, and for the class-balance gate:
+the classes below the per-class target are filled, or the owner records the
+shortfall as not met (roadmap ML4.2). Then, from `collector/`, run
+`make rec-setup` once, followed by:
+
+```bash
+make ml4-train RUNS="<genuinely human-reviewed run>"
+make ml4-train RUNS="<genuinely human-reviewed run>" ACCEPT_SHORTFALL=1
+make ml4-train RUNS="<genuinely human-reviewed run>" WEAK_RUNS="<AI-labelled run>" ACCEPT_SHORTFALL=1
+```
+
+With `WEAK_RUNS`, each rung except majority also runs as `<rung>+weak`. That
+variant fits on the fold's human rows plus the agents' high- and
+medium-confidence labels. It is scored, calibrated and cut on human rows only,
+and every human-only rung counts as simpler. So the weak labels ship only if
+they measurably beat human labels alone. An article with a human label never
+uses its weak label.
+
+Runs covered by the D16 provenance correction are refused on this human-gold
+path. Use `DATASET` above to train the pooled AI-label candidate.
+
+`newsmlv4.train` reads each run's imported `gold.jsonl` together with the title
+and summary the reviewers saw. It refuses a run whose sheets no longer match the
+export, and it refuses classes below the target unless the shortfall is accepted.
+It never trains on fewer than ten labels per class. It seals a stratified 20%
+test split, then scores eight rungs on the same repeated stratified 5-fold
+splits (three repeats):
+
+- majority
+- Complement NB
+- TF-IDF logistic regression
+- TF-IDF LinearSVC
+- word+char LinearSVC (ml-v2's shipped recipe)
+- MiniLM sentence embeddings with logistic regression
+- word+char+MiniLM LinearSVC
+- a small Keras MLP
+
+Tree models are left out because ml-v2 Phase E measured them well behind the
+linear models on text. The simplest rung that a corrected resampled t-test
+cannot separate from the best one is chosen. It is calibrated with five
+cross-fitted folds (sigmoid or isotonic, whichever has the lower out-of-fold log
+loss), given one global confidence cut at 0.80 precision, and scored once on
+the sealed test split.
+
+The trainer writes `bundle.joblib`, `manifest.json` and `model-card.md` under
+the ignored `ml-v4/data/models/`, in a directory named after the human gold
+alone. It refuses to overwrite an earlier model for the same gold, because a
+retrain would reopen its test split; adding weak labels does not change that.
+The directory is created just before the test split is opened, so an empty or
+partial directory means a run stopped after opening it, and it blocks a retrain
+in the same way. `MODELS=a,b` limits the ladder.
+
+The model reads title and summary. The production sidecar sends title and
+body, so serving this model needs a separate, owner-approved promotion task.
+Keep the existing human held-out test cases sealed; do not tune on them or
+describe model predictions as gold labels.

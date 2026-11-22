@@ -5,6 +5,7 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlsplit
 
 from pymongo import MongoClient
@@ -13,16 +14,23 @@ from pymongo.errors import PyMongoError
 from newsml.labels import Taxonomy, load_taxonomy
 
 from .sampling import (
+    AGENT_METHOD,
     DATA_ROOT,
+    WEAK_LABELS,
+    Proposal,
     Sample,
     TAXONOMY_PATH,
     approved_feed_urls,
     approved_source_ids,
+    load_proposals,
     old_gold_ids,
     prior_candidate_ids,
+    prior_documents,
     reviewed_labels,
     sample,
+    sample_proposals,
     write_sample,
+    write_weak_labels,
 )
 
 
@@ -85,29 +93,74 @@ def export(args: argparse.Namespace) -> int:
         raise ValueError("reviewed gold contains IDs not exported as V4 candidates")
     if prior - confirmed.keys():
         raise ValueError("some existing V4 candidates lack reviewed human labels")
+    proposals_dir = getattr(args, "proposals", None)
+    proposals: dict[str, Proposal] = {}
+    # Every path excludes earlier V4 rounds by text and today's IDs, not only by export ID:
+    # a rebuilt database re-keys the same articles.
+    prior_docs, current_ids = prior_documents(DATA_ROOT)
+    extra: dict[str, Any] = {
+        "prior_round_documents": len(prior_docs),
+        "prior_round_current_ids": len(current_ids),
+    }
+    if proposals_dir is not None:
+        if not getattr(args, "start", None):
+            raise ValueError("--start is required with --proposals")
+        start = parse_cut(args.start)
+        proposals, provenance = load_proposals(proposals_dir, taxonomy)
+        extra.update({
+            "sampling": AGENT_METHOD,
+            "window_start": start.isoformat(),
+            "proposals": provenance,
+            "weak_labels": f"{WEAK_LABELS} (label_source ai-agent; never gold)",
+        })
     uri = local_uri()
     os.umask(0o077)
     with MongoClient(uri) as client:
         db = client.get_database("news")
-        result = sample(
-            db.get_collection("articles"),
-            taxonomy,
-            cut=cut,
-            per_class=args.per_class,
-            scan_limit=args.scan_limit,
-            seed=args.seed,
-            old_ids=old_gold_ids(),
-            source_ids=approved_source_ids(
-                db.get_collection("sources"), approved_feed_urls()
-            ),
-            confirmed=confirmed,
-            prior_candidates=prior,
-        )
-    return report_sample(result, args, out, cut, taxonomy)
+        source_ids = approved_source_ids(db.get_collection("sources"), approved_feed_urls())
+        if proposals_dir is None:
+            result = sample(
+                db.get_collection("articles"),
+                taxonomy,
+                cut=cut,
+                per_class=args.per_class,
+                scan_limit=args.scan_limit,
+                seed=args.seed,
+                old_ids=old_gold_ids(),
+                source_ids=source_ids,
+                confirmed=confirmed,
+                prior_candidates=prior | current_ids,
+                prior_docs=prior_docs,
+            )
+        else:
+            result = sample_proposals(
+                db.get_collection("articles"),
+                taxonomy,
+                proposals=proposals,
+                start=start,
+                cut=cut,
+                per_class=args.per_class,
+                seed=args.seed,
+                old_ids=old_gold_ids(),
+                source_ids=source_ids,
+                confirmed=confirmed,
+                prior_candidates=prior | current_ids,
+                prior_docs=prior_docs,
+            )
+    code = report_sample(result, args, out, cut, taxonomy, extra=extra)
+    if proposals_dir is not None:
+        print(f"AI-agent weak labels -> {write_weak_labels(out, result.selected, proposals, taxonomy)}")
+    return code
 
 
 def report_sample(
-    result: Sample, args: argparse.Namespace, out: Path, cut: datetime, taxonomy: Taxonomy
+    result: Sample,
+    args: argparse.Namespace,
+    out: Path,
+    cut: datetime,
+    taxonomy: Taxonomy,
+    *,
+    extra: dict[str, Any] | None = None,
 ) -> int:
     counts_by_topic = result.counts()
     for topic, counts in counts_by_topic.items():
@@ -125,7 +178,7 @@ def report_sample(
     sheets = write_sample(
         result, out, cut=cut, seed=args.seed, per_class=args.per_class,
         scan_limit=args.scan_limit, taxonomy=taxonomy, shards=args.shards,
-        overlap=args.overlap,
+        overlap=args.overlap, extra=extra,
     )
     print(f"{len(result.selected)} distinct unlabeled candidates -> {out}")
     print(f"{len(sheets)} blind CSV sheets; predictions are in private selection.jsonl only")
@@ -146,6 +199,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--overlap", type=int, default=20)
     parser.add_argument("--reviewed-gold", action="append", type=Path,
                         help="human gold from a previous V4 run; repeat for each reviewed run")
+    parser.add_argument("--proposals", type=Path,
+                        help="AI-agent judgements inside ml-v4/data/proposals/; replaces the TF-IDF strata")
+    parser.add_argument("--start", help="with --proposals: UTC-aware start of the collection window")
     args = parser.parse_args(argv)
     try:
         return export(args)
