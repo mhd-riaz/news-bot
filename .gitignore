@@ -20,6 +20,7 @@ __pycache__/
 
 # ml stuff
 **/*.joblib
+/collector/ml-v4/data/
 
 # backup files
 **/*.bak

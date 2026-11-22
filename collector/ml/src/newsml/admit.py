@@ -115,6 +115,38 @@ def _language_of(text: str) -> str:
         return ""
 
 
+def text_rejection(
+    article_id: str,
+    source_id: str,
+    title: str,
+    cleaned: Cleaned,
+) -> Rejection | None:
+    """Text gates shared with verified exports that no longer have their original timestamps."""
+    if not cleaned.text.strip():
+        return Rejection(article_id, source_id, Reason.EMPTY_TEXT)
+
+    # Content-type verdicts come before length. A paywall stub or a scorecard is
+    # not "too short" — it is the wrong kind of document, and the funnel figure is
+    # only useful if the reason code says which. Removed lines are searched too,
+    # because the trailer rule strips "Subscribe to read..." during cleansing.
+    haystack = "\n".join([title, cleaned.text, *cleaned.removed_lines])
+    if SPONSORED.search(haystack):
+        return Rejection(article_id, source_id, Reason.SPONSORED)
+    if PAYWALL.search(haystack):
+        return Rejection(article_id, source_id, Reason.PAYWALL)
+    if NON_ARTICLE.search(haystack) or LISTICLE.search(title):
+        return Rejection(article_id, source_id, Reason.NON_ARTICLE_FORMAT)
+    if SERVICE_BULLETIN.search(title):
+        return Rejection(article_id, source_id, Reason.SERVICE_BULLETIN)
+
+    if len(title.split()) < MIN_TITLE_WORDS:
+        return Rejection(article_id, source_id, Reason.TOO_SHORT, f"title={len(title.split())}w")
+
+    if cleaned.word_count < MIN_WORDS:
+        return Rejection(article_id, source_id, Reason.TOO_SHORT, f"{cleaned.word_count}w")
+    return None
+
+
 def judge(
     article: Article,
     cleaned: Cleaned,
@@ -125,29 +157,8 @@ def judge(
 ) -> Rejection | Admitted:
     """Apply every filter in a fixed order. Returns exactly one outcome."""
     now = now or datetime.now(timezone.utc)
-
-    if not cleaned.text.strip():
-        return Rejection(article.id, article.source_id, Reason.EMPTY_TEXT)
-
-    # Content-type verdicts come before length. A paywall stub or a scorecard is
-    # not "too short" — it is the wrong kind of document, and the funnel figure is
-    # only useful if the reason code says which. Removed lines are searched too,
-    # because the trailer rule strips "Subscribe to read..." during cleansing.
-    haystack = "\n".join([article.title, cleaned.text, *cleaned.removed_lines])
-    if SPONSORED.search(haystack):
-        return Rejection(article.id, article.source_id, Reason.SPONSORED)
-    if PAYWALL.search(haystack):
-        return Rejection(article.id, article.source_id, Reason.PAYWALL)
-    if NON_ARTICLE.search(haystack) or LISTICLE.search(article.title):
-        return Rejection(article.id, article.source_id, Reason.NON_ARTICLE_FORMAT)
-    if SERVICE_BULLETIN.search(article.title):
-        return Rejection(article.id, article.source_id, Reason.SERVICE_BULLETIN)
-
-    if len(article.title.split()) < MIN_TITLE_WORDS:
-        return Rejection(article.id, article.source_id, Reason.TOO_SHORT, f"title={len(article.title.split())}w")
-
-    if cleaned.word_count < MIN_WORDS:
-        return Rejection(article.id, article.source_id, Reason.TOO_SHORT, f"{cleaned.word_count}w")
+    if rejection := text_rejection(article.id, article.source_id, article.title, cleaned):
+        return rejection
 
     # Only articles that are otherwise admissible claim a hash, so a rejected
     # article never suppresses the good copy of the same story.

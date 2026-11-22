@@ -1,0 +1,47 @@
+%% The big picture of news-bot running on your own laptop.
+%% README.md section 3 shows this same diagram; keep the two copies in sync.
+flowchart TB
+    subgraph NET["🌐 The internet"]
+        N1["① News websites<br/>124 RSS and Atom feeds"]
+    end
+
+    subgraph LAPTOP["💻 Your laptop"]
+        subgraph APP["② Collector app · Go · make run · port 8080"]
+            N3["③ Feed checker<br/>finds new headlines"]
+            N4["④ Duplicate filter<br/>saves each story once"]
+            N6["⑥ Full-text fetcher<br/>gets the whole story"]
+            N9["⑨ News pages + API<br/>newest stories first"]
+        end
+        N5[("⑤ MongoDB database<br/>make mongo-up · port 27017")]
+        N7["⑦ Topic classifier · Python<br/>optional · needs a trained model"]
+        N8["⑧ Topic-model training<br/>ml · ml-v2 · ml-v4"]
+        N10["⑩ Recommender training<br/>TF-IDF · SVD · neural"]
+        N11["⑪ Ranker<br/>make rec-serve · port 8001"]
+        N12["⑫ AFTERLINE reader<br/>make reader · port 8090"]
+        N13["⑬ Your web browser"]
+    end
+
+    N1 -- "each feed every 10 min – 2 h" --> N3
+    N3 --> N4
+    N4 -- "save new stories" --> N5
+    N4 -. "which topic? · only if running" .-> N7
+    N1 -- "story pages · every 5 min" --> N6
+    N6 -- "add the full text" --> N5
+    N5 -. "story snapshots" .-> N8
+    N8 -. "model file" .-> N7
+    N13 -- "browse the newest stories" --> N9
+    N9 -- "read" --> N5
+    N5 -- "copy up to 20,000 stories" --> N10
+    N10 -- "saved story numbers" --> N11
+    N13 -- "likes · dislikes" --> N12
+    N12 -- "rank these for me" --> N11
+    N12 -- "fetch the chosen stories · read-only" --> N5
+
+    classDef core fill:#e3f2fd,stroke:#1565c0,color:#0d2b45
+    classDef rec fill:#e8f5e9,stroke:#2e7d32,color:#12321a
+    classDef optional fill:#fff3e0,stroke:#e65100,stroke-dasharray:6 4,color:#4a1f00
+    classDef ext fill:#f3e5f5,stroke:#6a1b9a,color:#2a0a3d
+    class N1,N13 ext
+    class N3,N4,N5,N6,N9 core
+    class N7,N8 optional
+    class N10,N11,N12 rec

@@ -195,6 +195,27 @@ uv run --no-sync newsrec measure --id stories-002
 
 This performs three warm-up and 100 measured requests per method, including the same two viewed candidates for each frozen case across methods. It verifies edition/method consistency and self/duplicate/selected/viewed exclusions and writes `api-latency.json`. The acceptance target is warm end-to-end p95 under 500 ms on the selected cohort—not just a fast in-memory dot product.
 
+## Course-informed next-model candidates
+
+These are research candidates for a future recommender or classifier iteration, not approved scope. Do not start implementation or change acceptance thresholds from this list alone. Add approved work to the roadmap with an owner, dependencies and measurable exit criteria.
+
+### High-fit experiments
+
+1. **Validate content groups.** Compare the existing eight-group MiniBatchKMeans result with a small range of cluster counts using WCSS and silhouette score, then review representative articles and topic coherence. Keep distant articles unassigned. DBSCAN is an optional comparison if it can be evaluated on the same features and corpus; agglomerative clustering is a later option if hierarchical topics become a product need.
+2. **Add simple recommendation baselines.** Measure a popularity baseline and the existing TF-IDF content baseline on identical temporal splits and candidate exclusions. Keep collaborative signals such as co-likes as an additional feature, not the sole recommender: the invited-reader group is small and interaction history is sparse.
+3. **Evaluate association rules.** The roadmap already plans FP-Growth for article and reader baskets in M5.2. Report support, confidence and lift, and measure whether rule boosts improve held-out recommendation quality; do not treat rules as a replacement for the existing baselines.
+4. **Compare neural models fairly.** The planned two-tower model and current autoencoder already use neural-network methods. Any tuning of architecture, dropout, batch normalization, initialization or optimization must use development data only, compare against TF-IDF/SVD, and preserve the sealed human test cases. For the V4 classifier, the trainer in [`ml-v4`](../ml-v4/README.md) (`make ml4-train`, roadmap ML4.3/ML4.6) compares a small Keras MLP, LinearSVC and sentence-embedding models on identical stratified folds. The owner confirmed on 22 Nov that all old and new classifier labels are AI-generated (D16); the pooled local candidate reports AI-label agreement only, not human-validated accuracy. Historical evaluation articles remain excluded, human validation is not met, and no production promotion is approved.
+
+### Supporting and lower-priority topics
+
+- **SVD and other dimensionality reduction:** SVD is already a ranking method. Use PCA only as a measured alternative; use t-SNE for visual analysis, never as the production representation.
+- **Distance metrics:** cosine similarity remains the baseline. Compare another metric only as a controlled experiment with the same normalized vectors and evaluation cases.
+- **Exploration:** a small, bounded exploration allocation (for example, an epsilon-greedy policy) could help readers discover unfamiliar topics. Treat it as a product experiment with explicit limits and feedback measurement, not an automatic model change.
+- **Sequence models:** LSTM/GRU models or time-series forecasting may be revisited if we collect enough reliable sequential reader feedback or have a specific trend-forecasting need. Current reader volume is too small to justify them as the next recommender.
+- **General reinforcement learning:** MDP, Q-learning, DQN and policy-gradient systems are not a fit for the current data volume. Do not prioritize them over offline baselines and evaluation.
+
+For every comparison, freeze the corpus and model inputs, use a chronological split, and report the existing human relevance metrics separately from AI-assisted assessments. Reconstruction loss, clustering scores and category agreement are diagnostics, not substitutes for recommendation-quality evidence. Follow the dependency and reproducibility rules in the roadmap.
+
 ## Checks
 
 ```bash
