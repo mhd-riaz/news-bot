@@ -330,19 +330,21 @@ curl -u operator:secret    localhost:8080/api/v1/sources        # browser, curl
 runs the Go, classifier, ML and recommender checks, then builds the Go, classifier
 and recommender images, on pull requests to `main`, pushes to `main` and manual
 runs. Its `ci-passed` job fails unless every check and image build succeeded, so
-it is the one status check to require: add a branch ruleset for `main` that
-requires a pull request and the `ci-passed` check, with branches up to date
-before merging. The Go image contains every `cmd/*` executable; the API and
-(after M3 authentication is ready) the reader use the same image with different
-commands.
+it is the one required status check: the `main` ruleset requires a pull request
+and `ci-passed`, with branches up to date before merging. The Go image,
+`news-bot`, contains every `cmd/*` executable; the API and (after M3
+authentication is ready) the reader use the same image with different commands.
 
-Publishing is armed separately. Only a `main` run with the repository variable
-`DEPLOY_ENABLED` set to `true` pushes the images to GHCR and then calls Coolify's
-authenticated deploy webhook; until then a `main` run builds the images and
-stops. Arm it once GHCR access and the secrets below are in place, the Coolify
-resource deploys this compose file, and no other repository publishes these
-images or calls the webhook. Then run the workflow on `main` (Actions →
-news-collector → Run workflow) to publish and deploy.
+Every `main` run publishes the `news-bot`, `news-collector-classifier` and
+`news-recommender` images to GHCR under a per-commit `sha-<commit>` tag; pull
+requests only build them. Releasing is armed separately. Only while the
+repository variable `DEPLOY_ENABLED` is `true` does the `release` job run, in the
+`production` environment, which admits only `main`. It checks the Coolify
+secrets, moves `latest` on all three images to that commit together, so they
+always form one compatible set, and then calls Coolify's authenticated deploy
+webhook. Set `DEPLOY_ENABLED` to `false` to stop releasing without stopping
+publishing. To release the current `main` again, run the workflow on `main`
+(Actions → news-collector → Run workflow).
 
 On the Coolify side, create a **Docker Compose** resource from
 [deployments/coolify.compose.yml](deployments/coolify.compose.yml). It brings up
@@ -407,12 +409,17 @@ with a redirect to its login page, which curl would otherwise count as success.
 A 2xx means Coolify queued the deployment; follow it in Coolify. The secrets are
 sent only as request headers, and the job prints Coolify's messages rather than
 the response body, because this repository's workflow logs are public. Roll back
-by setting `NEWS_IMAGE` to a previous `sha-` tag and redeploying.
+by setting `NEWS_IMAGE` and `NEWS_CLASSIFIER_IMAGE` to an earlier release's `sha-`
+tags, both from the same commit so the pair stays compatible, and redeploying;
+unset them to follow `latest` again.
 
-`GITHUB_TOKEN` covers the GHCR push once this repository has the **Write** role
-on each package (package settings → Manage Actions access); a package first
-published from another repository refuses pushes from this one until then. If a
-package is private, authenticate the homelab's Docker daemon once:
+`GITHUB_TOKEN` covers every GHCR push and promotion: this workflow created all
+three packages, so they are linked to this repository and inherit its public
+visibility. Do not publish under a package name that another repository created
+— its token cannot push there and the build fails with
+`permission_denied: write_package`, which is why the Go image is `news-bot`
+rather than `news-collector`. If a package is made private, authenticate the
+homelab's Docker daemon once:
 
 ```bash
 echo "$GH_TOKEN" | docker login ghcr.io -u <username> --password-stdin

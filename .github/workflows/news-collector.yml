@@ -15,10 +15,13 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  # Only main publishes to GHCR and deploys, and only once the repository
-  # variable DEPLOY_ENABLED is "true". Every other run builds the images without
-  # pushing them. See "Deployment" in collector/readme.md.
-  PUBLISH: ${{ github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true' }}
+  # Every main run publishes each image under its sha-<commit> tag; pull
+  # requests and other branches only build. Moving `latest` and deploying
+  # belong to the release job alone. See "Deployment" in collector/readme.md.
+  PUBLISH: ${{ github.ref == 'refs/heads/main' }}
+  # Commit-prefix length of the sha- tags. The metadata action reads it when
+  # tagging and the release job when promoting, so both name the same tag.
+  DOCKER_METADATA_SHORT_SHA_LENGTH: 7
 
 jobs:
   test:
@@ -65,8 +68,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Each name must be a package this repository's workflow created: its
+        # GITHUB_TOKEN cannot push to a package another repository published.
+        # Keep the release job's IMAGES in step with this list.
         include:
-          - image: news-collector
+          - image: news-bot
             dockerfile: deployments/Dockerfile
             version: true
           - image: news-collector-classifier
@@ -92,7 +98,6 @@ jobs:
           images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
           tags: |
             type=sha,prefix=sha-
-            type=raw,value=latest,enable={{is_default_branch}}
       - name: Build and publish
         uses: docker/build-push-action@v6
         with:
@@ -105,11 +110,6 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image }}
           cache-to: type=gha,scope=${{ matrix.image }},mode=max
           build-args: ${{ matrix.version && format('VERSION={0}', github.sha) || '' }}
-      - name: Report an unpublished main build
-        if: github.ref == 'refs/heads/main' && env.PUBLISH != 'true'
-        env:
-          IMAGE: ${{ matrix.image }}
-        run: echo "::notice title=Not published::$IMAGE was built but not pushed. Set the repository variable DEPLOY_ENABLED to true to publish and deploy from main."
 
   # The one status check to require on main. The matrix reports a check per
   # image, and a job skipped because a dependency failed counts as passing, so
@@ -130,14 +130,55 @@ jobs:
             fi
           done
 
-  deploy:
+  # Releases a main commit once all three images are published: moves every
+  # image's `latest` to this commit's sha- tag together, so production always
+  # pulls one compatible set, then asks Coolify to redeploy. Armed by the
+  # repository variable DEPLOY_ENABLED; the production environment admits only
+  # main. It is not a ci-passed dependency, because pull requests skip it.
+  release:
     if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
-    needs: build-images
+    needs: [test, build-images]
     runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: write
     concurrency:
       group: coolify-production
       cancel-in-progress: false
     steps:
+      # Checked first, so a release that cannot deploy leaves `latest` alone.
+      - name: Check the deploy secrets
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          if [ -z "$COOLIFY_WEBHOOK" ] || [ -z "$COOLIFY_TOKEN" ]; then
+            echo "::error::Configure COOLIFY_WEBHOOK and COOLIFY_TOKEN to enable main-branch deployment."
+            exit 1
+          fi
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Promote this commit to latest
+        env:
+          REGISTRY: ghcr.io/${{ github.repository_owner }}
+          IMAGES: news-bot news-collector-classifier news-recommender
+        run: |
+          tag="sha-${GITHUB_SHA:0:$DOCKER_METADATA_SHORT_SHA_LENGTH}"
+          # Resolve every image before moving any tag, so a missing one stops
+          # the release with each `latest` still on the previous release.
+          for image in $IMAGES; do
+            docker buildx imagetools inspect "$REGISTRY/$image:$tag" > /dev/null
+          done
+          for image in $IMAGES; do
+            docker buildx imagetools create --tag "$REGISTRY/$image:latest" "$REGISTRY/$image:$tag"
+          done
+          echo "::notice title=Released::$tag is now latest for $IMAGES"
       - name: Trigger Coolify deployment
         env:
           COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
@@ -145,10 +186,6 @@ jobs:
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
         run: |
-          if [ -z "$COOLIFY_WEBHOOK" ] || [ -z "$COOLIFY_TOKEN" ]; then
-            echo "::error::Configure COOLIFY_WEBHOOK and COOLIFY_TOKEN to enable main-branch deployment."
-            exit 1
-          fi
           headers=(--header "Authorization: Bearer $COOLIFY_TOKEN")
           if [ -n "$CF_ACCESS_CLIENT_ID" ] && [ -n "$CF_ACCESS_CLIENT_SECRET" ]; then
             headers+=(--header "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID"
