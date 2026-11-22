@@ -327,20 +327,32 @@ curl -u operator:secret    localhost:8080/api/v1/sources        # browser, curl
 ## Deployment
 
 [../.github/workflows/news-collector.yml](../.github/workflows/news-collector.yml)
-runs the Go, classifier, ML and recommender checks on pull requests and pushes to
-`main`. A successful `main` build publishes the Go, classifier and recommender
-images to GHCR, then calls Coolify's authenticated deploy webhook. The Go image
-contains every `cmd/*` executable; the API and (after M3 authentication is ready)
-the reader use the same image with different commands.
+runs the Go, classifier, ML and recommender checks, then builds the Go, classifier
+and recommender images, on pull requests to `main`, pushes to `main` and manual
+runs. Its `ci-passed` job fails unless every check and image build succeeded, so
+it is the one status check to require: add a branch ruleset for `main` that
+requires a pull request and the `ci-passed` check, with branches up to date
+before merging. The Go image contains every `cmd/*` executable; the API and
+(after M3 authentication is ready) the reader use the same image with different
+commands.
+
+Publishing is armed separately. Only a `main` run with the repository variable
+`DEPLOY_ENABLED` set to `true` pushes the images to GHCR and then calls Coolify's
+authenticated deploy webhook; until then a `main` run builds the images and
+stops. Arm it once GHCR access and the secrets below are in place, the Coolify
+resource deploys this compose file, and no other repository publishes these
+images or calls the webhook. Then run the workflow on `main` (Actions →
+news-collector → Run workflow) to publish and deploy.
 
 On the Coolify side, create a **Docker Compose** resource from
 [deployments/coolify.compose.yml](deployments/coolify.compose.yml). It brings up
 MongoDB with generated credentials, then starts the API behind a Coolify-issued
-domain. There are no one-shot migrate or seed containers: the API reconciles the
-schema and the source list itself on every start, because a one-shot container
-that has already exited successfully is not guaranteed to be recreated on a
-redeploy — and when it is skipped, an edited feed list silently never reaches
-the database.
+domain. MongoDB's port is published on the host's loopback only, so Compass and
+mongosh reach it through an SSH tunnel. There are no one-shot migrate or seed
+containers: the API reconciles the schema and the source list itself on every
+start, because a one-shot container that has already exited successfully is not
+guaranteed to be recreated on a redeploy — and when it is skipped, an edited
+feed list silently never reaches the database.
 
 Set these in the Coolify UI before the first deploy — the compose file marks
 them required, so a missing one fails the deployment instead of starting an
@@ -382,17 +394,25 @@ sync with the corresponding Coolify secrets.
 
 And these as GitHub repository secrets:
 
-| Secret            | Notes                                    |
-| ----------------- | ---------------------------------------- |
-| `COOLIFY_WEBHOOK` | the resource's Deploy Webhook URL        |
-| `COOLIFY_TOKEN`   | Coolify API token with deploy permission |
+| Secret                    | Notes                                                          |
+| ------------------------- | -------------------------------------------------------------- |
+| `COOLIFY_WEBHOOK`         | the resource's Deploy Webhook URL                              |
+| `COOLIFY_TOKEN`           | Coolify API token with only the deploy permission              |
+| `CF_ACCESS_CLIENT_ID`     | Cloudflare Access service token ID, if Access protects Coolify |
+| `CF_ACCESS_CLIENT_SECRET` | that service token's secret                                    |
 
-Both are required for a successful `main` deployment. The deploy-only token is
-sent in the `Authorization` header and neither secret is written to logs. Roll
-back by setting `NEWS_IMAGE` to a previous `sha-` tag and redeploying.
+An armed deploy fails if either Coolify secret is missing, or if the response is
+not a 2xx: Cloudflare Access answers a request without a valid service token
+with a redirect to its login page, which curl would otherwise count as success.
+A 2xx means Coolify queued the deployment; follow it in Coolify. The secrets are
+sent only as request headers, and the job prints Coolify's messages rather than
+the response body, because this repository's workflow logs are public. Roll back
+by setting `NEWS_IMAGE` to a previous `sha-` tag and redeploying.
 
-`GITHUB_TOKEN` covers the GHCR push. If the package is private, authenticate the
-homelab's Docker daemon once:
+`GITHUB_TOKEN` covers the GHCR push once this repository has the **Write** role
+on each package (package settings → Manage Actions access); a package first
+published from another repository refuses pushes from this one until then. If a
+package is private, authenticate the homelab's Docker daemon once:
 
 ```bash
 echo "$GH_TOKEN" | docker login ghcr.io -u <username> --password-stdin
