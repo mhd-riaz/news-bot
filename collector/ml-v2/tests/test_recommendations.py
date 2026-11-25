@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import numpy as np
 import pytest
@@ -128,6 +128,78 @@ def test_unknown_seed_is_not_a_success_shaped_cold_start(index):
         index.recommend({"seed_id": "outside-index"})
 
 
+def dated_index(directory, now):
+    """The unit index with C1 date provenance, domains and a fixed clock."""
+    rows = data.documents(directory)
+    dates = {  # (published_at, date_verified or None for an archive frozen before provenance)
+        0: ("2026-08-09T10:00:00+05:30", True),  # yesterday in Asia/Kolkata
+        1: ("2026-08-09T10:00:00+05:30", True),  # same story group as article-0
+        2: ("2026-08-08T20:00:00+00:00", None),  # 01:30 on 9 Aug in Kolkata; legacy verified
+        3: ("2026-08-09T19:00:00+00:00", True),  # 00:30 on 10 Aug in Kolkata: today, still fresh
+        4: ("2026-08-09T09:00:00+00:00", False),  # unverified: never fresh
+        5: ("2026-06-01T00:00:00+00:00", True),  # older than 30 days
+        6: ("2026-08-11T00:00:00+00:00", True),  # future-dated
+        7: (None, True),
+    }
+    for i, row in enumerate(rows):
+        row["published_at"], verified = dates[i]
+        if verified is None:
+            row.pop("date_verified", None)
+            row["date_kind"] = "Stored publication date"
+        else:
+            row["date_verified"] = verified
+        row["domains"] = ["ai"] if i in (0, 2, 3) else ["software"] if i == 4 else []
+    path = directory / "documents.jsonl"
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    manifest = data.read_json(directory / "manifest.json")
+    manifest["documents_sha256"] = data.digest(path)
+    data.write_json(directory / "manifest.json", manifest)
+    training = data.read_json(directory / "training.json")
+    training["artifacts"]["documents.jsonl"] = data.digest(path)
+    data.write_json(directory / "training.json", training)
+    return Index(directory, clock=lambda: now)
+
+
+def test_news_windows_follow_c2_freshness_and_the_c9_edition_day(index_dir):
+    index = dated_index(index_dir, datetime(2026, 8, 10, 4, tzinfo=UTC))  # 09:30 in Kolkata
+    meta = index.metadata()
+    assert meta["windows"] == {"fresh": 4, "yesterday": 3, "archive": 4}
+    assert (meta["edition_date"], meta["edition_timezone"]) == ("2026-08-09", "Asia/Kolkata")
+    assert meta["domains"] == {"ai": 3, "software": 1}
+
+    edition = index.recommend({"window": "yesterday", "limit": 10})
+    assert [item["id"] for item in edition["items"]] == ["article-0", "article-2"]
+    assert edition["edition_date"] == "2026-08-09" and edition["window"] == "yesterday"
+    assert edition["items"][0]["reason"] == "Published yesterday"
+    fresh = index.recommend({"window": "fresh"})
+    assert [item["id"] for item in fresh["items"]] == ["article-3", "article-0", "article-2"]
+    assert all(item["fresh"] and item["date_verified"] for item in fresh["items"])
+    archive = index.recommend({"window": "archive", "limit": 30})
+    assert {item["id"] for item in archive["items"]} == {"article-4", "article-5", "article-6", "article-7"}
+    assert not any(item["fresh"] for item in archive["items"])
+    assert {item["id"] for item in index.recommend({"window": "fresh", "domains": ["ai"]})["items"]} == {
+        "article-0", "article-2", "article-3",
+    }
+    assert index.recommend({"domains": ["software"]})["items"][0]["id"] == "article-4"
+
+    # An edition ranks every eligible story by the profile, even unrelated ones.
+    liked = index.recommend({"window": "yesterday", "liked": ["article-3"], "limit": 10})
+    assert [item["id"] for item in liked["items"]] == ["article-2", "article-0"]
+
+    early = dated_index(index_dir, datetime(2026, 8, 10, 0, tzinfo=UTC))  # 05:30 in Kolkata
+    assert early.metadata()["edition_date"] == "2026-08-08"
+    assert early.recommend({"window": "yesterday"})["items"] == []
+
+
+@pytest.mark.parametrize("payload", [
+    {"window": "tomorrow"}, {"window": 1}, {"domains": "ai"}, {"domains": [""]},
+    {"domains": ["x" * 65]}, {"domains": [f"tag-{i}" for i in range(9)]},
+])
+def test_window_and_domain_input_is_rejected(index, payload):
+    with pytest.raises(ValueError):
+        index.recommend(payload)
+
+
 def test_artifact_corruption_fails_startup(index_dir):
     (index_dir / "groups.json").write_text("[]")
     with pytest.raises(ValueError, match="digest"):
@@ -248,8 +320,14 @@ def test_export_is_bounded_deterministic_and_read_only(tmp_path, monkeypatch):
             assert "categories" not in projection
             return Cursor()
 
+    class Sources:
+        def find(self, query, projection):
+            assert query == {} and projection == {"_id": 1, "domains": 1}
+            return [{"_id": "source", "domains": ["software", "ai"]}]
+
     class Database:
         articles = Collection()
+        sources = Sources()
 
     class Client:
         def __init__(self, *_args, **_kwargs):
@@ -272,7 +350,11 @@ def test_export_is_bounded_deterministic_and_read_only(tmp_path, monkeypatch):
     for directory in (left, right):
         result = data.freeze(directory, cut=datetime(2026, 8, 2, tzinfo=UTC), limit=100, candidates=120)
         assert result["articles"] == 100 and result["scanned"] == 140
+        assert result["recent_articles"] == 0 and result["date_verified"] == 0
     assert (left / "documents.jsonl").read_bytes() == (right / "documents.jsonl").read_bytes()
+    row = data.documents(left)[0]
+    assert row["domains"] == ["ai", "software"] and row["source_id"] == "source"
+    assert (row["date_source"], row["date_verified"]) == ("collected_fallback", False)
     with pytest.raises(FileExistsError):
         data.freeze(left, cut=datetime(2026, 8, 2, tzinfo=UTC))
     monkeypatch.setattr(data, "english_text", lambda _: (False, 0.0))
@@ -285,6 +367,97 @@ def test_export_is_bounded_deterministic_and_read_only(tmp_path, monkeypatch):
         data.freeze(tmp_path / "naive", cut=datetime(2026, 8, 2))
     with pytest.raises(ValueError, match="require 100"):
         data.freeze(tmp_path / "bad-limit", cut=datetime(2026, 8, 2, tzinfo=UTC), limit=0)
+    with pytest.raises(ValueError, match="recent_days"):
+        data.freeze(tmp_path / "bad-recent", cut=datetime(2026, 8, 2, tzinfo=UTC), recent_days=-1)
+
+
+def test_recent_window_is_kept_newest_first_and_dates_follow_c1_provenance(tmp_path, monkeypatch):
+    def record(i, collected, published, **extra):
+        return {
+            "_id": f"article-{i:03}", "source_id": "tech" if i % 2 else "local",
+            "source_name": "Test publisher", "title": f"Research scientists examine distant galaxy number {i}",
+            "summary": "", "content": "Researchers published a study of distant stars and planets.",
+            "language": "en", "url": f"https://example.test/{i}", "country": "GB",
+            "content_hash": str(i), "collected_at": collected, "published_at": published, **extra,
+        }
+
+    older = datetime(2026, 8, 1, tzinfo=UTC)
+    records = [record(i, older, older if i % 3 else datetime(2026, 7, 31, tzinfo=UTC)) for i in range(150)]
+    # Stored provenance wins over the legacy rule: article-150 has differing dates but is unverified.
+    recent = [
+        record(150 + i, datetime(2026, 8, 9, tzinfo=UTC) + timedelta(minutes=i),
+               datetime(2026, 8, 8, tzinfo=UTC), date_verified=i != 0,
+               published_at_source="page" if i else "collected_fallback")
+        for i in range(30)
+    ]
+    records += recent
+    earliest = datetime.min.replace(tzinfo=UTC)
+
+    class Cursor:
+        def __init__(self, rows):
+            self.rows = rows
+
+        def sort(self, field, direction):
+            self.rows = sorted(self.rows, key=lambda row: row[field], reverse=direction < 0)
+            return self
+
+        def limit(self, count):
+            self.rows = self.rows[:count]
+            return self
+
+        def batch_size(self, *_):
+            return iter(self.rows)
+
+    class Collection:
+        def find(self, query, _projection):
+            window = query["collected_at"]
+            return Cursor([
+                row for row in records
+                if window.get("$gte", earliest) <= row["collected_at"] < window["$lt"]
+            ])
+
+    class Sources:
+        def find(self, *_):
+            return [{"_id": "tech", "domains": ["ai"]}, {"_id": "local"}]
+
+    class Database:
+        articles = Collection()
+        sources = Sources()
+
+    class Client:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            pass
+
+        def __getitem__(self, _):
+            return Database()
+
+    monkeypatch.setattr(data, "MongoClient", Client)
+    monkeypatch.setattr(data, "english_text", lambda _: (True, 1.0))
+    monkeypatch.setattr(data, "settings", lambda: ("mongodb://unit.test", "news"))
+    cut = datetime(2026, 8, 10, tzinfo=UTC)
+    result = data.freeze(tmp_path / "recent", cut=cut, limit=100, candidates=120, recent_days=3)
+    rows = {row["id"]: row for row in data.documents(tmp_path / "recent")}
+    assert result["scanned"] == 180 and result["articles"] == 100 and result["recent_articles"] == 30
+    assert {row["_id"] for row in recent} <= set(rows)
+    assert (rows["article-150"]["date_source"], rows["article-150"]["date_verified"]) == ("collected_fallback", False)
+    assert (rows["article-151"]["date_source"], rows["article-151"]["date_verified"]) == ("page", True)
+    older_rows = [row for row in rows.values() if row["collected_at"].startswith("2026-08-01")]
+    assert {(row["date_source"], row["date_verified"]) for row in older_rows} == {
+        ("feed", True), ("collected_fallback", False),
+    }
+    assert rows["article-151"]["domains"] == ["ai"] and rows["article-152"]["domains"] == []
+
+    # A window busier than the candidate budget keeps its newest articles first.
+    busy = data.freeze(tmp_path / "busy", cut=cut, limit=100, candidates=120, recent_days=9)
+    kept = {row["id"] for row in data.documents(tmp_path / "busy")}
+    assert busy["scanned"] == 120 and busy["recent_articles"] == 100
+    assert {row["_id"] for row in recent} <= kept
 
 
 def test_readonly_connection_inspection_has_no_write_methods(monkeypatch):

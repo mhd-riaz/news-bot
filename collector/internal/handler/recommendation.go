@@ -19,13 +19,15 @@ func NewRecommendation(service *recommendation.Service, logger *slog.Logger) *Re
 
 type storyResponse struct {
 	articleResponse
-	Score     float64 `json:"score"`
-	Reason    string  `json:"reason"`
-	Text      string  `json:"text"`
-	TextKind  string  `json:"text_kind"`
-	InputKind string  `json:"input_kind"`
-	Group     string  `json:"group"`
-	DateKind  string  `json:"date_kind"`
+	Score        float64 `json:"score"`
+	Reason       string  `json:"reason"`
+	Text         string  `json:"text"`
+	TextKind     string  `json:"text_kind"`
+	InputKind    string  `json:"input_kind"`
+	Group        string  `json:"group"`
+	DateKind     string  `json:"date_kind"`
+	DateVerified bool    `json:"date_verified"`
+	Fresh        bool    `json:"fresh"`
 }
 
 func (h *Recommendation) Metadata(w http.ResponseWriter, r *http.Request) {
@@ -63,6 +65,7 @@ func (h *Recommendation) Recommend(w http.ResponseWriter, r *http.Request) {
 			articleResponse: newArticleResponse(&item.Article),
 			Score:           item.Score, Reason: item.Reason, Text: item.Text, TextKind: item.TextKind,
 			InputKind: item.InputKind, Group: item.Topic, DateKind: dateKind,
+			DateVerified: item.DateVerified, Fresh: item.Fresh,
 		})
 	}
 	w.Header().Set("Cache-Control", "no-store")
@@ -73,7 +76,10 @@ func (h *Recommendation) Recommend(w http.ResponseWriter, r *http.Request) {
 		Exhausted        bool            `json:"exhausted"`
 		UnavailableIDs   []string        `json:"unavailable_ids"`
 		IgnoredViewedIDs int             `json:"ignored_viewed_ids"`
-	}{items, result.Method, result.SnapshotID, result.Exhausted, result.UnavailableIDs, result.IgnoredViewedIDs})
+		Window           string          `json:"window"`
+		EditionDate      string          `json:"edition_date,omitempty"`
+	}{items, result.Method, result.SnapshotID, result.Exhausted, result.UnavailableIDs, result.IgnoredViewedIDs,
+		result.Window, result.EditionDate})
 }
 
 func (h *Recommendation) failure(w http.ResponseWriter, r *http.Request, err error) {

@@ -2,7 +2,9 @@ package recommendation
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -85,6 +87,9 @@ func TestRecommendationRequestValidation(t *testing.T) {
 		"large interests":          {Liked: make([]string, 51)},
 		"large negative interests": {Disliked: make([]string, 51)},
 		"large history":            {Viewed: make([]string, 2001)},
+		"window":                   {Window: "tomorrow"},
+		"domain tag":               {Domains: []string{"AI"}},
+		"too many domains":         {Domains: []string{"a", "b", "c", "d", "e", "f", "g", "h", "i"}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -95,6 +100,32 @@ func TestRecommendationRequestValidation(t *testing.T) {
 	}
 	if err := (Request{Liked: []string{oneID}, Viewed: []string{twoID}, Method: "svd", Limit: 30}).Validate(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestWindowAndDomainsReachTheRankerAndDateFlagsReturn(t *testing.T) {
+	t.Parallel()
+	repo := &articleStub{rows: []domain.Article{{ID: oneID}}}
+	service := stubService(t, 200, `{"snapshot_id":"test","window":"yesterday","edition_date":"2026-08-09",`+
+		`"items":[{"id":"`+oneID+`","date_verified":true,"fresh":true}]}`, repo)
+	var sent map[string]any
+	transport := service.client.Transport
+	service.client.Transport = roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if err := json.NewDecoder(request.Body).Decode(&sent); err != nil {
+			t.Error(err)
+		}
+		return transport.RoundTrip(request)
+	})
+	result, err := service.Recommend(t.Context(), Request{Window: "yesterday", Domains: []string{"ai", "data-science"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sent["window"] != "yesterday" || fmt.Sprint(sent["domains"]) != "[ai data-science]" {
+		t.Fatalf("ranker request = %v", sent)
+	}
+	if result.Window != "yesterday" || result.EditionDate != "2026-08-09" ||
+		!result.Articles[0].DateVerified || !result.Articles[0].Fresh {
+		t.Fatalf("window or date flags lost: %+v", result)
 	}
 }
 

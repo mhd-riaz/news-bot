@@ -23,6 +23,9 @@ var (
 	ErrNotIndexed  = errors.New("article outside indexed archive")
 )
 
+// Windows are the ranker's news views: C2 fresh, the C9 daily edition and the archive.
+var windows = map[string]bool{"": true, "fresh": true, "yesterday": true, "archive": true}
+
 type Request struct {
 	SeedID   string   `json:"seed_id,omitempty"`
 	Liked    []string `json:"liked,omitempty"`
@@ -31,6 +34,8 @@ type Request struct {
 	Topic    string   `json:"topic,omitempty"`
 	Method   string   `json:"method,omitempty"`
 	Limit    int      `json:"limit,omitempty"`
+	Window   string   `json:"window,omitempty"`
+	Domains  []string `json:"domains,omitempty"`
 }
 
 type Topic struct {
@@ -42,25 +47,32 @@ type Topic struct {
 }
 
 type Metadata struct {
-	SnapshotID       string   `json:"snapshot_id"`
-	Articles         int      `json:"articles"`
-	PublicationRange []string `json:"publication_range"`
-	CollectedBefore  string   `json:"collected_before"`
-	Methods          []string `json:"methods"`
-	DefaultMethod    string   `json:"default_method,omitempty"`
-	Topics           []Topic  `json:"topics"`
-	ProfileNote      string   `json:"profile_note"`
-	DateNote         string   `json:"date_note"`
+	SnapshotID       string         `json:"snapshot_id"`
+	Articles         int            `json:"articles"`
+	PublicationRange []string       `json:"publication_range"`
+	CollectedBefore  string         `json:"collected_before"`
+	Methods          []string       `json:"methods"`
+	DefaultMethod    string         `json:"default_method,omitempty"`
+	Topics           []Topic        `json:"topics"`
+	ProfileNote      string         `json:"profile_note"`
+	DateNote         string         `json:"date_note"`
+	Windows          map[string]int `json:"windows,omitempty"`
+	FreshDays        int            `json:"fresh_days,omitempty"`
+	EditionDate      string         `json:"edition_date,omitempty"`
+	EditionTimezone  string         `json:"edition_timezone,omitempty"`
+	Domains          map[string]int `json:"domains,omitempty"`
 }
 
 type Hit struct {
-	ID        string  `json:"id"`
-	Score     float64 `json:"score"`
-	Reason    string  `json:"reason"`
-	Text      string  `json:"text"`
-	TextKind  string  `json:"text_kind"`
-	InputKind string  `json:"input_kind"`
-	Topic     string  `json:"topic"`
+	ID           string  `json:"id"`
+	Score        float64 `json:"score"`
+	Reason       string  `json:"reason"`
+	Text         string  `json:"text"`
+	TextKind     string  `json:"text_kind"`
+	InputKind    string  `json:"input_kind"`
+	Topic        string  `json:"topic"`
+	DateVerified bool    `json:"date_verified"`
+	Fresh        bool    `json:"fresh"`
 }
 
 type Page struct {
@@ -69,6 +81,8 @@ type Page struct {
 	SnapshotID       string `json:"snapshot_id"`
 	Exhausted        bool   `json:"exhausted"`
 	IgnoredViewedIDs int    `json:"ignored_viewed_ids"`
+	Window           string `json:"window"`
+	EditionDate      string `json:"edition_date,omitempty"`
 }
 
 type Articles interface {
@@ -220,6 +234,14 @@ func (r Request) Validate() error {
 	}
 	if len(r.Topic) > 2 {
 		return ErrInvalid
+	}
+	if !windows[r.Window] || len(r.Domains) > 8 {
+		return ErrInvalid
+	}
+	for _, tag := range r.Domains {
+		if !domain.ValidDomainTag(tag) {
+			return ErrInvalid
+		}
 	}
 	ids := append(append(append([]string{}, r.Liked...), r.Disliked...), r.Viewed...)
 	if r.SeedID != "" {

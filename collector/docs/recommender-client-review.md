@@ -48,6 +48,7 @@ Finishing a classifier does not finish the news website or prove that its readin
 | `[x] Done` | A fair way to choose the final reading tests | The procedure for selecting 50 test cases is implemented and tested. The actual final reader study still needs to happen. | [M0.4](roadmap.md#4-milestones) |
 | `[x] Done` | One unreliable automated test fixed | The timing-related test fix has recorded repeat-run evidence. Other testing work in the same milestone remains. | [M9.1 work log](roadmap.md#9-work-log) |
 | `[x] Done` | A newer topic-classifier candidate trained locally | A separate candidate was trained using 8,594 artificial-intelligence-generated labels (AI labels). It has not been approved by human testing or put into the live service. It is not the reading demo's recommender. | [ML4.6 and its correction](roadmap.md#4-milestones) |
+| `[x] Done` | A fresh-news demo for the 25 November review | On 24 November the reader gained Fresh, Yesterday and Archive views, a professional-news switch, and saved stories with notes. It ran on news collected that day. It runs on one laptop and keeps choices and notes in that browser only; it is not the hosted, signed-in service. | [DEMO tasks](roadmap.md#demo--bare-minimum-client-demo-separate-from-release-acceptance) |
 
 ### What is in progress
 
@@ -115,6 +116,28 @@ V2 has not yet been designed in detail.
 | `[ ] Yet to do - V2` | Assistant access to personal saved items | Decide and build safe access to a reader's own saved stories and notes. V1 assistants do not get this access. | [V2-6](roadmap.md#2-requirements) |
 | `[ ] Yet to do - V2` | Deliver alerts to the owner | Choose an alert channel and add delivery; this was deferred from V1. | [D3](roadmap.md#7-open-decisions-owner) |
 | `[ ] Yet to do - after V2` | Android app | Build the Android version after V2. | [L-1](roadmap.md#2-requirements) |
+
+### The 25 November demo
+
+**What it shows:** today's news first, a short "yesterday" selection, news limited to AI, software and data-science sources, older background behind today's stories, and saved stories with notes. It runs on the owner's laptop, and likes, settings and notes stay in that browser.
+
+**Before the demo** (from `collector/`, about 10 minutes; leave the collector running):
+
+1. `make demo-refresh` takes a new snapshot of the latest news (about 7 minutes).
+2. Stop the old ranker, then run `make demo-serve`.
+3. In a second terminal, run `make reader`, then open http://127.0.0.1:8090/stories in a private browser window, so the demo starts with no likes, settings or saved stories from rehearsals. It starts in the computer's light or dark setting.
+
+**Suggested walk-through:**
+
+1. **Fresh** opens on a grid of the newest stories with a verified publication date: one large lead story, then rows of three. The snapshot time is under "The collection", at the bottom of the page.
+2. Tick **Professional focus**: only AI, software, data-science and technology sources remain.
+3. **Choose interests**: pick two or three of today's stories. The page title changes to "For you".
+4. Open a story: it reads full screen, like a magazine page. At the end, **Related reading** shows six related stories, each marked "Fresh" or "From the archive"; **See all related stories** opens the full set. Whether older archive stories appear depends on the story, so pick one in rehearsal that has older background.
+5. **Save** a story (☆ on any tile, or **Save** inside the story) and type a note, then open **Saved stories** to show it.
+6. Switch to **Yesterday**: up to ten stories from yesterday, in India time, ranked by the chosen interests.
+7. Optional: switch the lens between TF–IDF, SVD and Neural, or press **Dark theme** at the top right.
+
+**What not to claim:** this is not the hosted service and has no sign-in. Choices live in one browser. The snapshot is refreshed by hand, so the one-hour freshness target is not shown. Topic suggestions, follow-up stories, assistant access and the human reading test are not built yet. The earlier reading-quality numbers come from a small pilot and do not meet the final target.
 
 ### Keeping this checklist accurate
 

@@ -357,7 +357,7 @@ func (s *Source) Validate() error {
 		v.add("domains", "must contain at most %d tags", MaxDomains)
 	}
 	for _, domain := range s.Domains {
-		if !validDomainTag(domain) {
+		if !ValidDomainTag(domain) {
 			v.add("domains", "each tag must be 1-%d lowercase letters, digits or internal hyphens", MaxDomainLength)
 			break
 		}
@@ -371,7 +371,9 @@ func (s *Source) Validate() error {
 	return v.err()
 }
 
-func validDomainTag(tag string) bool {
+// ValidDomainTag reports whether tag is a canonical source domain tag; readers
+// filter on the same tags, so they validate with the same rule.
+func ValidDomainTag(tag string) bool {
 	if len(tag) == 0 || len(tag) > MaxDomainLength || tag[0] == '-' || tag[len(tag)-1] == '-' {
 		return false
 	}
