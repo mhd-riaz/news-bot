@@ -1,5 +1,17 @@
 # AFTERLINE — verified delivery results
 
+**Historical baseline: `stories-002`, cut 22 Oct 2026; status note reviewed 25 Nov.**
+The measurements and suite counts below belong to that frozen delivery, not the
+current code or a new live-service check. Its private artifacts may be absent from a
+fresh checkout; do not rebuild a different corpus under the same ID to reproduce these results.
+
+**Since that baseline:** the [24 November local demo](roadmap.md#demo--bare-minimum-client-demo-separate-from-release-acceptance)
+added manual recent-first snapshot builds, Fresh/Yesterday/Archive views, a professional
+source filter, a grid and full-screen reading view, browser-local saved stories/notes,
+and a system-aware theme. Those demonstrations do not revalidate the older speed or
+relevance figures. See [current setup](recommender.md) and the [progress checklist](recommender-client-review.md#project-progress-checklist).
+Full V1 acceptance, automatic one-hour indexing and the final human study remain open.
+
 ## Delivered
 
 A working content-based news archive recommender with a read-only Go application, a private Flask vector service, a trained TensorFlow/Keras autoencoder, TF-IDF and SVD comparisons, and a responsive Stories-inspired reader.
@@ -21,7 +33,7 @@ See [setup, training and evaluation](recommender.md), plus the [client and archi
 | Reservoir candidates | 30,000 |
 | Indexed articles | **20,000**, across **40 publishers** |
 | Input coverage | 19,391 body-backed; 494 summary-backed; 115 headline-only |
-| Stored images | 12,237; the remainder use the text-first design |
+| Stored publisher image URLs (not image files) | 12,237; the remainder use the text-first design |
 | Publication range | 25 October 2007–22 October 2026; clearly an archive |
 | Conservative duplicate groups | 19,967 |
 | Articles without usable TF-IDF features | 0 |
@@ -33,7 +45,11 @@ See [setup, training and evaluation](recommender.md), plus the [client and archi
 | Recorded neural training/clustering stage | 7.85 seconds |
 | Final validation reconstruction MSE | 0.4165 — **not a recommendation-quality score** |
 
-All derived documents, preprocessing, models, matrices, clusters, hashes, versions and evaluation records persist under the ignored `ml-v2/artifacts/recommender/stories-002/` directory. Seeds and manifests are saved. Raw article text and secrets were not added to git.
+The baseline run saved derived documents, preprocessing, models, matrices, clusters,
+hashes, versions and evaluation records under the ignored
+`ml-v2/artifacts/recommender/stories-002/` directory, with seeds and manifests.
+That private directory is not supplied by cloning the repository. Raw article text
+and secrets were not added to git.
 
 The initial Python default pointed to a different, smaller August-only local database. That discrepancy was detected before final delivery; the user supplied the correct connection, its count was checked, and the final edition was exported/trained against the larger corpus. It is not a fixture or a claim to index the entire live database.
 
@@ -94,13 +110,22 @@ These are **AI-assisted proxy results, not human ground truth**. The AI pass exa
 
 TF-IDF is the conservative reading default because it is simpler and led both available aggregate comparisons. This is a practical choice, not a statistically established population winner. The neural method remains trained and integrated as the honestly evaluated coursework experiment.
 
-**The original full human-relevance acceptance target remains unverified.** Even the AI-assisted TF-IDF P@5 is below 0.60. We did not tune on these fixed cases or relabel them to manufacture a passing result; any future quality improvements need a separate development set and fresh held-out assessment.
+**Full human-relevance acceptance remains unverified.** Current V1
+[C13 acceptance](roadmap.md#c13-evaluation-r15) requires human Useful P@5 ≥ 0.65 and
+not below TF-IDF across 50 frozen cases. Neither this two-case human pilot nor the
+40-case AI-assisted assessment establishes that result. The AI-assisted TF-IDF P@5
+of 0.565 is a separate proxy, not an acceptance score. We did not tune on these fixed
+cases or relabel them to manufacture a pass; future improvements need separate
+development data and fresh held-out assessment.
 
 The separate 100-query old-training-label proxy, over a common restricted pool of 692 labelled articles, measured same-category top-five agreement of TF-IDF 0.580, SVD 0.656 and neural 0.624. That measures coarse category agreement, not reading preference or human relevance; it does not replace the manual benchmark.
 
 The benchmark is an in-catalog related-reading experiment. It does not establish prediction of unseen users' clicks, long-term satisfaction or recommendation quality for future unindexed articles.
 
 ### Reproduce the limited manual pilot
+
+Only with the original `stories-002` artifacts and judgements available; a later local
+archive is not an equivalent benchmark.
 
 From `collector/ml-v2/`:
 
@@ -110,7 +135,10 @@ uv run --no-sync newsrec score --id stories-002 \
   --case article-01 --case article-05
 ```
 
-The original user ratings also persist in `manual-pilot-grades.json`. The selected-case result is `relevance-selected.json`; it does not overwrite a full evaluation. Complete the other cases with independent human judgements before claiming a full human result.
+The original user ratings also persist in `manual-pilot-grades.json`. The selected-case
+result is `relevance-selected.json`; it does not overwrite a full evaluation. Completing
+the other historical cases would produce a fuller baseline study, not the separate
+50-case V1 acceptance study required by C13.
 
 The separate AI-assisted result can be reproduced without altering the user sheet:
 
@@ -137,7 +165,12 @@ It writes `relevance-ai-assisted.json`. The scorer rejects mixed or mismatched l
 
 Go counts above are top-level tests in the changed surfaces; subtests are not counted again. Focused race tests and `go vet` passed. Low driver/startup unit coverage is supplemented by actual read-only startup, batch hydration and idle/restart checks; it is not claimed as instrumented coverage. JavaScript line coverage remains below the proposed 80% target despite the functional browser checks.
 
-**Full-repository Go caveat:** the final whole-repo run exposed the pre-existing `TestConcurrentAcquireReservesDistinctSlots` failure in `internal/ratelimit` (six recorded waits versus seven expected). It also reproduced during 30 focused iterations. That package is unchanged from the existing commit; the concurrent test's fake sleep advances a shared clock, making the number of waits scheduling-dependent. It was not silently changed or excluded to manufacture an all-green repository claim. The isolated `make rec-test` delivery target passes.
+**Historical full-repository Go caveat:** this delivery's whole-repo run exposed
+`TestConcurrentAcquireReservesDistinctSlots` in `internal/ratelimit` (six recorded waits
+versus seven expected), also reproduced during 30 focused iterations. It was not hidden
+or excluded from the delivery record. The [26 October work log](roadmap.md#9-work-log)
+subsequently records the test-clock fix and 12,000 passing repeat runs; this is not a
+current known-failure notice. Those later runs do not alter this table's historical counts.
 
 The original saved classifier still loads and predicts; its closed test split was not reopened. The reader exposes no mutation routes, and `read_events` remained zero during the integration checks.
 

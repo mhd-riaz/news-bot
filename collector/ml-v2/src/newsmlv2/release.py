@@ -5,6 +5,10 @@ probabilities. The test split was opened once on 2026-08-26 and is closed for go
 its numbers are recorded as constants rather than recomputed -- re-running it would turn
 a held-out measurement into a training signal, which is the one thing this project has
 been careful not to do all the way through.
+
+All historical classifier labels are AI-generated (roadmap D16, 22 Nov 2026).
+The recorded measurements and emitted explanatory card describe AI-label
+agreement, not human validation. Existing artifacts are not rewritten here.
 """
 
 from __future__ import annotations
@@ -135,7 +139,7 @@ def _validation_report(classifier: serve.Classifier, snapshot_id: str) -> dict:
 
 def _coverage_curve(probabilities: np.ndarray, truth: np.ndarray,
                     classes: np.ndarray) -> list[dict]:
-    """The abstention dial: at each cut, how much is filed and how right is it?"""
+    """The abstention dial: coverage and agreement with the AI reference labels."""
     called = classes[probabilities.argmax(axis=1)]
     scores = probabilities.max(axis=1)
     correct = called == truth
@@ -169,11 +173,17 @@ def _card(metrics: dict) -> str:
 **Snapshot** `{metrics['snapshot_id']}` · fitted {meta['fitted_at']} · cleaning
 v{meta['cleaning_version']} · label digest `{meta['label_digest'][:12]}…`
 
+**Label provenance correction (D16):** all historical classifier reference labels
+are AI-generated, including those previously described as human gold. Every score
+and calibration result below measures agreement with AI labels, not human-validated
+accuracy. Human validation and the human labels/class target remain **not met**.
+
 ## What it does
 
 Files an English-language news article into one of {len(metrics['classes'])} topics, and
 **declines to answer when it is not confident enough**. Confidence is a calibrated
-probability, never a raw SVM margin.
+class probability against AI labels, not a demonstrated human-correctness rate or
+a raw SVM margin.
 
 ## Recipe
 
@@ -186,7 +196,7 @@ probability, never a raw SVM margin.
 | Trained on | {meta['train_articles']:,} articles (train split only) |
 | Bundle | {meta.get('bundle_mb', '—')} MB · {val['predict_ms_per_article']:.2f} ms/article |
 
-## How good it is
+## Agreement with AI reference labels
 
 | | macro-F1 | accuracy |
 | --- | --- | --- |
@@ -194,7 +204,7 @@ probability, never a raw SVM margin.
 | **test** (opened once, {test['opened_on']}) | **{test['macro_f1']:.3f} [{test['macro_f1_low']:.3f}, {test['macro_f1_high']:.3f}]** | {test['accuracy']:.3f} |
 
 With abstention on test: **{test['coverage']:.1%} of articles filed at
-{test['accuracy_filed']:.1%} accuracy**, against {test['accuracy_without_abstention']:.1%}
+{test['accuracy_filed']:.1%} AI-label agreement**, against {test['accuracy_without_abstention']:.1%}
 if it is forced to answer everything.
 
 Calibration error (ECE): validation {val['ece']:.3f}, test {test['ece']:.3f}.
@@ -212,11 +222,11 @@ McNemar p={ab['mcnemar_p']:.1e}).
 ## Known limits
 
 - `society_lifestyle` is a definitional grab-bag (community + labour + lifestyle) and
-  scores F1 ~0.42. It still calibrates honestly, so abstention protects it.
+  scores F1 ~0.42. Its calibration and abstention results are against AI labels only.
 - `education` has {next((c['support'] for c in val['per_class'] if c['topic'] == 'education'), 0)}
   validation articles; read its F1 as noise, not as a measurement.
-- ~18.6% of errors sit on class pairs where human annotators themselves disagreed, so
-  macro-F1 has a real ceiling well below 1.0.
+- ~18.6% of model/reference mismatches sit on historical annotation-disagreement pairs.
+  D16 withdraws their human origin; this does not establish a macro-F1 ceiling below 1.0.
 - Trained on a 4-day collection window, so nothing here measures drift over weeks.
 - English only, and India-heavy: 40 publishers, mostly Indian mastheads plus The
   Guardian, BBC and France 24.

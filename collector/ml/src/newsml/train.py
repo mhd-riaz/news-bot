@@ -1,15 +1,20 @@
-"""Fit the shipping classifier, choose its abstention cuts, and write the bundle.
+"""Fit the legacy v1 classifier, choose abstention cuts and write a local bundle.
 
-This is the one place a model is produced. It reads a frozen snapshot, so the
+This is the v1 study's training entry point, not the current sidecar or V4 trainer.
+It reads a frozen snapshot, so the
 answer to "what data made this?" is a directory name rather than a memory of
 which day the database was read.
 
+All historical classifier labels are AI-generated (roadmap D16, 22 Nov 2026).
+Legacy human-origin model-card wording is superseded, not human-validation
+evidence. Scores and thresholds measure agreement with the recorded AI labels.
+
 Three decisions are made here and each is a measurement rather than a preference:
 
-* **Which rung ships.** `tfidf_linear_svc` wins on macro-F1 but emits a margin
+* **Which rung is saved.** `tfidf_linear_svc` wins on macro-F1 but emits a margin
   with no scale that compares across classes, and a confidence threshold needs
   one. So the candidates are narrowed to rungs that can say how sure they are,
-  and the best of those ships — after the cost of calibration is measured, not
+  and the best of those is saved — after the cost of calibration is measured, not
   assumed.
 * **Where each class's cut sits.** Chosen on validation, per class, against a
   precision target. See `thresholds`.
@@ -210,10 +215,10 @@ def _model_card(manifest: dict, cuts: thresholds_mod.Thresholds, data: Dataset) 
         f"| scikit-learn | {manifest['runtime']['scikit_learn']} |",
         f"| Serving | {manifest['serving']} |",
         "",
-        "Every label it was trained on is human. Weak labels derived from RSS section",
-        "names agree with a person only about 74% of the time and cannot express",
-        "`crime_justice`, `conflict_war` or `disaster_accident` at all, because no",
-        "publisher runs those sections.",
+        "All classifier reference annotations are AI-generated (D16), not human gold.",
+        "RSS-section weak labels agree with the recorded AI references only about 74%",
+        "and cannot express `crime_justice`, `conflict_war` or `disaster_accident` in this",
+        "legacy source mapping. Scores below are AI-label agreement, not human accuracy.",
         "",
         "## How it scored",
         "",

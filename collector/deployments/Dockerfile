@@ -1,4 +1,4 @@
-# Build context is the repository root:
+# Build context is collector/; run from that directory:
 #   docker build -f deployments/Dockerfile .
 
 FROM golang:1.27-alpine AS build

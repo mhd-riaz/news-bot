@@ -74,7 +74,7 @@ const (
 	// to catch nav furniture and bot-check pages, which come in far below it.
 	MinScrapedWords = 80
 
-	// FullTextWords is the length above which a feed item is assumed to already
+	// FullTextWords is the length at which a feed item is assumed to already
 	// hold the whole story, so no fetch is attempted. A teaser is seldom this
 	// long, and anything below it may still have more text on the page — the
 	// never-regress rule in BetterContent is what makes guessing wrong cheap.
@@ -110,8 +110,8 @@ var (
 	// ErrExtractionEmpty means no extractor found usable text on the page.
 	ErrExtractionEmpty = errors.New("domain: no article text could be extracted")
 
-	// ErrNoNewContent means the extraction was not an improvement on what is
-	// already stored, so the article is left alone.
+	// ErrNoNewContent means the extraction did not pass the body-length guard.
+	// The stored body is retained; page dates or missing images may still change.
 	ErrNoNewContent = errors.New("domain: scrape produced nothing better than the stored content")
 )
 
@@ -147,9 +147,8 @@ func RetryableScrapeStatuses() []ScrapeStatus {
 	}
 }
 
-// HasFullText reports whether the stored content is the whole article, whether
-// it arrived in the feed or was fetched afterwards. This is the filter a
-// consumer wants when it needs article bodies rather than headlines.
+// HasFullText reports whether the feed met the length heuristic or an accepted
+// page body was stored. It does not verify that the publisher's story is complete.
 func (s ScrapeStatus) HasFullText() bool {
 	return s == ScrapeStatusSuccess || s == ScrapeStatusNotNeeded
 }
@@ -179,8 +178,8 @@ func WordCount(s string) int { return len(strings.Fields(s)) }
 // judged only by how much text it actually delivered. Anything shorter than a
 // whole story is worth one fetch, because the page may hold more — The Guardian
 // sends 96 words and its page yields 427; The Verge sends 139 and yields 395.
-// Guessing wrong is cheap: BetterContent refuses to replace good text with bad,
-// so a wasted fetch costs a request and nothing else.
+// BetterContent prevents replacement by a shorter body; a fetch may still
+// improve page-date or image metadata without replacing the body.
 //
 // This subsumes the teaser shapes seen in the wild, including a publisher that
 // repeats its summary as the content: that content is short, so it qualifies.
@@ -193,9 +192,8 @@ func NeedsScrape(a *Article) bool {
 
 // BetterContent reports whether candidate should replace existing.
 //
-// This is the guard that stops enrichment destroying data. A page whose body is
-// rendered client-side yields a few dozen words of navigation furniture, and
-// overwriting a good feed article with that is worse than never scraping at all.
+// This length guard rejects short extractions and bodies no longer than the
+// stored one. Word count is a safeguard, not a semantic-quality check.
 func BetterContent(existing, candidate string) bool {
 	c := WordCount(candidate)
 	if c < MinScrapedWords {

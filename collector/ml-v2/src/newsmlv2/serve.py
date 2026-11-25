@@ -1,8 +1,7 @@
-"""The shipping model: fit it once, persist it, classify one article at a time.
+"""The body-aware v2 sidecar recipe: fit, persist and classify articles.
 
-Everything up to Phase H answered "is this model any good?". This module answers the
-only question left over, which is "how does a person use it?" -- and it is deliberately
-the *same* model, not a convenient approximation of it:
+This is the frozen Phases C-H classifier, not the separate V4 candidate. It
+persists the measured recipe rather than substituting a different model:
 
 * fitted on **train only**, because every number in `docs/plan.md` was produced by a
   train-only fit. Refitting on train+val would ship a model that no reported figure
@@ -16,7 +15,9 @@ the *same* model, not a convenient approximation of it:
   anything the model is scored on.
 
 A `LinearSVC` margin is a signed distance from a hyperplane, so nothing here ever
-returns one. Confidence is always a calibrated probability.
+returns one. Confidence is calibrated against the recorded labels. All historical
+classifier labels are AI-generated (roadmap D16, 22 Nov 2026); these probabilities
+are not demonstrated correctness rates against human judgement.
 """
 
 from __future__ import annotations
@@ -85,7 +86,7 @@ class Prediction:
 
     @property
     def filed(self) -> bool:
-        """Confident enough to file without a human reading it."""
+        """At or above the bundle's confidence cut; not a human-validation claim."""
         return self.band == AUTO
 
     @property

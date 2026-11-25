@@ -14,7 +14,7 @@ import (
 // SourceType is the feed dialect a source publishes.
 type SourceType string
 
-// The feed dialects Phase 1 collects. Anything else is rejected at the boundary.
+// The supported feed dialects. Anything else is rejected at the boundary.
 const (
 	SourceTypeRSS  SourceType = "rss"
 	SourceTypeAtom SourceType = "atom"
@@ -221,8 +221,8 @@ func (s *Source) RecordSuccess(now time.Time) {
 // off. reason must be a fixed, caller-safe phrase: it is served by the source
 // API, so it must never carry a driver message or a host name.
 //
-// LastCollectedAt is deliberately left alone. It answers "when did this feed
-// last give us articles", and a failed attempt is not an answer to that.
+// LastCollectedAt is deliberately left alone. It records the last successful
+// poll, including a 304 or a poll with no new articles.
 func (s *Source) RecordFailure(now time.Time, reason string) {
 	now = storedTime(now)
 

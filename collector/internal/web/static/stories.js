@@ -8,7 +8,7 @@
     tfidf: { name: "TF–IDF", note: "TF–IDF · similarities in weighted words. A more literal lens on article content." },
     svd: { name: "SVD", note: "SVD · similarities in a reduced content space. Another view of the same archive." },
   };
-  // ponytail: 50 preferences per side and the last 2,000 views per snapshot; upgrade to server history only if this local ceiling is insufficient.
+  // Preferences and viewed IDs belong to a browser-local profile keyed by snapshot.
   const PREFERENCE_LIMIT = 50;
   const HISTORY_LIMIT = 2000;
   // A lead story and eight rows of three, then whole rows; the service caps one request at 30.

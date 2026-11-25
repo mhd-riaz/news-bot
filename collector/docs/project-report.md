@@ -2,6 +2,17 @@
 
 **Semester 1 mini-project report — Supervised Machine Learning (Classification)**
 
+**Historical report, not the current product guide.** This document records the August
+classifier study; its corpus sizes, architecture, model comparisons and remaining-work
+table are dated evidence, not today's feature inventory. See the [collector guide](../readme.md),
+[AFTERLINE guide](recommender.md) and [roadmap](roadmap.md) for the current product.
+
+**Label-provenance correction (reviewed 25 Nov 2026):** the owner's
+[22 November correction, D16](roadmap.md#7-open-decisions-owner), establishes that all
+old and new classifier label datasets were AI-generated. The numerical results below
+are retained as agreement with those labels, not human-validated accuracy. Historical
+`gold` filenames do not establish human review; the human-validation target is not met.
+
 | | |
 | --- | --- |
 | Student | Mohamed Riaz |
@@ -9,7 +20,7 @@
 | Course | Supervised ML — Classification (Semester 1) |
 | Project | Regional news collection, topic classification and edition assembly |
 | Report date | 26 August 2026 |
-| Repository | `semester-1/06-supervised-ml-classification/mini-project/news` |
+| Repository location at report date | `semester-1/06-supervised-ml-classification/mini-project/news` (historical; current repository is [news-bot](../../README.md)) |
 
 ---
 
@@ -48,7 +59,8 @@ A news reader sees the same story five times because five publishers ran the sam
 copy, and sees it filed under whatever section the publisher happened to choose. The
 goal here was a newspaper that organises itself: it decides what a story is about, folds
 syndicated copies of the same story together, and assembles a front page — all from
-classical machine learning, with no large language model anywhere in the pipeline.
+classical machine learning in the classifier itself. AI was used to create the reference
+labels; the earlier claim of no large language model anywhere in the process is withdrawn.
 
 That constraint is deliberate. The point of the exercise is to show that the techniques
 covered this semester are sufficient for a real product, and to be able to explain every
@@ -57,22 +69,23 @@ prediction the system makes.
 ### 1.2 Objectives
 
 1. Collect a real, continuously growing news corpus reliably and lawfully.
-2. Produce a hand-labelled gold dataset large enough to train and honestly evaluate a
+2. Produce a human-reviewed reference dataset large enough to train and honestly evaluate a
    multi-class classifier.
 3. Build and evaluate a topic classifier over a fixed 13-class taxonomy, reporting
    uncertainty rather than point estimates.
 4. Give the model a defensible way to say "I don't know" instead of guessing.
 5. Assemble the output into a dynamic e-newspaper.
 
-Objectives 1–4 are complete. Objective 5 is designed and partially built; §9 states
-exactly what remains.
+Collection and classifier tooling were implemented, but objective 2 is **not met**:
+the existing reference labels are AI-generated, not human-reviewed. The remaining-work
+table records the August plan only; current work and acceptance are tracked in the roadmap.
 
 ### 1.3 Scope and constraints
 
 Four hard constraints shaped every decision:
 
-- **No LLMs**, at training or inference. Transformer encoders were tested once, as a
-  measured baseline, and rejected on the numbers.
+- **No generative model in classifier fitting or online inference.** AI-generated
+  reference labels were used. Transformer encoders were tested as a measured baseline.
 - **Serving fits in 2 GB RAM** on an 8 GB home server. Training happens offline on a
   laptop, so the serving budget never distorts the modelling.
 - **The test split is touched exactly once.** A test split consulted during tuning is a
@@ -145,10 +158,10 @@ version was tried and abandoned: a like-for-like test showed the finer model sco
 resolution bought nothing, and the classes that failed did so because they were not
 linguistically distinct, not because they were thin.
 
-Labels are **8,001 hand-labelled articles** collected over four blind rounds. Sheets
-were sharded four ways with a 40-article overlap block so inter-annotator agreement
-could be measured, and no proposed class name ever appeared on a sheet — a labeller
-shown a suggestion rubber-stamps it.
+Labels are **8,001 AI-labelled articles** collected over four rounds. The original
+hand-labelled attribution is superseded by D16. Sheets were sharded four ways with a
+40-article overlap block and no proposed class name. That overlap can describe consistency
+of the supplied labels, not independent human agreement.
 
 | Class | Labelled | Share |
 | --- | ---: | ---: |
@@ -173,11 +186,12 @@ just finished merging, or throws away real data.
 ### 3.3 Weak labels, and why they were retired
 
 An early design used the publisher's own RSS section as a free training label. Measured
-against human labels, the weak labeller agreed only **73.8%** of the time where it fired
+against the AI-generated reference labels, the weak labeller agreed only **73.8%** of the time where it fired
 at all, and covered just 66% of articles. Worse, it can never express `crime_justice`,
 `conflict_war` or `disaster_accident`, because no publisher runs a "Crime" or "War"
 section — those stories hide inside the general national feed. Weak labels were dropped
-from training entirely. Every label the shipping model saw is human.
+from this historical training recipe. The retained reference labels were AI-generated,
+not human labels.
 
 ### 3.4 Label noise is a real ceiling
 
@@ -462,10 +476,9 @@ recorded decision, not an unmeasured default.
 - **Four days of collection.** Publication dates span a year, but arrival times span four
   days. Nothing in this report says anything about concept drift, and any claim that it
   does would be unsupported.
-- **A single annotator produced most labels.** The overlap block measures self-consistency,
-  not inter-annotator agreement. After three rounds it reported zero disagreements, which
-  means label noise is no longer estimable from it — 100% self-agreement is not evidence
-  of correctness.
+- **AI-generated reference labels.** The overlap block does not measure independent
+  human agreement. Its recorded zero disagreements after three rounds are not evidence
+  of correctness or a substitute for human validation.
 - **The corpus is Indian-English-dominant.** The Guardian and BBC provide an
   out-of-distribution check, and the model loses about 0.045 macro-F1 on The Guardian,
   which is the honest generalisation figure to quote.
@@ -480,6 +493,10 @@ recorded decision, not an unmeasured default.
 ---
 
 ## 10. Remaining work
+
+This is the historical August plan, not an active backlog. Later classifier/sidecar work
+and the local AFTERLINE demo are recorded in the [roadmap](roadmap.md); none of this
+table's old status labels overrides those records.
 
 | Phase | Content | State |
 | --- | --- | --- |
@@ -514,6 +531,10 @@ model on a +0.001 difference and believed I had improved something.
 
 ## Appendix A — Reproducing the results
 
+These are historical study commands and require the original private data and artifacts.
+Do not overwrite a recorded snapshot/model or reopen a sealed test split. For current
+setup and new work, use the linked collector and AFTERLINE guides.
+
 ```bash
 # Go collector gates
 make check && make test-race && make test-integration
@@ -522,7 +543,7 @@ make check && make test-race && make test-integration
 make ml-snapshot CUT=2026-08-26T12:00:00+00:00
 make ml-verify
 
-# Fit the shipping model, choose its per-class cuts, write the bundle + card
+# Historical classifier fit; do not overwrite the recorded artifact
 make ml-train SNAPSHOT=data/snapshots/20260826-120
 
 # Version 2 experiments (from ml-v2/)

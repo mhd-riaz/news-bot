@@ -7,8 +7,7 @@ import (
 	"unicode"
 )
 
-// Bounds for a feed item. A feed is remote, third-party input, so every string
-// that reaches the database is capped here rather than trusted to be sane.
+// Bounds for remote, third-party feed fields before article construction.
 const (
 	MaxItemTitleLength    = 500
 	MaxItemLinkLength     = 2048
@@ -23,8 +22,8 @@ const (
 )
 
 // FeedItem is one entry exactly as a feed published it, after the collector has
-// trimmed and bounded it. Deduplication, HTML sanitisation and enrichment
-// belong to the processing pipeline in Milestone 4; this type deliberately
+// trimmed and bounded it. Article construction and the processor handle text
+// normalisation and deduplication; page enrichment runs separately. This type
 // carries the publisher's values rather than a normalised article.
 type FeedItem struct {
 	Title      string

@@ -1,13 +1,14 @@
-"""Build the mini-project slide deck.
+"""Build the historical August 2026 classifier slide deck.
 
-Run with no install:
+Run from collector/ with the optional slide-building dependency:
 
     uv run --with python-pptx python submission/slides/build_deck.py
 
-Numbers are read from the trained model's `metrics.json` wherever possible, so the deck
-cannot quote a figure the shipped model does not produce. The few that come from closed
-experiments (the model ladder, the ensemble oracle) are constants here and are marked as
-such in `docs/plan.md`.
+Model metrics are read from the private v2-001 artifact; closed-experiment figures
+remain historical constants. Do not retrain over that artifact or reopen its test set.
+All classifier reference labels were AI-generated (roadmap D16), so these figures
+measure AI-label agreement, not human-validated accuracy. Current product setup and
+status are in readme.md, docs/recommender.md and docs/roadmap.md.
 """
 
 from __future__ import annotations
@@ -161,8 +162,8 @@ def build(m: dict) -> Presentation:
     run.text = "Mohamed Riaz  ·  PES1PGE25DS037"
     _, run = _text(s, Inches(1.0), Inches(5.1), Inches(11.3), Inches(0.5), size=16,
                    color=MUTED)
-    run.text = ("Supervised Machine Learning — Classification  ·  Mini Project  ·  "
-                "Department of CSE, PES University")
+    run.text = ("Historical August 2026 study  ·  AI-generated reference labels  ·  "
+                "Not human-validated accuracy")
 
     # --- 2. problem ---------------------------------------------------------
     s = _blank(prs)
@@ -174,9 +175,9 @@ def build(m: dict) -> Presentation:
         "sections are a newsroom habit, not a fact about the article.",
         "My job: give every article one topic from a fixed list of 13, no matter who "
         "published it.",
-        ("Rule I set for myself: only the classical ML from this course. No ChatGPT, no "
-         "LLM anywhere. If the model says sport, I must be able to point at the words "
-         "that made it say sport.", 1),
+        ("The classifier fits and scores with classical ML. AI generated the reference "
+         "labels; that is separate from the classifier itself. Its word weights can "
+         "explain a prediction.", 1),
     ])
     note(s, "The 13 topics: politics · business · crime and justice · technology · sport · "
             "entertainment · health · education · science and space · environment · "
@@ -201,7 +202,7 @@ def build(m: dict) -> Presentation:
 
     # --- 4. system ----------------------------------------------------------
     s = _blank(prs)
-    heading(s, "What was built", kicker="System")
+    heading(s, "The August study system", kicker="Historical system")
     stages = [
         ("Collector", "Go service, 97 RSS/Atom feeds\n→ MongoDB, deduplicated"),
         ("Preparation", "clean · admit · group\nnear-duplicate stories"),
@@ -232,8 +233,9 @@ def build(m: dict) -> Presentation:
             arrow.fill.solid()
             arrow.fill.fore_color.rgb = MUTED
             arrow.line.fill.background()
-    note(s, "Nothing is deployed. This is a proof of concept. Build it, measure it "
-            "properly, then decide if it is worth putting anywhere near production.",
+    note(s, "This is the historical classifier study, not today's deployment inventory. "
+            "The collector and local AFTERLINE reader have separate setup and status "
+            "in the project roadmap.",
          top=Inches(5.0))
 
     # --- 5. data ------------------------------------------------------------
@@ -242,7 +244,7 @@ def build(m: dict) -> Presentation:
     table(s, [
         ["", "Value"],
         ["Articles collected", "14,189 from 40 publishers"],
-        ["Articles I labelled by hand", "8,001"],
+        ["AI-labelled reference articles", "8,001"],
         ["Articles where the full body was available", "94.3%"],
         ["Biggest class vs smallest class", "6.7 : 1"],
         ["Train / validation / test",
@@ -299,12 +301,12 @@ def build(m: dict) -> Presentation:
     heading(s, "The confusion matrix, all 13 topics", kicker="Chapter 07 §2")
     charted = picture(s, "confusion.png", Inches(0.8), Inches(1.85), Inches(6.6))
     bullets(s, [
-        "Rows are the true topic. Columns are what my model said. The diagonal is what "
-        "it got right.",
+        "Rows are the AI reference label. Columns are the model prediction. The diagonal "
+        "shows agreement, not verified human correctness.",
         "Politics is the dustbin. It wrongly takes 13 business stories, 13 society "
         "stories and 10 conflict stories.",
         ("Fair enough, honestly. A story about the budget IS both business and "
-         "politics. My labellers argued about the same pairs.", 1),
+         "politics. The AI reference labels disagree on the same pairs.", 1),
         "Society and lifestyle is the weak row. Only 25 of its 66 articles land on the "
         "diagonal. The rest scatter everywhere.",
         "Sport is the clean row: 89 out of 91. Cricket and football vocabulary does not "
@@ -466,7 +468,7 @@ def build(m: dict) -> Presentation:
             f"the training data, check how often a score of that size is actually "
             f"correct, and use that fraction as the confidence. Left chart: the dots "
             f"should sit on the dotted line, and they nearly do. When it claims 0.9 it "
-            f"is right about 9 times in 10. Average gap is {test['ece']:.3f} on test. "
+            f"matches the AI label about 9 times in 10. Average gap is {test['ece']:.3f} on test. "
             f"Chapter 07 §7 warns that AUC cannot see this at all.", top=Inches(5.6))
 
     # --- 12. abstention -----------------------------------------------------
@@ -475,21 +477,20 @@ def build(m: dict) -> Presentation:
     formula(s, ["Coverage = articles it answered / all articles"], Inches(1.9),
             size=18)
     table(s, [
-        ["On the held-out test set", "coverage", "accuracy on what it filed"],
+        ["On the held-out AI-label test set", "coverage", "AI-label agreement"],
         ["forced to answer everything", "100%", f"{test['accuracy_without_abstention']:.1%}"],
         [f"stays quiet below {test['cut']:.3f}", f"{test['coverage']:.1%}",
          f"{test['accuracy_filed']:.1%}"],
     ], top=Inches(2.8), height=Inches(0.5), highlight=2, size=16)
     bullets(s, [
         "Chapter 07 §4 moves the threshold to trade precision against recall. I move the "
-        "same threshold, but instead of flipping the answer I hold the article back and "
-        "send it to a person.",
+        "same threshold, but instead of forcing an answer I hold the article for review.",
         "The cut-off is chosen on training data only, at the point where precision hits "
         "90%. It never looks at validation or test.",
         "One cut-off for all 13 topics. Separate cut-offs per topic gained nothing, "
         "because calibration had already put every topic on the same scale.",
-        "It doubts the right things. On 63 articles that my labellers could not classify "
-        "either, the median confidence is 0.70 against 0.81 on the rest.",
+        "On 63 articles labelled uncertain by AI, the median confidence is 0.70 against "
+        "0.81 on the rest. This is not human validation of uncertainty.",
     ], top=Inches(4.4), size=15)
 
     # --- 13. test split -----------------------------------------------------
@@ -526,8 +527,8 @@ def build(m: dict) -> Presentation:
          "that as noise, not as a result.", 1),
         "Society and lifestyle is the genuine failure. Recall 0.38, so it misses 41 of "
         "its 66 articles. It is three ideas stuck together: community, jobs, lifestyle.",
-        "About 19% of all mistakes are on topic pairs where my own labellers disagreed "
-        "with each other. So there is a ceiling here well below a perfect score.",
+        "About 19% of disagreements are on topic pairs where the AI reference labels "
+        "also disagree. This does not establish a ceiling on human-validated accuracy.",
     ], top=Inches(2.0),
         left=Inches(7.6) if charted else Inches(0.7),
         width=Inches(5.0) if charted else Inches(11.9),
@@ -583,8 +584,8 @@ def build(m: dict) -> Presentation:
         "Conflict and war has only 120 training articles and dropped 0.14 on the test "
         "set. A thin class behaving like a thin class. I flagged that before opening "
         "the test set, not after.",
-        "Most of the labelling was done by one person, me. So I cannot measure how noisy "
-        "the labels are by comparing two labellers.",
+        "All reference labels were AI-generated, including those earlier described as "
+        "human labels. Human validation remains not met (roadmap D16).",
         "I do not report ROC or AUC. Chapter 07 §7 says AUC only scores ranking and "
         "ignores whether the probabilities are honest, and honest probabilities are the "
         "whole basis of my abstention. So I measured that instead.",
@@ -601,12 +602,11 @@ def build(m: dict) -> Presentation:
         "Trees, forests, boosting and voting, the entire ensemble half of the course, "
         "all scored below one plain linear model. The classifier was never my problem. "
         "Cleaning the data was.",
-        f"Adding an honest confidence and the right to stay quiet turned a "
-        f"{test['accuracy_without_abstention']:.1%} accurate model into one that answers "
-        f"{test['coverage']:.1%} of new articles and gets "
-        f"{test['accuracy_filed']:.1%} of those right.",
-        f"Final score on the test set: macro-F1 {test['macro_f1']:.3f}, opened once, "
-        "never reopened.",
+        f"With abstention, AI-label agreement changes from "
+        f"{test['accuracy_without_abstention']:.1%} on all test articles to "
+        f"{test['accuracy_filed']:.1%} on the {test['coverage']:.1%} it files.",
+        f"Historical AI-label test macro-F1: {test['macro_f1']:.3f}, opened once, "
+        "never reopened. This is not human acceptance.",
     ])
     _, run = _text(s, Inches(0.7), Inches(5.8), Inches(11.9), Inches(0.8), size=22,
                    bold=True, color=ACCENT)

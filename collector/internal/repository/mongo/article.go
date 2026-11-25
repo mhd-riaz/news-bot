@@ -102,7 +102,8 @@ func (r *ArticleRepository) GetByID(ctx context.Context, id string) (*domain.Art
 	return r.findOne(ctx, bson.D{{Key: "_id", Value: id}})
 }
 
-// GetByIDs hydrates a bounded ranked page in one query without transferring full bodies.
+// GetByIDs hydrates a bounded ranked page in one query, excluding raw content
+// and summary. C1 derived fields are not projected away.
 func (r *ArticleRepository) GetByIDs(ctx context.Context, ids []string) ([]domain.Article, error) {
 	if len(ids) > 30 {
 		return nil, errors.New("mongo: article batch must contain at most 30 IDs")
@@ -132,8 +133,8 @@ func (r *ArticleRepository) GetByIDs(ctx context.Context, ids []string) ([]domai
 //
 // One more article than the caller asked for is read, which is how the page
 // knows whether another one follows without counting the whole match. The
-// content is projected away: fifty articles at up to 200 KB each is a response
-// nobody wants, and a caller who needs the text reads the article itself.
+// raw content is projected away to keep pages small. A caller who needs the
+// body reads the article itself.
 func (r *ArticleRepository) List(ctx context.Context, filter domain.ArticleFilter) (domain.ArticlePage, error) {
 	field := articleSortField(filter.Sort)
 

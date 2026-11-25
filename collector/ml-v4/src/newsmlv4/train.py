@@ -1,19 +1,22 @@
 """Choose, calibrate and save the V4 topic classifier with explicit label provenance.
 
-The V4 labels are few and lopsided: the first run has 2,278 topical articles, from
-457 `technology` down to 25 `disaster_accident`. Three rules follow.
+The first run's 2,278 topical annotations motivated the stratified protocol below.
+The later D16 pool has a separate AI-label input path. All existing classifier
+labels, including round 1 formerly called human gold, are AI-generated (owner
+correction, 22 Nov 2026). Scores and calibration on that pool measure AI-label
+agreement only; human validation is not met and no local candidate is promoted.
 
-* **Every split is stratified.** The article IDs carry no publication order (their
-  embedded timestamps all fall within four hours on 10 Nov), and a temporal 70/15/15
-  split would leave about four disaster articles to validate on. A stratified test
+* **Every split is stratified.** In the original round-1 export, IDs had timestamps
+  within four hours on 10 Nov, not publication order; a temporal 70/15/15 split
+  would have left about four disaster articles to validate on. A stratified test
   split is sealed first; the rung is chosen inside the rest with repeated stratified
   K-fold, so every fold scores every class.
 * **Complexity has to earn its place.** Every rung is scored on the same folds, so
-  the differences are paired. The best mean ships only if a corrected resampled
+  the differences are paired. The best mean is saved only if a corrected resampled
   t-test separates it from every simpler rung; otherwise the simplest rung it cannot
-  be separated from ships instead.
+  be separated from is saved instead.
 * **The test split is opened once,** after the rung, the calibration and the cut are
-  frozen. A model directory for the same gold is never overwritten.
+  frozen. A model directory for the same primary label corpus is never overwritten.
 
 The ladder reuses ml-v2's measured rungs and adds what its Phase E did not try on
 short text: frozen sentence embeddings, which bring outside knowledge to classes with
@@ -21,7 +24,7 @@ a few dozen labels, a lexical-plus-semantic linear model, and a small neural net
 Trees are left out: Phase E measured them 0.04-0.09 macro-F1 behind the linear
 models on this kind of text.
 
-The winner ships the way ml-v2 ships its model: five cross-fitted base models, each
+The local winner uses ml-v2's recipe: five cross-fitted base models, each
 with its own calibrator, averaged, plus one global confidence cut read from
 out-of-fold probabilities. Below the cut it answers `unsorted`.
 """
@@ -86,20 +89,20 @@ EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"  # ml-v2 Phase E4's e
 EMBEDDING_REVISION = "1110a243fdf4706b3f48f1d95db1a4f5529b4d41"
 EMBEDDING_BATCH = 32
 MLP_FEATURES = 20_000
-# A `rung+weak` ladder entry also fits on AI-agent labels; scoring stays human-only.
+# Only the genuine-human --run path adds +weak rungs; the D16 pool is a separate input.
 WEAK_SUFFIX = "+weak"
 WEAK_CONFIDENCE = ("high", "medium")
 
 V2_RUNGS = ("majority", "complement_nb", "tfidf_logreg", "tfidf_linear_svc", "word_char_svc")
 EMBEDDING_RUNGS = ("minilm_logreg", "hybrid_svc")
-# Simplest first: when rungs cannot be separated, the earlier one ships.
+# Simplest first: when rungs cannot be separated, the earlier one is saved.
 LADDER = V2_RUNGS + EMBEDDING_RUNGS + ("keras_mlp",)
 
 Encoder = Callable[[list[str]], np.ndarray]
 
 
 def text_for(title: str, summary: str) -> str:
-    """Model input: the title and summary the reviewers labelled. Training and serving share it."""
+    """Local V4 input: the annotated title and summary, not the sidecar's body recipe."""
     return f"{title.strip()}\n{summary.strip()}"
 
 
@@ -413,7 +416,7 @@ def _rung(name: str) -> tuple[str, bool]:
 
 
 def _with_weak(x: np.ndarray, y: np.ndarray, weak: Weak | None, name: str) -> tuple[np.ndarray, np.ndarray]:
-    """The rows one fit sees: the human rows, plus the weak rows when the entry asks for them."""
+    """Primary fold rows, plus training-only weak rows when the entry asks for them."""
     if weak is None or not _rung(name)[1] or not len(weak.labels):
         return x, y
     return np.concatenate([x, weak.texts]), np.concatenate([y, weak.labels])
@@ -699,8 +702,9 @@ def cross_validate(
 ) -> dict[str, RungResult]:
     """Score every rung on the same repeated stratified folds, so comparisons are paired.
 
-    A `+weak` entry fits on the fold's human rows plus every weak row, and is scored on
-    the same held-out human rows as everything else.
+    On the genuine-human path, a `+weak` entry fits on the fold's human rows plus
+    every weak row; weak rows never score it. The separate D16 pooled path fits
+    and scores its declared AI-label corpus, without `+weak` entries.
     """
     splits = list(
         RepeatedStratifiedKFold(n_splits=folds, n_repeats=repeats, random_state=seed).split(x, y)
@@ -771,8 +775,8 @@ def select(
 ) -> tuple[str, str, dict[str, Comparison]]:
     """The best mean, then the simplest rung the best cannot be separated from.
 
-    Every human-only rung counts as simpler than every `+weak` entry, so AI-agent labels
-    ship only when they measurably beat human labels alone.
+    Every primary-corpus-only rung counts as simpler than every `+weak` entry,
+    so optional weak labels are kept only when they measurably improve the result.
     Returns (best by mean, chosen, comparisons against the best).
     """
     ladder = (*LADDER, *(rung + WEAK_SUFFIX for rung in LADDER))
@@ -790,7 +794,7 @@ def select(
     return best, chosen, comparisons
 
 
-# --- Calibration, cut and the shipped model -------------------------------------
+# --- Calibration, cut and the saved local classifier ---------------------------
 
 
 @dataclass(frozen=True, slots=True)
@@ -816,7 +820,7 @@ def calibrate(base: Pipeline, x: np.ndarray, y: np.ndarray, method: str) -> Cali
 
     One explicit all-rows split is scikit-learn's documented meaning for a frozen
     estimator. Its default 5-fold split adds only a check that fails whenever a class
-    has fewer than five calibration rows, which the thin V4 classes always have.
+    has fewer than five calibration rows, as happened in early thin-class experiments.
     """
     rows = np.arange(len(y))
     return CalibratedClassifierCV(FrozenEstimator(base), method=method, cv=[(rows, rows)]).fit(x, y)
@@ -837,8 +841,8 @@ def cross_fit(
 
     Plain stratified folds rather than ml-v2's grouped ones: every V4 article is its own
     story group, and this splitter puts every class into every calibration fold. Weak
-    rows, when the entry uses them, join the base model's fit only; calibrators see
-    human rows alone.
+    rows, when the entry uses them, join the base model's fit only. Calibrators see
+    the primary corpus's labels: AI labels for D16, human labels for genuine human runs.
     """
     fitted = []
     for fit_idx, cal_idx in StratifiedKFold(n_splits=folds, shuffle=True, random_state=seed).split(x, y):
@@ -1012,7 +1016,7 @@ def run(
         folds=folds,
         accept_shortfall=accept_shortfall,
     )
-    # Keyed by the human gold alone: the test split depends on nothing else, so adding
+    # Keyed by the primary label corpus: the test split depends on nothing else, so adding
     # weak labels later must not become a second opening of the same test split.
     prefix = "v4-ai" if ai_labels else "v4"
     directory = out or data_root / MODELS_DIR / f"{prefix}-{gold.digest[:12]}"

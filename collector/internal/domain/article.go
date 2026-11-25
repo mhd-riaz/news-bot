@@ -20,10 +20,9 @@ type ProcessingStatus string
 type PublicationDateSource string
 
 // The stages an article passes through. Collection produces "collected";
-// enrichment promotes an article to "enriched" once its stored text is the whole
-// story, whether the feed supplied it or a fetch did. An article whose full text
-// could not be obtained stays "collected", which is an honest description of
-// what is held rather than a failure flag.
+// "enriched" means the feed met the full-text length heuristic or a page fetch
+// supplied an accepted replacement. Neither guarantees the complete story.
+// Articles without either remain "collected".
 const (
 	ProcessingStatusCollected ProcessingStatus = "collected"
 	ProcessingStatusEnriched  ProcessingStatus = "enriched"
@@ -40,8 +39,8 @@ func (p ProcessingStatus) Valid() bool {
 	return p == ProcessingStatusCollected || p == ProcessingStatusEnriched
 }
 
-// Bounds for a stored article. The text fields reuse the feed item's bounds,
-// because an article is what a feed item becomes.
+// Bounds applied when constructing or normalising an article from a feed.
+// Page enrichment and sidecar responses have their own input limits.
 const (
 	MaxArticleSummaryLength = MaxItemSummaryLength
 	MaxArticleContentLength = MaxItemContentLength
@@ -59,8 +58,9 @@ const (
 type Article struct {
 	ID string `bson:"_id"`
 
-	// DedupID is the single unique key the database uses to settle a race
-	// between two collectors inserting the same article at the same time.
+	// DedupID hashes the canonical feed identifier, or the normalized URL.
+	// It is globally unique alongside normalized_url; source_id + feed_guid
+	// supplies the separate source-scoped uniqueness constraint.
 	DedupID string `bson:"dedup_id"`
 
 	SourceID string `bson:"source_id"`

@@ -1,12 +1,14 @@
 """Weak labels, their provenance, and how disagreement between them is resolved.
 
-Provenance is load-bearing: every label records where it came from, so a
-publisher prior, a publisher's category and a human decision stay distinguishable
-after the fact and can be measured against one another.
+The legacy source tags distinguish imported overrides, publisher priors and
+publisher categories. ``LabelSource.HUMAN`` is a compatibility name, not proof
+of authorship: all existing classifier annotations are AI-generated under
+roadmap D16 (22 Nov 2026).
 
-Two signals are available before any human looks at an article: the topic its
+Two weak signals come directly from an article's metadata: the topic its
 publisher mostly covers, and the publisher's own categories. Neither is trusted
-alone — the pilot gold set measured a lone signal at 58% group-level agreement.
+alone — the historical pilot measured a lone signal at 58% group-level agreement
+with its imported annotations, not human-validated accuracy.
 Where the two concur the label is accepted; otherwise the article goes to review.
 """
 
@@ -20,7 +22,7 @@ from .load import Article
 
 
 class LabelSource(StrEnum):
-    """Where a label came from. Ordered by how much it should be trusted."""
+    """Legacy label-source tags; HUMAN does not certify human authorship."""
 
     HUMAN = "human"
     FEED = "feed"
@@ -28,10 +30,8 @@ class LabelSource(StrEnum):
     CATEGORY = "category"
 
 
-# A human decision is final. A section feed is structural: everything on
-# theguardian.com/sport/rss is sport. A publisher prior is not — the pilot caught
-# it naming the wrong group 42% of the time — and a publisher's own categories
-# are noisier still, since publishers fragment and reuse their vocabulary freely.
+# Imported overrides win under the legacy HUMAN tag. Feed sections precede
+# publisher/category guesses; this ordering is policy, not validated label truth.
 _PRIORITY = {
     LabelSource.HUMAN: 0,
     LabelSource.FEED: 1,
@@ -59,7 +59,7 @@ class Label:
 
 @dataclass(frozen=True, slots=True)
 class Resolved:
-    """The outcome for one article, and whether a human still needs to see it."""
+    """The resolved topic, recorded signals and whether the policy requests review."""
 
     article_id: str
     topic: str
@@ -198,7 +198,7 @@ def resolve(article_id: str, candidates: list[Label], taxonomy: Taxonomy) -> Res
     best = ordered[0]
     topics = {c.topic for c in ordered}
 
-    # Two signals concurring is the strongest evidence available without a human.
+    # Accept two concurring weak signals when there is no imported override.
     if len(ordered) > 1 and len(topics) == 1:
         return Resolved(article_id, best.topic, best.source, True, False, ordered)
 

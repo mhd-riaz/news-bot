@@ -1,7 +1,6 @@
 // Package processor turns the items a collector read out of a feed into stored
-// articles. It is the only place that decides whether something has been seen
-// before, so the deduplication order lives here and in the index plan that
-// enforces it, nowhere else.
+// articles. It delegates identity lookup order to the repository; the index
+// plan supplies the uniqueness constraints that settle concurrent inserts.
 package processor
 
 import (
@@ -53,12 +52,12 @@ func New(articles repository.ArticleRepository, clock Clock, clients ...classifi
 	return &Processor{articles: articles, classifier: client, clock: clock}
 }
 
-// Process normalises, deduplicates and stores a batch of items collected from
-// src, in that order, one item at a time.
+// Process normalises items from src, attempts classification in bounded
+// batches, then checks identities and inserts new articles one at a time.
 //
 // Items are handled sequentially so that two entries duplicating each other
 // within the same batch are caught by the same lookup that catches a duplicate
-// of an earlier collection. An item the model rejects is counted and skipped,
+// of an earlier collection. Domain-invalid items are counted and skipped,
 // because one malformed entry must not cost the rest of the feed. A repository
 // failure, on the other hand, stops the batch: it means the database is not
 // answering, and the counts so far are returned with the error so the caller

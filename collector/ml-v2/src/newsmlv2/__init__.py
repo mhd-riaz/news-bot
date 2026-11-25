@@ -1,4 +1,4 @@
-"""Body-aware 13-class news topic classifier (POC)."""
+"""Body-aware 13-class classifier, sidecar serving and shared text preparation."""
 
 from __future__ import annotations
 

@@ -198,7 +198,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--shards", type=int, default=4)
     parser.add_argument("--overlap", type=int, default=20)
     parser.add_argument("--reviewed-gold", action="append", type=Path,
-                        help="human gold from a previous V4 run; repeat for each reviewed run")
+                        help="reviewed reference labels from a previous V4 run; legacy human tags do not certify authorship; repeat for each run")
     parser.add_argument("--proposals", type=Path,
                         help="AI-agent judgements inside ml-v4/data/proposals/; replaces the TF-IDF strata")
     parser.add_argument("--start", help="with --proposals: UTC-aware start of the collection window")

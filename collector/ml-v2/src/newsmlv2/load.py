@@ -2,8 +2,9 @@
 
 The one structural change from v1: `title`, `summary` and `body` stay **separate**
 all the way through. v1 concatenated them into a single string at load time, which
-made it impossible to weight fields differently later -- and with bodies now present
-on 94.3% of gold articles, a 650-word body would silently drown a 10-word headline.
+made it impossible to weight fields differently later. The closed v2 study measured
+94.3% body coverage on its labelled cohort, not on today's live corpus. Keeping the
+fields separate lets a model control how much body text accompanies the headline.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ COLLECTION = "articles"
 # classes, so most classes get zero support and macro-F1 becomes meaningless.
 _SECTION = re.compile(r"\s*[\u2014\u2013]\s*|\s+-\s+")
 
-# Cap the fallback lede at a word boundary. 25% of articles have no summary at all.
+# Cap the fallback lede at a word boundary when the summary is missing.
 LEDE_CHARS = 400
 
 

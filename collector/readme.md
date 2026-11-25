@@ -1,176 +1,113 @@
-# Beyond the Headline: Calibrated News Article Classifier
+# News collector and AFTERLINE operations
 
-**Supervised Machine Learning — Classification · Mini Project**
-Mohamed Riaz · PES1PGE25DS037 · Department of CSE, PES University
+The collector gathers news from RSS and Atom feeds, stores it in MongoDB, and
+best-effort enriches it with article text, dates, images and topic classifications.
+AFTERLINE is the separate reader and recommendation application built on that data.
 
-A news article goes in; one of 13 topics comes out, with a confidence score you can
-actually act on — and the model is allowed to say *"I don't know"* rather than guess.
+**Status: 25 Nov 2026.** [The roadmap](docs/roadmap.md) owns current scope, contracts,
+status and decisions. V1 is **not accepted**; its original 15 Nov deadline has not
+been replaced. The closed classifier plans are historical evidence, not the current
+backlog.
 
-Everything here was built from scratch: the collector that gathered the corpus, the
-8,001 hand labels, the preparation pipeline, the classifier, the evaluation harness and
-the demo. No large language model is used anywhere. Every prediction is explainable from
-the model's own weights.
-
-## The result
-
-| | |
+| Area | What is available, and what is not claimed |
 | --- | --- |
-| **Test macro-F1** | **0.751** [0.719, 0.780] — on a split opened exactly once |
-| **Accuracy on the articles it files** | **83.4%**, against 77.7% if forced to answer everything |
-| **Coverage** | 80.7% filed automatically; the rest routed to a human |
-| **Calibration error (test)** | 0.021 — the confidence number is honest |
-| Corpus | 14,189 articles · 40 publishers · 8,001 human labels · 13 classes |
-| Cost | 0.78 ms per article |
+| Collector source | Scheduled and manual collection, source management, cursor-paged article queries, guarded publisher fetches, full-text enrichment and best-effort classification. The shipped list declares **124 feeds**, all with `language: en`; this is not a live healthy-feed count or an English-only ingestion guarantee. |
+| Collector hardening | Revision-aware derived fields, page dates/images, source domains and a bounded C1 backfill are implemented. The roadmap records local test evidence; production backfill, operational recovery work and the full M1 exit remain open. |
+| Recorded deployment | The collector has a recorded home-lab deployment. This manual does not verify its running image or database contents. The shipped Coolify stack contains MongoDB, classifier and collector API, not the AFTERLINE reader, ranker, batch pipeline or MCP server. |
+| Local AFTERLINE demo | The 24 Nov implementation and local evidence cover a fresh-first feed with archive, a Yesterday page, professional focus, and browser-local saved stories and notes. Snapshots are rebuilt manually; this is not the revision-aware scheduled recommendation pipeline or a V1 release. The roadmap still leaves morning refresh/rehearsal open. |
+| Still planned for V1 | Google sign-in, server-side reader state, persistent daily editions, incremental indexing and its freshness acceptance, association rules, read-only MCP, hosted reader/ranker and release evaluation. |
 
-**The research question was whether the article body beats the headline.** It does, by
-**+0.059 macro-F1** (0.712 → 0.771), with non-overlapping bootstrap intervals and
-McNemar *p* = 7.5 × 10⁻⁶.
+Use [the recommender guide](docs/recommender.md) for the current AFTERLINE setup,
+`make demo-refresh`, `make demo-serve`, `make reader`, and their prerequisites and
+limitations. The `/` site served by the collector API below is the **legacy feed**,
+not the `/stories` AFTERLINE reader on port 8090.
 
-**The second finding is that nothing else helped.** Entity scrubbing, feature
-engineering, gradient-boosted trees, random forests, sentence embeddings and four
-ensembles were each measured against a linear SVM and each lost or tied. The accuracy
-came from data preparation, not from model capacity.
+## Historical classifier evidence
 
-## Try it
+The earlier *Beyond the Headline* classifier project is preserved under
+[ml/](ml/), [ml-v2/](ml-v2/) and [submission/](submission/). Its closed experiment
+logs are [docs/plan.md](docs/plan.md) and [ml-v2/docs/plan.md](ml-v2/docs/plan.md).
 
-```bash
-cd ml-v2
-uv sync --group dev --group demo
-uv run newsmlv2 train --id v2-001          # fit + persist the model (~3 min)
-uv run streamlit run app/streamlit_app.py  # http://localhost:8501
-```
+**Label provenance correction (roadmap D16, 22 Nov): all old and new classifier
+labels are AI-generated.** Earlier descriptions of hand labels, human annotators
+or human/gold accuracy are withdrawn. The historical scores below measure agreement
+with AI reference labels, not human acceptance; they were not remeasured for this
+documentation update.
 
-Four tabs: **Classify an article** (paste anything, or press *a real one it is unsure
-about* to pull a genuinely hard article out of the corpus), **Validation** (per-class
-intervals, reliability diagram, confusion matrix), **Run it on the corpus** (batch
-classification over real unlabelled news) and **How it was built**.
-
-Or from the command line:
-
-```bash
-uv run newsmlv2 predict \
-  --title "Reserve Bank holds repo rate steady as inflation cools" \
-  --body  "The monetary policy committee voted five to one to keep the benchmark ..."
-
-# business_economy       0.961   FILED
-# (cut 0.584)
-#   because of: rate, dollar, growth, bank, bond, inflation, bond yields, reserve
-```
-
-## Submission deliverables
-
-| Deliverable | Where |
+| Historical v2-001 result | Recorded value |
 | --- | --- |
-| Working project | [ml-v2/](ml-v2/) — 133 tests, `uv run pytest` |
-| User interface | [ml-v2/app/streamlit_app.py](ml-v2/app/streamlit_app.py) |
-| Validation evidence | [ml-v2/docs/plan.md](ml-v2/docs/plan.md) · [model card](ml-v2/artifacts/models/v2-001/model-card.md) · Validation tab in the UI |
-| 2-page IEEE report | [submission/report/ieee-report.tex](submission/report/ieee-report.tex) |
-| Slide deck | [submission/slides/](submission/slides/) — `build_deck.py` writes the `.pptx` |
-| Long-form report | [docs/project-report.md](docs/project-report.md) |
-| Submission checklist | [submission/README.md](submission/README.md) |
+| Test macro-F1 | 0.751 [0.719, 0.780], on the once-opened test split |
+| Agreement on filed articles | 83.4%, versus 77.7% when forced to answer everything |
+| Coverage | 80.7% filed automatically; the remainder is `unsorted`, not a delivered human-review queue |
+| Test calibration error | 0.021 against those reference labels |
+| Frozen corpus | 14,189 articles, 40 publishers, 8,001 AI-generated labels, 13 classes |
+| Inference cost | 0.78 ms per article in that experiment, not a current service benchmark |
 
-## How it works
+The historical body-versus-headline comparison reported +0.059 macro-F1
+(0.712 → 0.771), non-overlapping bootstrap intervals and McNemar
+*p* = 7.5 × 10⁻⁶. Its four-day, India-heavy collection window and small classes
+limit interpretation; it does not measure the current corpus or long-term drift.
+Keep the historical test split closed. New local classifier candidates do not
+replace the deployed model merely because they have been trained.
 
-```
-RSS/Atom feeds ──▶ collector (Go) ──▶ MongoDB
-                                        │
-                        clean · admit · group near-duplicates
-                                        │
-                              frozen Parquet snapshot
-                                        │
-              word 1–2 grams + char 3–5 grams  ──▶  linear SVM
-                                        │
-                       isotonic calibration ──▶ probability
-                                        │
-                     above the cut? ──▶ file it.  below? ──▶ hand it to a person
-```
+## The collector service
 
-Three things in that chain are worth more than the classifier:
-
-- **Boilerplate removal.** 355 repeated furniture lines across 47 sources, including
-  multi-sentence author biographies that a length-based rule cannot reach. A cricket
-  correspondent's bio inside a business article drags it toward `sport`.
-- **Near-duplicate story grouping**, so a syndicated copy of a training article can
-  never land in validation. Precision 0.86 at recall 0.81 on 43 hand-judged pairs.
-- **Grouped, temporal splits** with bootstrap intervals resampled over *story groups*
-  rather than articles, because syndicated copies are not independent observations.
-
-## Repository map
-
-| Path | What it is |
-| --- | --- |
-| [ml-v2/](ml-v2/) | **The submitted project.** Body-aware classifier, evaluation harness, demo UI |
-| `ml-v2/src/newsmlv2/` | clean · admit · dedup · snapshot · splits · models · confidence · serve |
-| `ml-v2/scripts/` | one script per experiment phase; results land in the ledger |
-| `ml-v2/docs/plan.md` | the full experiment log — every decision with its evidence |
-| [ml/](ml/) | version 1, headline-only. Kept as the baseline v2 is measured against |
-| [submission/](submission/) | IEEE report, slide deck, figures |
-| [docs/](docs/) | long-form project report and the overall plan |
-| `cmd/` `internal/` `configs/` | the Go collector that produced the corpus |
-
-## Reproducing the numbers
-
-```bash
-cd ml-v2
-uv sync --group dev
-uv run pytest                                  # 133 tests
-uv run newsmlv2 verify --id v2-001             # snapshot digests still match
-uv run newsmlv2 train  --id v2-001             # refit, rescore, rewrite the model card
-uv run python scripts/build_figures.py         # the report figures
-```
-
-The snapshot is frozen at `collected_before = 2026-08-26T12:00:00Z` and its manifest
-pins the git SHA, the seed, the cleaning version and a SHA-256 digest of the label file,
-so any number traces back to the exact code and labels that produced it.
-
-**The test split has been opened once and is closed.** `scripts/phase_h4_open_test.py`
-is the single door, it refuses to run without `--yes`, and it must not be run again — a
-held-out split stops being held out the moment it informs a decision.
-
-## Honest limitations
-
-- The collection window is four days, so nothing here measures topic drift over weeks.
-- `society_lifestyle` scores F1 0.42; it is a definitional grab-bag of community, labour
-  and lifestyle reporting. It still calibrates honestly, so abstention protects it.
-- `education` has 29 validation articles and an interval a quarter of an F1 point wide.
-  That is noise, and it is reported as noise.
-- ~18.6% of errors sit on class pairs where the human annotators disagreed with each
-  other, so macro-F1 has a real ceiling below 1.0.
-- English only, and India-heavy.
-
----
-
-# Reference — the collector service
-
-Everything below documents the Go service that gathered the corpus. It is Phase 1 of the
-wider project and is independent of the classifier: the ML pipeline reads its database
-read-only and never writes to it.
-
-> **Status: Phase 1 complete (Milestone 6).** Configuration, logging, MongoDB
-> connection management, health endpoints, the migration and the container stack
-> (M1); the source model, persistence layer, management APIs and seeding CLI
-> (M2); the SSRF-guarded HTTP client and the RSS/Atom collector (M3); the article
-> model and the processing pipeline (M4); the scheduler, per-source leases, run
-> history and the collector CLI (M5); and the article query APIs (M6). Feeds
-> are configured, collected on a schedule, deduplicated, stored and readable.
+The Go collector is the only writer of `articles`: ingest, enrichment,
+classification retries and C1 backfill all run through its own code. Python data
+preparation and training read the collection and write separate artifacts; the
+classifier sidecar returns predictions and cleaned copies to the Go caller.
+Classifier unavailability does not prevent valid feed items from being stored.
 
 ## Requirements
 
-- Go 1.26+
-- Docker and Docker Compose (for the local MongoDB and the container build)
+- Go 1.27, matching `go.mod` and the Go image.
+- A reachable MongoDB 7 server; Docker and Docker Compose if using the supplied
+  local stack or building containers.
+- Python and `uv` only for classifier/recommender tools and the safe target
+  inspection command; see [the recommender guide](docs/recommender.md).
+
+Run the commands below from `collector/`, not the repository root.
+
+### Choose the database before running a writer
+
+`make run`, `make up`, `make migrate`, `make seed`, `make collect`,
+`make collect-source`, `make scrape`, `make scrape-limit` and `make backfill`
+can write to a database. The API migrates and synchronizes sources on startup,
+then starts its enabled workers. Do not run these commands against production as
+part of local setup or verification.
+
+Before a writer, explicitly select the intended target and use `make rec-inspect`
+to check it without displaying the connection URI. Use the same environment
+selection for inspection and the writer, and check any Compose overrides too.
+The [recommender guide](docs/recommender.md) documents inspection setup.
+
+Go commands load the file selected by `-env`, otherwise `NEWS_ENV_FILE`, otherwise
+`.env` in the command's working directory. To use only already-exported values
+on this Unix setup, use `NEWS_ENV_FILE=/dev/null` (or `-env /dev/null` with a
+binary). **This does not clear an exported production setting.** Compose has
+its own explicit `env_file` entries; `NEWS_ENV_FILE` does not disable those.
 
 ## Quick start with Docker Compose
 
-Secrets come from `.env`, which is gitignored and never baked into the image.
-Create it first — the API refuses to start with auth enabled and no credentials:
+This is a local-development stack. It uses `mongo:7`, publishes MongoDB port
+27017 and API port 8080 on **all host interfaces**, and does not configure MongoDB
+authentication. Use an isolated development machine/network; do not expose it
+to the Internet. Coolify's production binding is different (see Deployment).
+
+The Compose services load `collector/.env`, which is gitignored and never baked
+into the image. Create local credentials first — the API refuses to start with
+auth enabled and no credentials:
 
 ```bash
 cp .env.example .env
 openssl rand -hex 32          # paste into NEWS_AUTH_API_KEYS
 ```
 
-Starts MongoDB, then the API — which migrates the database and applies
-`configs/sources.yaml` itself before it serves:
+`make up` builds and starts MongoDB, the classifier and the API. The classifier
+mounts `ml-v2/artifacts/models/v2-001` read-only; its trained bundle must exist
+locally for classification to work. A container build does not train or supply
+that model. The API waits for MongoDB, **not** classifier readiness, migrates
+the database and applies `configs/sources.yaml` before it serves:
 
 ```bash
 make up
@@ -179,25 +116,40 @@ curl -s localhost:8080/health/ready
 curl -s -H "X-API-Key: $KEY" 'localhost:8080/api/v1/collection-runs?limit=5'
 curl -s -H "X-API-Key: $KEY" 'localhost:8080/api/v1/articles?limit=5'
 make logs
-make down          # stops the stack and deletes the volume
+docker compose -f deployments/docker-compose.yml down  # keep the database volume
 ```
 
 The API process also runs the scheduler, so feeds start being collected as soon
-as it is up.
+as it is up. Both Compose files enable the classifier, overriding its disabled
+YAML default. An unavailable classifier leaves articles pending rather than
+stopping collection; API readiness checks MongoDB only.
+
+**`make down` deletes the named MongoDB volume.** Use it only when you intend to
+discard the local database, not as the routine stop command.
 
 ## Quick start without Docker
 
 ```bash
-make mongo-up                      # MongoDB only, on localhost:27017
-make run                           # migrate, apply sources.yaml, serve on :8080
-make collect                       # collect everything currently due, once
-make backfill                      # backfill up to 1000 legacy articles
+make mongo-up                      # optional Docker MongoDB; see exposure warning above
+# After setting and inspecting the intended local target and auth credentials:
+NEWS_ENV_FILE=/dev/null make run    # migrate, apply sources.yaml, serve on :8080
 ```
 
-`make migrate` and `make seed` do the two startup steps on their own, against a
-database the API is already serving.
+The Go API's shipped YAML disables classification. Enable it only with a
+reachable `NEWS_CLASSIFIER_ENDPOINT` and the appropriate API key. The default
+`http://classifier:8000` is a Compose-network name, not a host-side service.
 
-The C1 backfill processes at most 50 articles per classifier request, pauses one
+`make migrate` and `make seed` perform the startup steps independently against
+the selected MongoDB target; neither requires the API to be running. Manual
+collection and enrichment are described below. C1 backfill is a separate
+operator action, not part of startup:
+
+```bash
+NEWS_ENV_FILE=/dev/null make backfill  # at most 1000 incomplete articles; writes
+```
+
+The C1 backfill requires a reachable, compatible classifier even when
+`classifier.enabled` is false. It processes at most 50 articles per request, pauses one
 second between full batches, and resumes from articles missing required C1 fields.
 Each run advances by `_id` so completed or concurrently changed articles are not
 rescanned. It fills absent cleaned text, language, date provenance and timestamps;
@@ -214,17 +166,17 @@ make check                         # gofmt check + go vet + go test ./...
 make test-race                     # unit tests under the race detector
 make cover                         # coverage summary
 make test-integration              # needs MongoDB on localhost:27017
-make seed-check                    # validate configs/sources.yaml, write nothing
+NEWS_ENV_FILE=/dev/null make seed-check  # validate sources.yaml; no database access
 make build                         # binaries into ./bin
 make ml-test                       # offline ML suite (Python, see below)
 ```
 
-Unit tests never contact a network service. The integration tests are behind the
+Unit tests need no external service. The integration tests are behind the
 `integration` build tag, use a database name unique per run, and drop it afterwards.
 CI starts MongoDB 7 with a readiness check and runs the integration suite.
 Synthetic feed and extraction cases are self-contained; captured publisher pages
 remain private and their tests skip explicitly when the captures are absent.
-Gold-label-dependent ML checks likewise skip without the private label file;
+Private-label-dependent ML checks likewise skip without the private AI-label file;
 synthetic label-loader and filtering checks still run.
 
 ## Configuration
@@ -250,7 +202,9 @@ Three layers, each overriding the one before: built-in defaults →
 | —                                  | `NEWS_AUTH_API_KEYS`                    | none                        |
 | —                                  | `NEWS_AUTH_BASIC_USERNAME`              | none                        |
 | —                                  | `NEWS_AUTH_BASIC_PASSWORD`              | none                        |
-| `mongo.uri`                        | `NEWS_MONGO_URI`                        | `mongodb://localhost:27017` |
+| `web.enabled`                      | `NEWS_WEB_ENABLED`                      | `true` (legacy feed)        |
+| `web.page_size`                    | `NEWS_WEB_PAGE_SIZE`                    | `30`                        |
+| `mongo.uri`                        | `NEWS_MONGO_URI`                        | local MongoDB, port 27017   |
 | `mongo.database`                   | `NEWS_MONGO_DATABASE`                   | `news`                      |
 | `mongo.connect_timeout`            | `NEWS_MONGO_CONNECT_TIMEOUT`            | `10s`                       |
 | `mongo.server_selection_timeout`   | `NEWS_MONGO_SERVER_SELECTION_TIMEOUT`   | `10s`                       |
@@ -276,6 +230,32 @@ Three layers, each overriding the one before: built-in defaults →
 | `logging.format`                   | `NEWS_LOGGING_FORMAT`                   | `json`                      |
 
 `NEWS_CONFIG_PATH` selects a different config file without passing `-config`.
+The table gives shipped effective defaults; authentication is off in the
+built-in defaults but on in `configs/config.yaml`.
+
+### Enrichment and classifier settings
+
+These settings use the same environment mapping, for example
+`scraper.interval` → `NEWS_SCRAPER_INTERVAL` and
+`classifier.enabled` → `NEWS_CLASSIFIER_ENABLED`.
+
+| Key | Default |
+| --- | --- |
+| `scraper.enabled` | `true` |
+| `scraper.interval`, `scraper.batch_size` | `5m`, `50` |
+| `scraper.user_agent` | same shipped value as `collector.user_agent` |
+| `scraper.request_timeout`, `scraper.max_response_bytes` | `20s`, `20971520` |
+| `scraper.allow_private_networks` | `false` |
+| `scraper.min_content_words`, `scraper.max_attempts` | `80`, `3` |
+| `scraper.retry_base`, `scraper.max_article_age` | `15m`, `720h` (30 days) |
+| `scraper.per_host_delay` | `2s`, increased by a longer robots Crawl-delay |
+| `scraper.circuit_failure_threshold`, `scraper.circuit_open_for` | `3`, `15m` |
+| `scraper.robots_cache_ttl`, `scraper.claim_ttl` | `24h`, `10m` |
+| `classifier.enabled`, `classifier.endpoint` | `false`, `http://classifier:8000` |
+| `classifier.timeout`, `classifier.batch_size` | `10s`, `50` |
+| `classifier.max_attempts`, `classifier.claim_ttl` | `3`, `5m` |
+| `classifier.metadata_refresh_interval` | `1h` |
+| `NEWS_CLASSIFIER_API_KEY` (environment only) | none; required when classification is enabled in production |
 
 ### Secrets come from the environment, not the config file
 
@@ -290,23 +270,30 @@ injected environment in the homelab, with no branch either way. A missing `.env`
 is not an error. `NEWS_ENV_FILE` (or `-env`) points at a different file, such as
 a mounted secret.
 
-Keep `.env` pointed at a local database: `make run` migrates and seeds whatever it
-points at, and starts collecting into it. Put production credentials in a separate
-gitignored file such as `.env.prod`, and select it only when you mean to:
-`NEWS_ENV_FILE=.env.prod make seed`.
+Keep local configuration pointed at a local database. A target selected through
+the environment takes precedence over YAML and dotenv, so a command named
+`make run` is not inherently local. Production secrets belong in Coolify or a
+separately managed secure environment; select a production writer only as an
+explicit operator action after the target check above.
 
 ## Authentication
 
-Every `/api/v1` route requires a credential. `/health/live` and `/health/ready`
+With the shipped authentication setting, every `/api/v1` route requires a
+credential. `/health/live` and `/health/ready`
 stay open, because the container healthcheck and the reverse proxy probe them
-before any credential is in play and they reveal nothing but liveness.
+before any credential is in play. They expose version/status and MongoDB
+readiness, not classifier readiness or overall pipeline health.
 
 Two schemes are accepted, and either one alone is sufficient:
 
 ```bash
 curl -H "X-API-Key: $KEY" localhost:8080/api/v1/sources        # scripts
-curl -u operator:secret    localhost:8080/api/v1/sources        # browser, curl
+curl -u "$NEWS_AUTH_BASIC_USERNAME:$NEWS_AUTH_BASIC_PASSWORD" \
+  localhost:8080/api/v1/sources                              # basic authentication
 ```
+
+`$KEY` in this manual means one configured API key, not the entire
+comma-separated `NEWS_AUTH_API_KEYS` value.
 
 - `NEWS_AUTH_API_KEYS` is a comma-separated list, so a key is rotated by adding
   the replacement, moving clients over, then dropping the old one — no window
@@ -332,21 +319,24 @@ and recommender images, on pull requests to `main`, pushes to `main` and manual
 runs. Its `ci-passed` job fails unless every check and image build succeeded, so
 it is the one status check to require: add a branch ruleset for `main` that
 requires a pull request and the `ci-passed` check, with branches up to date
-before merging. The Go image contains every `cmd/*` executable; the API and
-(after M3 authentication is ready) the reader use the same image with different
-commands.
+before merging. The Go image contains every `cmd/*` executable. It can run
+either the API or reader command, but packaging the reader does not deploy it
+or deliver M3 sign-in.
 
 Publishing is armed separately. Only a `main` run with the repository variable
 `DEPLOY_ENABLED` set to `true` pushes the images to GHCR and then calls Coolify's
 authenticated deploy webhook; until then a `main` run builds the images and
-stops. Arm it once GHCR access and the secrets below are in place, the Coolify
+stops. Remote publishing and the handover from the existing production
+publisher remain unverified in the roadmap; a successful local image build is
+not deployment evidence. Arm it only once GHCR access and the secrets below are in place, the Coolify
 resource deploys this compose file, and no other repository publishes these
 images or calls the webhook. Then run the workflow on `main` (Actions →
 news-collector → Run workflow) to publish and deploy.
 
 On the Coolify side, create a **Docker Compose** resource from
-[deployments/coolify.compose.yml](deployments/coolify.compose.yml). It brings up
-MongoDB with generated credentials, then starts the API behind a Coolify-issued
+[deployments/coolify.compose.yml](deployments/coolify.compose.yml). It defines
+MongoDB **7.0.48** with generated root credentials, the classifier and the API
+behind a Coolify-issued
 domain. MongoDB's port is published on the host's loopback only, so Compass and
 mongosh reach it through an SSH tunnel. There are no one-shot migrate or seed
 containers: the API reconciles the schema and the source list itself on every
@@ -387,7 +377,9 @@ mongosh "$NEWS_MONGO_ROOT_URI" --quiet --file deployments/mongo-users.js
 
 Store the generated passwords in Coolify secrets. MongoDB enforces each
 principal's collection permissions; ownership of reader-added sources is
-checked by the reader application, not by MongoDB roles.
+an application responsibility, not a MongoDB row-level role policy. The current
+collector API does not accept a client-supplied `added_by`; authenticated
+reader-source management remains future work.
 The script can be rerun: it updates managed roles and reapplies the supplied
 passwords and role assignments to existing users. Keep the supplied passwords in
 sync with the corresponding Coolify secrets.
@@ -429,6 +421,13 @@ source stored but absent from the file is left alone: this reconciles, it does n
 prune. `make seed-check` validates the whole file without writing, and a file containing
 an invalid entry is rejected in full rather than applied halfway.
 
+As shipped on 25 Nov, the file has **124 source entries**, all declaring
+`language: en` and none explicitly disabled (new sources default to enabled).
+This counts configuration, not currently healthy publishers, sources already
+stored in any database, or article language detection. Feed availability and
+robots policies can change; verify a new source against a local scratch target
+before enabling it.
+
 `bootstrap.sources_path` takes a filesystem path or an **https URL**. The default reads
 the copy baked into the image, so a new feed needs a rebuild. Point it at the raw URL of
 this file on `main` instead and the list is read fresh on every start — adding a feed is
@@ -465,10 +464,15 @@ set one is rejected rather than ignored. `added_by` is also server-owned in the 
 it is returned when present, but API callers cannot set or change it until reader identity
 is available. `domains` can be supplied on create or update; an empty list clears the tags.
 The shipped file uses only the four V1 domains, `technology`, `software`, `ai` and
-`data-science`, which a reader's professional mix selects on; a test rejects any other tag
-there.
+`data-science`; a test rejects any other tag there. These support the local
+demo's professional-focus selection and the planned account settings (C8).
+They do not restrict collection to those domains or expose an authenticated
+reader-added-feed workflow.
 
 ## Endpoints
+
+The milestone numbers below refer to the original collector build, not the
+current AFTERLINE roadmap. The final three routes belong to the legacy feed.
 
 | Method   | Path                           | Purpose                                     | Milestone |
 | -------- | ------------------------------ | ------------------------------------------- | --------- |
@@ -488,8 +492,11 @@ there.
 | `GET`    | `/articles/{id}`               | Reader article page; records the click      | 7         |
 | `POST`   | `/read-events`                 | Impression and dwell telemetry              | 7         |
 
-Liveness is deliberately independent of MongoDB so a transient database outage causes
-a `503` on readiness rather than a restart loop.
+Liveness is deliberately independent of MongoDB so an outage after startup causes
+a `503` on readiness rather than a restart loop. The startup bootstrap is an
+exception: a failed migration, source synchronization write or local seed-file
+load fails startup. An unreadable/invalid remote source list leaves the stored
+sources unchanged and allows startup to continue.
 
 Listing sources accepts `enabled`, `type`, `health_status`, `country`, `state`, `city`,
 `limit` and `offset`. `limit` defaults to 50 and is capped at 100; asking for more is an
@@ -497,16 +504,18 @@ error rather than a silently truncated page, so nobody builds against a page siz
 server will not honour.
 
 ```bash
-curl -s 'localhost:8080/api/v1/sources?country=IN&enabled=true&limit=10'
+curl -s -H "X-API-Key: $KEY" 'localhost:8080/api/v1/sources?country=IN&enabled=true&limit=10'
 
-curl -s -X POST localhost:8080/api/v1/sources \
+curl -s -H "X-API-Key: $KEY" -X POST localhost:8080/api/v1/sources \
   -H 'Content-Type: application/json' \
-  -d '{"name":"Deccan Herald — Mysuru","feed_url":"https://www.deccanherald.com/rss/mysuru.xml",
+  -d '{"name":"Example — Mysuru","feed_url":"https://example.com/feed.xml",
        "type":"rss","language":"en","country":"IN","state":"Karnataka","city":"Mysuru"}'
 
-curl -s -X PATCH localhost:8080/api/v1/sources/<id> \
+curl -s -H "X-API-Key: $KEY" -X PATCH 'localhost:8080/api/v1/sources/<id>' \
   -H 'Content-Type: application/json' -d '{"enabled":false}'
 ```
+
+The example publisher is a placeholder, not a verified feed.
 
 Every error uses one envelope. Validation failures report every broken rule at once, so
 one round trip is enough to fix a payload:
@@ -532,17 +541,18 @@ one round trip is enough to fix a payload:
 ## Article queries
 
 ```bash
-curl -s 'localhost:8080/api/v1/articles?country=IN&state=Karnataka&limit=20'
-curl -s 'localhost:8080/api/v1/articles?source_id=<id>&sort=collected_at'
-curl -s 'localhost:8080/api/v1/articles?published_from=2026-08-01T00:00:00Z'
-curl -s localhost:8080/api/v1/articles/<id>
+curl -s -H "X-API-Key: $KEY" 'localhost:8080/api/v1/articles?country=IN&state=Karnataka&limit=20'
+curl -s -H "X-API-Key: $KEY" 'localhost:8080/api/v1/articles?source_id=<id>&sort=collected_at'
+curl -s -H "X-API-Key: $KEY" 'localhost:8080/api/v1/articles?published_from=2026-08-01T00:00:00Z'
+curl -s -H "X-API-Key: $KEY" 'localhost:8080/api/v1/articles/<id>'
 ```
 
 | Parameter                        | Effect                                     |
 | -------------------------------- | ------------------------------------------ |
 | `source_id`                      | Only articles from one feed                |
-| `language`                       | Two-letter ISO 639-1 code                  |
+| `language`                       | Source-declared two-letter language, not detected text language |
 | `country`, `state`, `city`       | The region the source is registered under  |
+| `topic`                          | Stored classifier topic, including `unsorted` |
 | `published_from`, `published_to` | RFC 3339 bounds on the publication date    |
 | `sort`                           | `published_at` (default) or `collected_at` |
 | `limit`                          | Defaults to 50, capped at 100              |
@@ -567,8 +577,8 @@ the article id, and both halves are validated on the way in, so a tampered curso
 process the same articles again.
 
 ```bash
-curl -s 'localhost:8080/api/v1/articles?limit=2'
-curl -s 'localhost:8080/api/v1/articles?limit=2&cursor=MTc2Njk5MDgwMDAwMC4wMTk4...'
+curl -s -H "X-API-Key: $KEY" 'localhost:8080/api/v1/articles?limit=2'
+curl -s -H "X-API-Key: $KEY" 'localhost:8080/api/v1/articles?limit=2&cursor=MTc2Njk5MDgwMDAwMC4wMTk4...'
 ```
 
 There is no `total`. Counting a filtered set of an unbounded collection on every page is
@@ -576,13 +586,16 @@ the same walk the cursor exists to avoid.
 
 ### Retention
 
-Articles accumulate without bound, so `DELETE /api/v1/articles` expires the old ones. It
-is meant to be run on a schedule — a nightly cron against the API is enough.
+`DELETE /api/v1/articles` is a destructive operator tool for expiring old articles.
+There is no automatic retention sweep in the shipped stack. Do not run or schedule
+one until the owner has approved the retention/content-rights policy in the
+roadmap and the intended target has been checked. The examples below illustrate
+the API, not an approved production retention policy.
 
 ```bash
-curl -s -X DELETE 'localhost:8080/api/v1/articles?delete_older_than=2026-07-01T00:00:00Z'
-curl -s -X DELETE 'localhost:8080/api/v1/articles?delete_older_than=2026-07-01T00:00:00Z&source_id=<id>'
-curl -s -X DELETE 'localhost:8080/api/v1/articles?delete_older_than=2026-07-01T00:00:00Z&source_name=The+Hindu'
+curl -s -H "X-API-Key: $KEY" -X DELETE 'localhost:8080/api/v1/articles?delete_older_than=2026-07-01T00:00:00Z'
+curl -s -H "X-API-Key: $KEY" -X DELETE 'localhost:8080/api/v1/articles?delete_older_than=2026-07-01T00:00:00Z&source_id=<id>'
+curl -s -H "X-API-Key: $KEY" -X DELETE 'localhost:8080/api/v1/articles?delete_older_than=2026-07-01T00:00:00Z&source_name=The+Hindu'
 ```
 
 | Parameter           | Effect                                                     |
@@ -603,13 +616,16 @@ otherwise tell a sweep that expired a month of articles from one that matched no
 Deleting is by publication date rather than collection date, so it lines up with the
 `published_from`/`published_to` bounds a caller already filters listings by.
 
-### Listings omit the article text
+### Listings omit the raw article body
 
-An article's `content` is capped at 200 KB, so fifty of them is a response nobody asked
-for. A listing projects it away and a caller who wants the text reads the article
-itself, where it is always present. The deduplication keys — `dedup_id`,
+Article bodies can be large, so a listing projects `content` away. A caller who
+wants the raw/accepted body reads the article
+itself, where `content` is returned when non-empty. A summary-only article may
+still have no body. The deduplication keys — `dedup_id`,
 `normalized_url`, `content_hash` and `feed_guid` — are internal machinery and are never
-served.
+served. Filed and `unsorted` articles expose topic, classification status and
+confidence. C1 cleaned text, detected language, revisions and date provenance
+are stored in MongoDB but are not added to this collector HTTP response contract.
 
 ## Feed collection
 
@@ -629,8 +645,8 @@ resolved against the feed's declared home page, titles have their line breaks co
 author emails are discarded, and every field is capped before it can reach the database.
 An Atom entry that carries only `updated` uses it as its publication date.
 
-Nothing schedules a collection yet: the scheduler and the manual collection CLI arrive
-in Milestone 5.
+The scheduler runs in `cmd/api`; `cmd/collector` runs the same collection service
+once by hand. Both use the same per-source leases and processing pipeline.
 
 ## Scheduling
 
@@ -650,7 +666,10 @@ source already held is skipped rather than queued, because by the time the lease
 the holder has already collected it. The lease expires after `scheduler.lock_ttl`
 whether or not it is released, so a collector that crashes mid-collection cannot park a
 source forever, and `scheduler.lock_ttl` is required to be longer than
-`collector.request_timeout` so a lease can never expire underneath its own fetch.
+`collector.request_timeout`, plus `classifier.timeout` when classification is
+enabled. This is a startup validation
+bound, not a measured upper bound for parsing, storage or multiple classifier
+batches; size the lease for the actual collection workload.
 
 This is what makes more than one replica safe, and it is why the API and the scheduler
 can share a process.
@@ -666,7 +685,8 @@ Backing a failing source off matters in both directions: it stops this system sp
 every tick on a feed that is down, and it stops a publisher being polled every fifteen
 minutes for a week after it has broken. A success clears the history immediately, so a
 recovered feed returns to its normal interval on its first good poll.
-`last_collected_at` answers "when did this feed last give us articles", so a failed
+`last_collected_at` records the last successful poll, including `304` and polls
+with no new articles; it is not evidence that new articles arrived. A failed
 attempt deliberately leaves it alone.
 
 ## Collection history
@@ -686,9 +706,9 @@ that got nothing.
 source shedding entries on every poll is worth being able to find.
 
 ```bash
-curl -s 'localhost:8080/api/v1/collection-runs?status=failed&limit=20'
-curl -s 'localhost:8080/api/v1/collection-runs?source_id=<id>'
-curl -s localhost:8080/api/v1/collection-runs/<run-id>
+curl -s -H "X-API-Key: $KEY" 'localhost:8080/api/v1/collection-runs?status=failed&limit=20'
+curl -s -H "X-API-Key: $KEY" 'localhost:8080/api/v1/collection-runs?source_id=<id>'
+curl -s -H "X-API-Key: $KEY" 'localhost:8080/api/v1/collection-runs/<run-id>'
 ```
 
 The stored `error` is a fixed phrase — "the publisher answered HTTP 404", "the feed
@@ -703,7 +723,7 @@ Collections are never triggered over HTTP. The history is read-only.
 ## Collecting by hand
 
 ```bash
-make collect                       # everything currently due, once
+make collect                       # up to 50 currently due sources, once
 make collect-source SOURCE=<id>    # one feed now, whatever its schedule says
 
 go run ./cmd/collector -limit 5    # the first five due sources
@@ -720,14 +740,17 @@ articles from it.
 
 ## Article processing
 
-Each collected item is normalised, checked against what is already stored, and inserted
-— one item at a time, so two entries duplicating each other inside a single feed are
-caught by the same lookup that catches a duplicate of yesterday's collection.
+Items are normalised and offered to the optional classifier in bounded batches.
+They are then checked and inserted one at a time, so two entries duplicating each
+other inside a single feed are caught by the same lookup that catches a duplicate
+of yesterday's collection.
 
 Normalising an item produces the article: HTML becomes plain text (tags are removed
 before entities are decoded, so escaped markup cannot reappear as real markup), the link
 is reduced to a canonical form, the region and language are taken from the source, and a
-missing or impossible publication date falls back to the collection time. An item with
+missing date or one more than an hour ahead falls back to the collection time,
+with `published_at_source: collected_fallback` and `date_verified: false`.
+An accepted feed date is marked `feed` and verified. An item with
 no headline or no usable link is counted as invalid and skipped rather than failing the
 batch.
 
@@ -747,8 +770,13 @@ The deduplication keys are then tried in order:
 
 `canonical_url` is the feed's own identifier when that identifier is itself a URL, which
 is what RSS permalink GUIDs and most Atom ids are. The content hash is deliberately
-scoped to one source: two publishers syndicating the same story are two articles, which
-is also why its index is not unique.
+scoped to one source and its index is not unique. Different-URL copies of
+syndicated text can therefore remain separate articles across publishers.
+URL identity is different: `normalized_url` and `dedup_id` are globally unique,
+so registering the same article URL under another source does not create a
+second copy. `dedup_id` hashes the canonical feed identifier when present,
+otherwise the normalized URL; only the `source_id` + `feed_guid` unique key is
+source-scoped.
 
 The lookup answers the common case without a write, and `uq_dedup_id`,
 `uq_normalized_url` and `uq_source_feed_guid` settle the race it cannot — between the
@@ -756,77 +784,154 @@ read and the insert another collector may store the same article, and a duplicat
 there is the expected outcome, not a fault. A batch reports how many items it stored,
 skipped as duplicates and rejected as invalid.
 
+### Full-text enrichment
+
+The API also runs the enrichment worker when `scraper.enabled` is true. Feed
+bodies shorter than 500 whitespace-separated words are queued; longer feed
+bodies are assumed sufficient and are not fetched just to obtain page metadata.
+By default the worker checks every five minutes, attempts at most 50 articles
+per batch and excludes articles published more than 30 days ago.
+
+Page fetches use the guarded HTTP client, robots checks, a per-host delay and a
+failure circuit breaker. JSON-LD and two readability-style extractors compete
+on body word count. A replacement must pass the configured extraction minimum,
+contain at least 80 words and be strictly longer than the stored body. This is
+a length-based safeguard, not a guarantee of complete or better-quality text.
+
+Enrichment is **not limited to body replacement**. A usable page publication
+date or missing image URL can be saved even when the extracted body is too
+short or no longer than the stored one. Page dates need a timezone; date-only
+or timezone-less page values are ignored, as are dates more than an hour ahead.
+A page date is marked `page` and verified. Existing feed images are preserved;
+only image URLs are stored, never downloaded images.
+
+```bash
+make scrape                        # one bounded enrichment batch
+make scrape-limit LIMIT=10          # at most ten attempts
+go run ./cmd/scrape -limit 10 -timeout 10m
+```
+
+These are writers against the selected database and take the same article
+claims as the background worker. Transient failures retry with backoff;
+blocked, gone and robots-disallowed pages stop retrying. Failed extraction
+has a two-attempt cap, within the shared attempt budget.
+
+### Classification and C1 revisions
+
+Classification is best-effort at ingest, with an API-process backlog worker
+when enabled. It retries pending work at `scheduler.interval`, up to
+`classifier.batch_size` attempts per tick and `classifier.max_attempts` per
+article. Exhausted attempts become `failed`; an outage is not an unlimited
+retry guarantee. A below-cut prediction becomes `unsorted`, not a human task.
+
+The sidecar returns `clean_title`, `clean_summary`, `clean_body`,
+`detected_language` (its response calls this `language`) and
+`language_confidence`. These are stored separately from raw article text and
+the source-declared `language`. The collector does **not** reject all
+non-English articles: declared and detected language can differ, and disabled
+or unavailable classification leaves detected language/cleaned fields empty.
+English-only recommendation eligibility is a downstream concern, not a global
+ingestion promise.
+
+New articles start at `content_rev: 1`; the repository stamps `inserted_at` and
+`updated_at` immediately before insert, separately from `collected_at`.
+Material enrichment changes (body, date/provenance or missing image) increment
+the revision, update `updated_at` and reset classification to pending with a
+fresh attempt budget. Classification increments it only when cleaned text or
+detected-language fields change. Backfill fills absent C1 fields with a
+revision check and never rewrites topics or raw text. See roadmap C1 for the
+contract; having these fields in code does not complete the M2 index pipeline.
+
 ## Data model
 
-Five collections, created and indexed by `make migrate`:
+Six collector collections, declared in `internal/mongodb`, created and indexed
+by `make migrate` (or the default API bootstrap):
 
 | Collection            | Purpose                                                      |
 | --------------------- | ------------------------------------------------------------ |
 | `sources`             | Configured RSS/Atom feeds, their region, schedule and health |
-| `articles`            | Normalized, deduplicated article metadata                    |
+| `articles`            | Article metadata, raw/accepted body and separate C1 derived fields |
 | `collection_runs`     | One audit record per collection attempt                      |
 | `feed_cache_metadata` | ETag and Last-Modified per source, for HTTP 304              |
 | `application_locks`   | TTL leases that stop two collectors sharing a source         |
+| `read_events`         | Legacy feed click/impression/dwell telemetry, not AFTERLINE recommendation signals |
 
-The deduplication order (normalized URL → canonical URL → source + feed GUID → content
-hash) is enforced by three unique indexes on `articles`. `content_hash` is indexed but
-**not** unique, because two sources may legitimately syndicate identical content.
+The repository applies the deduplication lookup order (normalized URL → canonical
+URL → source + feed GUID → source + content hash). Three unique indexes settle
+insert races; they do not themselves implement that lookup order. `content_hash`
+is indexed but **not** unique, because two sources may legitimately syndicate
+identical content.
 `application_locks` carries a TTL index so a crashed collector cannot hold a lock forever.
 
-Every article listing is index-served, and every listing index ends in
+The common article-listing indexes end in
 `published_at` (or `collected_at`) followed by `_id` — the exact order a page is read
 in. Without the `_id` the database cannot order two articles sharing a timestamp from
 the index alone, and has to sort the whole filtered set to hand back one page of it:
 `ix_published_cursor` and `ix_collected_cursor` carry the two timelines,
-`ix_source_published_cursor` and `ix_language_published_cursor` carry those filters, and
-`ix_region_published_cursor` carries the regional query this system exists to answer. An
-integration test explains each listing shape and fails the build if MongoDB answers any
-of them with a collection scan **or** a blocking sort.
+`ix_source_published_cursor`, `ix_language_published_cursor` and
+`ix_topic_published_cursor` cover those publication-time filters, and
+`ix_region_published_cursor` covers the fully specified regional query. Integration
+checks cover selected listing shapes, not a guarantee that every supported
+combination of filters and sort orders avoids a collection scan or blocking sort.
+The C1 plan also includes `{updated_at: 1, _id: 1}` for revision scans and
+`{date_verified: 1, detected_language: 1, published_at: -1}`.
 
 MongoDB refuses to recreate an existing index name with different keys, so an index that
 gains a field is retired under its old name rather than edited in place. `ObsoleteIndexes`
 lists those names and `make migrate` drops them before applying the plan, so upgrading an
 existing deployment is still `make migrate` and nothing else.
 
-## The reader site
+## The legacy collector reader site
 
-`web.enabled` serves two pages on the same port and behind the same credentials as
+This is not AFTERLINE. `web.enabled` serves two pages on the same port and behind the same credentials as
 the API: a feed at `/` and an article at `/articles/{id}`. They are Go templates plus
 one hand-written stylesheet, embedded in the binary with `go:embed`. There is no
 JavaScript build step, no bundler and no Node at runtime, and the pages work with
 JavaScript disabled.
 
-They exist mainly to accumulate read events, which is the one input to a later ranker
-that cannot be back-filled. Three kinds are recorded:
+They retain the original anonymous read-event telemetry. These `read_events`
+are not recommendation signals in the current product contract (roadmap C14);
+they are distinct from the planned authenticated reader events. Three kinds
+are recorded:
 
 | Kind         | Recorded by                     | Why it matters                                                          |
 | ------------ | ------------------------------- | ----------------------------------------------------------------------- |
 | `click`      | the server, on the page load    | Free, and survives with JavaScript off                                  |
-| `impression` | `IntersectionObserver`          | A card shown and not clicked is the only negative example a ranker gets |
+| `impression` | `IntersectionObserver`          | Records that a card was shown, even if it was not opened                |
 | `dwell`      | a timer plus `visibilitychange` | Separates a misleading headline from one that delivered                 |
 
-Every event carries its position in the feed, so a later ranker can correct for the
-fact that items at the top are clicked regardless of quality. A visit with no feed
+Every event carries its position in the feed for offline analysis of position
+bias. A visit with no feed
 position — a bookmark, a shared link — records `-1` rather than `0`, because claiming
 it was the top story would poison exactly that correction.
 
-Events report *how long ago* they happened, never a timestamp. The server dates them
+Browser event uploads report *how long ago* they happened, never a timestamp. The server dates them
 from its own clock, so a wrong or hostile client clock cannot reach the data. They are
-written to `read_events` and read only offline; there is no HTTP read path.
+written to `read_events`; there is no HTTP read path for the log.
 
-`POST /read-events` is the only state-changing request a browser makes here, so it is
-also the only one needing cross-origin defence: it accepts `Sec-Fetch-Site:
+Browser telemetry uploads use `POST /read-events` with cross-origin defence:
+it accepts `Sec-Fetch-Site:
 same-origin`, falls back to a matching `Origin`, and refuses a request carrying
-neither.
+neither. The legacy article `GET` also records a click server-side. These
+legacy protections do not deliver V1 reader sessions or their CSRF contract.
 
 ## Offline ML pipeline
 
-Everything under `ml/` and `ml-v2/` is Python, runs on a laptop, and is never deployed.
-It reads the collection read-only and writes derived artifacts; the collector never
-depends on it, so a failure here cannot affect collection. `ml/` is version 1
-(headline-only, macro-F1 0.720); `ml-v2/` is the submitted rewrite described at the top
-of this file. Phase plans live in [docs/plan.md](docs/plan.md) and
-[ml-v2/docs/plan.md](ml-v2/docs/plan.md).
+Data preparation and training are offline Python tools. They read the collection
+read-only and write derived artifacts; they do not own collector article writes.
+`ml/` is the closed headline-only baseline. `ml-v2/` contains the body-aware
+classifier, shared cleaning/admission code, recommender tools and serving code.
+It is **not all offline**: the classifier image is part of the collector stack,
+and the ranker has a separate image but is demonstrated locally rather than
+deployed by the shipped Coolify file. `ml-v4/` holds separate local classifier
+candidates, not an automatic production upgrade.
+
+The current reader/recommender commands are in
+[docs/recommender.md](docs/recommender.md). Historical classifier phase logs
+remain in [docs/plan.md](docs/plan.md) and
+[ml-v2/docs/plan.md](ml-v2/docs/plan.md); do not take current product tasks from them.
+The older `ml/` targets below are for reproducing that baseline, not updating
+the current AFTERLINE demo:
 
 ```bash
 make ml-setup                      # create ml/.venv and install pinned dependencies
@@ -837,8 +942,9 @@ make ml-snapshot ID=20260823-100   # freeze a dataset
 make ml-verify   ID=20260823-100   # rebuild it and confirm byte-identical digests
 ```
 
-Point it at a different database with `NEWS_ML_MONGO_URI`; it defaults to
-`mongodb://127.0.0.1:27017/news`.
+The older `ml/` tools accept `NEWS_ML_MONGO_URI`. Do not assume that this legacy
+override selects the target for the Go collector or the current recommender;
+follow the relevant tool's configuration and target-inspection instructions.
 
 A snapshot is the boundary between data preparation and training. Once one exists,
 training reads a directory rather than a database, and its contents are a pure function
@@ -855,13 +961,17 @@ cmd/api           HTTP server and the collection scheduler
 cmd/migrate       collection and index migration
 cmd/seed          source seeding CLI
 cmd/collector     manual collection CLI
+cmd/scrape        manual full-text enrichment batch
+cmd/backfill      bounded, revision-checked C1 derived-field backfill
+cmd/reader        separate read-only AFTERLINE server, not cmd/api's legacy feed
 
 internal/app             composition root shared by the commands
 internal/config          layered configuration
 internal/observability   slog setup, request ID, access log, panic recovery
 internal/mongodb         connection management, collection names, index plan
 internal/handler         thin HTTP handlers, request and response contracts
-internal/web             reader pages: html/template, embedded CSS and telemetry JS
+internal/web             embedded legacy feed and AFTERLINE templates, CSS and JavaScript
+internal/classifier      trusted internal sidecar client and topic metadata cache
 internal/domain          models and rules
 internal/repository      persistence interfaces and storage-neutral errors
 internal/repository/mongo MongoDB implementations
@@ -869,7 +979,10 @@ internal/service         application orchestration
 internal/httpclient      SSRF-guarded HTTP client
 internal/collector/rss   gofeed-based RSS/Atom collector
 internal/processor       staged processing pipeline
-internal/scheduler       the collection loop and its concurrency bounds
+internal/extract         article body, page date and image URL extraction
+internal/robots          robots.txt decisions and cache for article fetching
+internal/ratelimit       per-host article-fetch pacing and circuit breaker
+internal/scheduler       collection, enrichment and classification loops
 
 configs/      default configuration and the source seed file
 fixtures/     offline feed fixtures for tests
@@ -881,25 +994,31 @@ ml/src/newsml offline data preparation: profile, clean, admit, neardup, splits, 
 ml/tests      the offline test suite
 ml/reports    corpus profile and figures
 ml/data       frozen dataset snapshots (payloads gitignored)
+ml-v2/        shared preparation, classifier, recommender and serving tools
+ml-v4/        local AI-labelled classifier candidates and their evidence
+docs/roadmap.md current product contracts, status, decisions and work log
 ```
 
 Dependencies point inward only: handlers depend on services, services depend on
 repository interfaces, and the MongoDB implementation is never imported by domain code.
-Source identifiers are UUIDv7, so they are neither guessable nor enumerable, and because
-they sort chronologically the `_id` index alone gives listings a stable order.
+Source identifiers are time-ordered UUIDv7 values with a random component, not
+sequential counters. They expose creation-time information and are not an
+authorization boundary. Source listings use `_id` order for stable pagination.
 
-## Security posture in this milestone
+## Collector security and limits
 
-- Every `/api/v1` route requires an API key or basic credentials; only `/health`
-  is open, and it exposes nothing but liveness.
+- With shipped auth enabled, every `/api/v1` route requires an API key or basic
+  credentials. The public probes are `/health/live` and `/health/ready`; they
+  expose version, process status and MongoDB availability.
 - The guarded routes live on their own mux, so what authentication covers is
   decided by which handlers are registered behind it rather than by matching the
   request path in a middleware, which is where prefix-comparison bypasses come from.
 - Credentials are held only as SHA-256 digests and compared with
   `crypto/subtle`, with every configured key checked on every request, so
   neither the value nor the length of a rejected credential leaks through timing.
-- Auth cannot be disabled in production, and enabling it without credentials is
-  a startup error, so no path leads to an unguarded deployment.
+- Configuration rejects disabled auth in `production`, and enabled auth without
+  credentials is a startup error. Development mode can disable auth; do not
+  expose that mode to untrusted clients.
 - Secrets are accepted only from the environment. The credential fields carry no
   YAML tag, so a key placed in the config file fails the load; `.env` is
   gitignored and excluded from the Docker build context.
@@ -919,9 +1038,8 @@ they sort chronologically the `_id` index alone gives listings a stable order.
   escaping is what stands between scraped third-party text and stored XSS. They ship a
   `default-src 'none'` CSP with no inline script or style as the second line of defence,
   plus `frame-ancestors 'none'` and `Referrer-Policy: no-referrer`.
-- The read-event endpoint is the only state-changing browser request; it requires
-  `Sec-Fetch-Site: same-origin` or a matching `Origin`, and refuses a request that
-  carries neither.
+- Legacy read-event uploads require `Sec-Fetch-Site: same-origin` or a matching
+  `Origin`, and reject requests carrying neither.
 - Configuration is validated at startup, including the MongoDB URI scheme and database name.
 - The container image runs as UID 10001, never root.
 - Request bodies are capped at 64 KiB and must be `application/json`; unknown fields are
@@ -930,7 +1048,7 @@ they sort chronologically the `_id` index alone gives listings a stable order.
   part of a request is ever spliced into a query document as an operator.
 - Feed URLs must be `http` or `https` and must not embed credentials, so a stored feed
   cannot leak a password into a log line.
-- Source identifiers are UUIDv7 rather than sequential or timestamp-derived values.
+- Source identifiers are UUIDv7, not secrets or per-reader access controls.
 - Outbound fetches refuse any destination that is not publicly routable — loopback,
   private, link-local (including the `169.254.169.254` metadata endpoint), multicast,
   carrier-grade NAT and the reserved ranges — and any port other than 80 and 443.
@@ -964,8 +1082,10 @@ they sort chronologically the `_id` index alone gives listings a stable order.
 - Article responses expose no deduplication key, so how articles are matched is not
   inferable from the API.
 
-Every outbound request in the application goes through `internal/httpclient`, so no
-caller can reach the network without those guards.
+Untrusted feed, article and robots fetches use `internal/httpclient`. The
+trusted classifier uses its separate bounded, redirect-free internal client.
+Remote bootstrap source lists use a separate HTTPS client; do not describe
+either client as covered by the publisher-fetch network guard.
 
 **There is still no identity layer** — a valid credential is a credential, with no
 notion of who holds it and no per-caller scoping or rate limit. Keep the service on a

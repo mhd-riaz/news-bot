@@ -1,11 +1,14 @@
-"""Phase H: characterise the chosen model honestly, before anyone trusts it.
+"""Historical Phase H analysis of the frozen v2-001 classifier.
+
+All classifier annotations are AI-generated (roadmap D16, 22 Nov 2026).
+Scores and label disagreements below are not evidence of human validation.
 
 The model is settled -- `word_char_svc` on `title_body` at 4,000 characters,
 `class_weight="balanced"`, isotonic calibration cross-validated on train, one global
 confidence cut. Nothing here tunes anything. It answers:
 
-* **H1** where the errors are, and how many of them are the same boundaries humans
-  disagreed on in Finding 3;
+* **H1** where the errors are, and how many share the annotation-disagreement
+  boundaries recorded in Finding 3;
 * **H2** what an unseen masthead costs;
 * **H3** whether the temporal split is measuring drift or just making life harder;
 * **H5** which per-class scores are real and which are small-sample noise;
@@ -30,8 +33,8 @@ MODEL = "word_char_svc"
 PARAMS: dict = {}
 CALIBRATION = "isotonic"
 
-# The pairs Finding 3 measured humans disagreeing on. If the model's top confusions are
-# these, the errors are partly in the labels and "fixing" them means fitting noise.
+# Historical Finding 3 annotation disagreements. The variable name is retained for
+# reproducibility; D16 withdraws its human-origin interpretation.
 HUMAN_DISAGREEMENT = {
     frozenset({"conflict_war", "politics"}),
     frozenset({"business_economy", "politics"}),
@@ -71,18 +74,18 @@ def main() -> None:
         cells = " ".join(f"{v:>6}" if v else "     ." for v in row)
         print(f"{label:<{width}} {cells}")
 
-    print("\ntop confusions, flagged where humans disagreed too (Finding 3):")
+    print("\ntop confusions, flagged by historical annotation-disagreement pairs (Finding 3; AI labels, D16):")
     errors = sum(count for _, _, count in evaluate.top_confusions(val, limit=10_000))
     noisy = 0
     for actual, called, count in evaluate.top_confusions(val, limit=12):
-        flag = "  <- humans disagree here too" if frozenset({actual, called}) in HUMAN_DISAGREEMENT else ""
+        flag = "  <- historical annotation-disagreement pair" if frozenset({actual, called}) in HUMAN_DISAGREEMENT else ""
         print(f"  {actual:>20} called {called:<20} {count:>4}{flag}")
     for actual, called, count in evaluate.top_confusions(val, limit=10_000):
         if frozenset({actual, called}) in HUMAN_DISAGREEMENT:
             noisy += count
     print(f"\n{noisy} of {errors} errors ({noisy / errors:.1%}) sit on the three class "
-          "pairs Finding 3 measured\nhuman annotators disagreeing on. That share is a "
-          "ceiling effect, not a fixable bug.")
+          "pairs Finding 3 recorded annotation disagreements on. D16 withdraws their "
+          "human origin; this share does not establish a human-accuracy ceiling.")
 
     probabilities = confidence.cross_validated_probabilities(
         lambda: models.build(MODEL, **PARAMS),
