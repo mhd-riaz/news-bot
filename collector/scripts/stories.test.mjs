@@ -7,6 +7,7 @@ const scriptURL = new URL("../internal/web/static/stories.js", import.meta.url);
 const source = readFileSync(scriptURL, "utf8");
 const template = readFileSync(new URL("../internal/web/templates/stories.html", import.meta.url), "utf8");
 const elementIDs = new Set([...template.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]));
+const elementTags = new Map([...template.matchAll(/<([a-z0-9]+)\b[^>]*\bid="([^"]+)"/g)].map((match) => [match[2], match[1].toUpperCase()]));
 const startup = /\n  init\(\);\n\}\)\(\);\s*$/;
 assert.match(source, startup, "Update the test hooks if the Stories bootstrap changes.");
 
@@ -18,7 +19,10 @@ const instrumented = source.replace(startup, `
     state, emptyProfile, ids, normaliseProfile, readProfile, saveProfile,
     safeURL, articleDate, normaliseMetadata, normaliseArticle, normaliseResponse,
     bodyFor, requestJSON, loadFeed, nextStory, previousStory, changePreference,
-    currentArticle, canNext, renderStory, renderChrome
+    currentArticle, canNext, renderStory, renderChrome, renderGrid,
+    openStory, closeStory, showStory, onPopState, showRelatedFeed,
+    normaliseSaved, readSaved, toggleSaved, saveNote, setTimeZone,
+    readSettings, applyTheme, toggleTheme
   };
 })();
 `);
@@ -56,17 +60,48 @@ const response = (value, status = 200) => ({
   json: async () => value,
 });
 
-function element() {
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+const tileTitles = (grid) => grid.children.map((tile) => tile.children[1].children[1].children[0].textContent);
+// Related-reading requests carry a seed; feed requests in these tests do not.
+const feedCalls = (calls) => calls.filter((call) => call.options.body && !("seed_id" in JSON.parse(call.options.body)));
+
+// Supports the selectors the reader uses on generated nodes: tag, [data-x], [data-x="y"] and comma lists.
+function matches(node, selector) {
+  return selector.split(",").some((part) => {
+    const match = part.trim().match(/^([a-z][a-z0-9]*)?(?:\[data-([a-z-]+)(?:="([^"]*)")?\])?$/i);
+    if (!match || (!match[1] && !match[2])) return false;
+    const [, tag, key, value] = match;
+    if (tag && node.tagName !== tag.toUpperCase()) return false;
+    if (!key) return true;
+    const name = key.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+    return Object.hasOwn(node.dataset, name) && (value === undefined || node.dataset[name] === value);
+  });
+}
+
+function element(tag = "", document = null) {
   const attributes = new Map();
   const classes = new Set();
+  const styles = new Map();
   const node = {
+    tagName: tag.toUpperCase(),
     textContent: "",
     hidden: false,
     disabled: false,
+    open: false,
+    scrollTop: 0,
     dataset: {},
     children: [],
     options: [],
+    parentNode: null,
+    connected: false,
+    style: {
+      setProperty: (name, value) => styles.set(name, String(value)),
+      getPropertyValue: (name) => styles.get(name) ?? "",
+    },
     classList: {
+      add: (...names) => names.forEach((name) => classes.add(name)),
+      remove: (...names) => names.forEach((name) => classes.delete(name)),
+      contains: (name) => classes.has(name),
       toggle: (name, enabled) => enabled ? classes.add(name) : classes.delete(name),
     },
     setAttribute: (name, value) => attributes.set(name, String(value)),
@@ -76,27 +111,82 @@ function element() {
       if (name === "href") delete node.href;
       if (name === "datetime") delete node.dateTime;
     },
-    querySelectorAll: () => [],
-    querySelector: () => ({ open: false }),
+    addEventListener: () => {},
+    append: (...nodes) => {
+      for (const child of nodes) {
+        if (child.parentNode) child.remove();
+        child.parentNode = node;
+        node.children.push(child);
+      }
+    },
+    replaceChildren: (...nodes) => {
+      node.children.forEach((child) => { child.parentNode = null; });
+      node.children = [];
+      node.append(...nodes);
+    },
+    remove: () => {
+      if (!node.parentNode) return;
+      node.parentNode.children = node.parentNode.children.filter((child) => child !== node);
+      node.parentNode = null;
+    },
+    closest: (selector) => {
+      for (let current = node; current; current = current.parentNode) if (matches(current, selector)) return current;
+      return null;
+    },
+    querySelectorAll: (selector) => {
+      const found = [];
+      const walk = (parent) => parent.children.forEach((child) => {
+        if (matches(child, selector)) found.push(child);
+        walk(child);
+      });
+      walk(node);
+      return found;
+    },
+    focus: () => {
+      if (document) document.activeElement = node;
+    },
+    showModal: () => { node.open = true; },
+    close: () => { node.open = false; },
   };
+  Object.defineProperty(node, "isConnected", {
+    get() {
+      for (let current = node; current; current = current.parentNode) if (current.connected) return true;
+      return false;
+    },
+  });
+  Object.defineProperty(node, "className", {
+    get: () => [...classes].join(" "),
+    set: (value) => {
+      classes.clear();
+      String(value).split(/\s+/).filter(Boolean).forEach((name) => classes.add(name));
+    },
+  });
   Object.defineProperty(node, "innerHTML", {
     set() { assert.fail("Fetched content must use textContent, not innerHTML."); },
   });
   return node;
 }
 
-function harness() {
+function harness({ dark = false } = {}) {
   const nodes = new Map();
   const storage = new Map();
   const timers = new Map();
   const calls = [];
+  const history = [];
+  const document = { activeElement: null };
+  const root = element("html", document);
   let nextTimer = 0;
   let fetch = () => assert.fail("Every request must be explicitly mocked.");
   const get = (name) => {
     assert(elementIDs.has(name), `The template must contain #${name}.`);
-    if (!nodes.has(name)) nodes.set(name, element());
+    if (!nodes.has(name)) {
+      const node = element(elementTags.get(name), document);
+      node.connected = true;
+      nodes.set(name, node);
+    }
     return nodes.get(name);
   };
+  Object.assign(document, { getElementById: get, documentElement: root, createElement: (tag) => element(tag, document) });
   const window = {
     localStorage: {
       getItem: (key) => storage.get(key) ?? null,
@@ -108,10 +198,14 @@ function harness() {
       return timer;
     },
     clearTimeout: (timer) => timers.delete(timer),
+    matchMedia: () => ({ matches: dark }),
+    history: {
+      pushState: () => history.push("push"),
+      back: () => history.push("back"),
+    },
   };
   const context = createContext({
-    URL, AbortController, Intl, Error, TypeError, window,
-    document: { getElementById: get },
+    URL, AbortController, Intl, Error, TypeError, window, document,
     fetch: (path, options) => {
       calls.push({ path, options });
       return fetch(path, options);
@@ -127,7 +221,7 @@ function harness() {
     loading: false,
     feedback: null,
   });
-  return { api, state: api.state, get, storage, timers, calls, window, setFetch: (mock) => { fetch = mock; } };
+  return { api, state: api.state, get, storage, timers, calls, history, document, window, root, setFetch: (mock) => { fetch = mock; } };
 }
 
 describe("AFTERLINE focused UI checks", { concurrency: true }, () => {
@@ -235,7 +329,7 @@ describe("AFTERLINE focused UI checks", { concurrency: true }, () => {
     assert.throws(() => api.normaliseResponse(selection([{ id: "invalid" }]), "snapshot-a", "neural"), /No valid/);
     const deduplicated = api.normaliseResponse(selection([article(1), article(1), { id: "invalid" }, article(2)]), "snapshot-a", "neural");
     assert.deepEqual(deduplicated.items.map((item) => item.id).join(","), [id(1), id(2)].join(","));
-    assert.equal(api.normaliseResponse(selection(identifiers(40).map((_, index) => article(index + 1))), "snapshot-a", "neural").items.length, 24);
+    assert.equal(api.normaliseResponse(selection(identifiers(40).map((_, index) => article(index + 1))), "snapshot-a", "neural").items.length, 30);
   });
 
   test("metadata selects the evaluated baseline default and rejects an unsupported default", () => {
@@ -292,7 +386,7 @@ describe("AFTERLINE focused UI checks", { concurrency: true }, () => {
     state.method = "svd";
     const body = api.bodyFor();
     assert.deepEqual([body.liked.length, body.disliked.length, body.viewed.length], [50, 50, 2000]);
-    assert.equal(body.limit, 24);
+    assert.equal(body.limit, 25);
     assert.equal(body.method, "svd");
     assert.equal(body.seed_id, id(4));
     assert.equal(body.topic, "0");
@@ -314,49 +408,67 @@ describe("AFTERLINE focused UI checks", { concurrency: true }, () => {
     assert.equal(timers.size, 0);
   });
 
-  test("navigation counts only displayed stories, revisits history, and reaches an explicit end", async () => {
+  test("the grid shows a page without marking it viewed; opening, Next and More behave like a reader", async () => {
     const { api, state, setFetch, calls, get } = harness();
-    setFetch(async () => response(selection([article(1), article(2), article(3)])));
+    setFetch(async () => response(selection([article(1), article(2), article(3)], { exhausted: false })));
     await api.loadFeed(true);
-    assert.deepEqual(plain(state.profile.viewed), [id(1)]);
-    assert.equal(state.queue.length, 2);
-    assert.equal(get("position-current").textContent, "01");
-    assert.equal(get("position-total").textContent, "03");
-    api.nextStory();
+    assert.deepEqual(tileTitles(get("story-grid")), ["Archived story 1", "Archived story 2", "Archived story 3"]);
+    assert.equal(get("story-grid").children[0].className, "tile tile-lead");
+    assert.equal(get("story-grid").children[1].className, "tile");
+    assert.equal(get("story-grid").hidden, false);
+    assert.equal(get("load-more").hidden, false);
+    assert.equal(state.profile.viewed.length, 0, "Showing tiles must not mark them viewed.");
+    api.openStory("feed", 1, null);
+    await flush();
+    assert.equal(get("story-dialog").open, true);
     assert.equal(api.currentArticle().id, id(2));
-    assert.equal(state.profile.viewed.length, 2);
-    assert.equal(state.profile.liked.length, 0);
-    assert.equal(state.profile.disliked.length, 0);
+    assert.deepEqual(plain(state.profile.viewed), [id(2)]);
+    assert.deepEqual([get("position-current").textContent, get("position-total").textContent], ["2", "3+"]);
+    assert.equal(get("story-title").textContent, "Archived story 2");
     api.previousStory();
     assert.equal(api.currentArticle().id, id(1));
-    assert.equal(state.profile.viewed.length, 2);
-    api.nextStory();
-    api.nextStory();
+    assert.equal(get("previous-story").disabled, true);
+    await api.nextStory();
+    await api.nextStory();
     assert.equal(api.currentArticle().id, id(3));
-    assert.equal(get("feed-end").hidden, false);
+    assert.equal(state.profile.liked.length + state.profile.disliked.length, 0);
+    assert.equal(feedCalls(calls).length, 1);
+    setFetch(async () => response(selection([article(1), article(4)])));
+    await api.nextStory();
+    assert.equal(api.currentArticle().id, id(4));
+    const more = JSON.parse(feedCalls(calls)[1].options.body);
+    assert.equal(more.limit, 24);
+    assert.deepEqual([...more.viewed].sort(), [id(1), id(2), id(3)]);
+    assert.deepEqual(tileTitles(get("story-grid")), ["Archived story 1", "Archived story 2", "Archived story 3", "Archived story 4"]);
+    assert.equal(api.canNext(), false);
     assert.equal(get("next-story").disabled, true);
-    api.nextStory();
-    assert.equal(calls.length, 1);
+    await api.nextStory();
+    assert.equal(feedCalls(calls).length, 2);
+    api.closeStory();
+    assert.equal(get("story-dialog").open, false);
+    assert.equal(api.currentArticle(), null);
+    assert.equal(get("feed-end").hidden, false);
+    assert.equal(get("load-more").hidden, true);
     state.profile.viewed = identifiers(2000);
-    state.queue = [api.normaliseArticle(article(5000))];
-    api.nextStory();
+    api.openStory("feed", 0, null);
     assert.equal(state.profile.viewed.length, 2000);
     assert.equal(state.profile.viewed[0], id(2));
-    assert.equal(state.profile.viewed.at(-1), id(5000));
+    assert.equal(state.profile.viewed.at(-1), id(1));
   });
 
-  test("preference toggles remove opposing choices, cap each side, and discard stale unseen rankings", async () => {
+  test("preferences toggle opposing choices, cap each side, offer an update, and drop dislikes on close", async () => {
     const { api, state, setFetch, calls, get } = harness();
     setFetch(async () => response(selection([article(1), article(2)])));
     await api.loadFeed(true);
+    api.openStory("feed", 0, null);
+    await flush();
     state.profile.liked = identifiers(50, 100);
     state.profile.disliked = identifiers(50, 200);
     api.changePreference("liked");
     assert.equal(state.profile.liked.length, 50);
     assert(!state.profile.liked.includes(id(100)));
     assert(state.profile.liked.includes(id(1)));
-    assert.equal(state.queue.length, 0);
-    assert.equal(state.exhausted, false);
+    assert.equal(state.stale, true);
     assert.equal(get("like-story").getAttribute("aria-pressed"), "true");
     api.changePreference("disliked");
     assert(!state.profile.liked.includes(id(1)));
@@ -366,7 +478,12 @@ describe("AFTERLINE focused UI checks", { concurrency: true }, () => {
     assert.equal(get("dislike-story").getAttribute("aria-pressed"), "true");
     api.changePreference("disliked");
     assert(!state.profile.disliked.includes(id(1)));
-    assert.equal(calls.length, 1, "Changing interests must not trigger automatic prefetch.");
+    api.changePreference("disliked");
+    assert.equal(feedCalls(calls).length, 1, "Changing interests must not trigger automatic prefetch.");
+    assert.deepEqual(tileTitles(get("story-grid")), ["Archived story 1", "Archived story 2"], "The grid must not reflow while reading.");
+    api.closeStory();
+    assert.deepEqual(tileTitles(get("story-grid")), ["Archived story 2"]);
+    assert.equal(get("refresh-feed").hidden, false);
   });
 
   test("cancelled requests cannot replace current content, clear a newer loading state, or mark stale items viewed", async () => {
@@ -382,7 +499,7 @@ describe("AFTERLINE focused UI checks", { concurrency: true }, () => {
         pending[0].resolve(response(selection([article(11)])));
         await older;
         assert.equal(state.loading, true);
-        assert.equal(api.currentArticle(), null);
+        assert.equal(state.items.length, 0);
         assert.equal(state.profile.viewed.length, 0);
       }
       pending[1].resolve(response(selection([article(22), article(23)])));
@@ -391,10 +508,9 @@ describe("AFTERLINE focused UI checks", { concurrency: true }, () => {
         pending[0].reject(new Error("Old request failed after the new one finished."));
         await older;
       }
-      assert.equal(api.currentArticle().id, id(22));
-      assert.deepEqual(plain(state.profile.viewed), [id(22)]);
-      assert.equal(state.queue[0].id, id(23));
-      assert.equal(get("story-title").textContent, "Archived story 22");
+      assert.deepEqual(tileTitles(get("story-grid")), ["Archived story 22", "Archived story 23"]);
+      assert.deepEqual(plain(state.items.map((item) => item.id)), [id(22), id(23)]);
+      assert.equal(state.profile.viewed.length, 0);
       assert.equal(state.feedback, null);
       assert.equal(state.loading, false);
       assert.equal(timers.size, 0);
@@ -409,14 +525,162 @@ describe("AFTERLINE focused UI checks", { concurrency: true }, () => {
     await api.loadFeed(true);
     assert.deepEqual(JSON.parse(calls[0].options.body).viewed, [id(1)]);
     assert.deepEqual(JSON.parse(calls[0].options.body).disliked, [id(2)]);
-    assert.equal(api.currentArticle(), null);
+    assert.equal(state.items.length, 0);
     assert.equal(state.exhausted, true);
     assert.equal(state.feedback.kind, "empty");
     assert.equal(get("feed-feedback").hidden, false);
     assert.equal(get("loading-indicator").hidden, true);
-    assert.equal(get("next-story").disabled, true);
+    assert.equal(get("story-grid").hidden, true);
+    assert.equal(get("load-more").hidden, true);
     assert.equal(state.profile.viewed.length, 1);
     assert.equal(calls.length, 1);
+  });
+
+  test("views send their news window, related reading spans every window, and focus sends professional tags", () => {
+    const { api, state } = harness();
+    state.meta.domains = { ai: 3, "data-science": 1, "Not A Tag": 1 };
+    state.profile.viewed = [id(1)];
+    const fresh = api.bodyFor();
+    assert.equal(fresh.window, "fresh");
+    assert.equal(fresh.limit, 25);
+    assert(!("domains" in fresh));
+    state.professional = true;
+    assert.deepEqual(plain(api.bodyFor().domains), ["ai", "data-science"]);
+    state.seed = id(4);
+    const related = api.bodyFor();
+    assert(!("window" in related) && related.seed_id === id(4));
+    state.seed = "";
+    state.view = "yesterday";
+    const edition = api.bodyFor();
+    assert.deepEqual([edition.window, edition.limit, edition.viewed.length], ["yesterday", 10, 0]);
+    const explore = api.bodyFor(true);
+    assert.deepEqual([explore.window, explore.limit], ["yesterday", 24]);
+  });
+
+  test("an edition is one fixed page: opened stories stay in it and the reader never refetches", async () => {
+    const { api, state, setFetch, calls, get } = harness();
+    state.view = "yesterday";
+    state.meta.edition_date = "2026-11-22";
+    state.profile.viewed = [id(1)];
+    const stories = Array.from({ length: 10 }, (_, index) => article(index + 1));
+    setFetch(async () => response(selection(stories, { exhausted: false, window: "yesterday", edition_date: "2026-11-23" })));
+    await api.loadFeed(true);
+    assert.equal(state.items.length, 10);
+    assert.equal(state.exhausted, true);
+    assert.equal(state.meta.edition_date, "2026-11-23");
+    assert.equal(get("selection-label").textContent, "Yesterday’s edition");
+    assert.equal(get("page-date").textContent, "Monday 23 November");
+    assert.equal(get("load-more").hidden, true);
+    assert.equal(get("feed-end").hidden, false);
+    assert.match(get("end-message").textContent, /yesterday’s edition: 10 stories published on Monday 23 November/);
+    api.openStory("feed", 0, null);
+    api.changePreference("liked");
+    assert.equal(state.stale, false);
+    assert.match(get("reader-status").textContent, /This edition stays as it is/);
+    for (let step = 0; step < 9; step += 1) await api.nextStory();
+    assert.equal(api.currentArticle().id, id(10));
+    assert.equal(api.canNext(), false);
+    assert.equal(get("position-total").textContent, "10");
+    assert.equal(feedCalls(calls).length, 1);
+    api.closeStory();
+    assert.equal(state.items.length, 10);
+  });
+
+  test("saved stories and notes persist across snapshots, stay literal, and are bounded", async () => {
+    const { api, state, setFetch, storage, get } = harness();
+    setFetch(async () => response(selection([article(1, { url: "https://example.invalid/one" }), article(2)])));
+    await api.loadFeed(true);
+    const star = get("story-grid").children[1].children[2];
+    assert.equal(star.dataset.save, id(2));
+    api.toggleSaved(state.items[1]);
+    assert.deepEqual(JSON.parse(storage.get("afterline:saved")).map((item) => item.id), [id(2)]);
+    assert.deepEqual([star.textContent, star.getAttribute("aria-pressed")], ["★", "true"]);
+    assert.equal(get("open-saved").textContent, "Saved stories (1)");
+    api.toggleSaved(state.items[1]);
+    assert.deepEqual([star.textContent, star.getAttribute("aria-pressed")], ["☆", "false"]);
+    api.openStory("feed", 0, null);
+    api.toggleSaved();
+    assert.equal(get("save-story").getAttribute("aria-pressed"), "true");
+    assert.equal(get("save-label").textContent, "Saved");
+    assert.equal(get("save-icon").textContent, "★");
+    assert.equal(get("note-editor").hidden, false);
+    get("story-note").value = `<b>why</b> ${"x".repeat(2100)}`;
+    api.saveNote();
+    const stored = JSON.parse(storage.get("afterline:saved"));
+    assert.equal(stored.length, 1);
+    assert.equal(stored[0].note.length, 2000);
+    assert(stored[0].note.startsWith("<b>why</b>"));
+    assert.equal(get("note-status").textContent, "Note saved in this browser.");
+    state.storageKey = "afterline:profile:snapshot-b";
+    assert.equal(api.readSaved()[0].url, "https://example.invalid/one");
+    api.toggleSaved();
+    assert.deepEqual(JSON.parse(storage.get("afterline:saved")), []);
+    assert.equal(get("note-editor").hidden, true);
+    const cleaned = api.normaliseSaved([
+      { id: id(5), title: "  Kept  ", url: "javascript:alert(1)", note: 7 },
+      { id: id(5).toUpperCase(), title: "Duplicate" }, { id: "not-a-uuid" }, null,
+    ]);
+    assert.deepEqual(plain(cleaned.map((item) => [item.title, item.url, item.note])), [["Kept", "", ""]]);
+    assert.equal(api.normaliseSaved(identifiers(250).map((value) => ({ id: value }))).length, 200);
+  });
+
+  test("a typed note survives moving to another story or closing the reader without a save click", async () => {
+    const { api, setFetch, storage, get } = harness();
+    setFetch(async () => response(selection([article(1), article(2)])));
+    await api.loadFeed(true);
+    api.openStory("feed", 0, null);
+    api.toggleSaved();
+    get("story-note").value = "typed before swiping";
+    await api.nextStory();
+    assert.equal(JSON.parse(storage.get("afterline:saved"))[0].note, "typed before swiping");
+    assert.equal(get("story-note").value, "");
+    api.previousStory();
+    assert.equal(get("story-note").value, "typed before swiping");
+    get("story-note").value = "typed before closing";
+    api.closeStory();
+    assert.equal(JSON.parse(storage.get("afterline:saved"))[0].note, "typed before closing");
+  });
+
+  test("the theme follows the computer until a reader picks one, and the choice is kept", () => {
+    const dark = harness({ dark: true });
+    dark.api.applyTheme();
+    assert.equal(dark.root.dataset.theme, undefined);
+    assert.equal(dark.get("theme-toggle").getAttribute("aria-pressed"), "true");
+    dark.api.toggleTheme();
+    assert.equal(dark.root.dataset.theme, "light");
+    assert.equal(dark.get("theme-toggle").getAttribute("aria-pressed"), "false");
+    assert.equal(dark.get("action-status").textContent, "Light theme on. Saved in this browser.");
+    assert.deepEqual(JSON.parse(dark.storage.get("afterline:settings")), { professional: false, theme: "light" });
+    dark.api.toggleTheme();
+    assert.equal(dark.root.dataset.theme, "dark");
+
+    const light = harness();
+    light.api.applyTheme();
+    assert.equal(light.root.dataset.theme, undefined);
+    assert.equal(light.get("theme-toggle").getAttribute("aria-pressed"), "false");
+    light.storage.set("afterline:settings", JSON.stringify({ professional: true, theme: "neon" }));
+    assert.deepEqual(plain(light.api.readSettings()), { professional: true, theme: "" });
+    light.storage.set("afterline:settings", "{broken");
+    assert.deepEqual(plain(light.api.readSettings()), { professional: false, theme: "" });
+    light.storage.set("afterline:settings", JSON.stringify({ theme: "dark" }));
+    Object.assign(light.state, light.api.readSettings());
+    light.api.applyTheme();
+    assert.equal(light.root.dataset.theme, "dark");
+    assert.equal(light.get("theme-toggle").getAttribute("aria-pressed"), "true");
+  });
+
+  test("story dates show the edition time zone, label unverified dates, and mark fresh stories", () => {
+    const { api, get } = harness();
+    api.setTimeZone("Asia/Kolkata");
+    api.renderStory(api.normaliseArticle(article(1, { date_verified: false })));
+    assert.equal(get("story-date").textContent, "Published 2 March 2024 · date unverified");
+    assert.equal(get("story-stamp").textContent, "From the archive");
+    api.renderStory(api.normaliseArticle(article(2, { date_verified: true, fresh: true })));
+    assert.equal(get("story-date").textContent, "Published 2 March 2024");
+    assert.equal(get("story-stamp").textContent, "Fresh · last 30 days");
+    api.setTimeZone("Not/AZone");
+    api.renderStory(api.normaliseArticle(article(3)));
+    assert.equal(get("story-date").textContent, "Published 2 March 2024");
   });
 
   test("service errors, invalid JSON, and connection failures show retryable errors and recover", async () => {
@@ -439,7 +703,7 @@ describe("AFTERLINE focused UI checks", { concurrency: true }, () => {
       await api.loadFeed(true);
       assert.equal(state.feedback, null);
       assert.equal(get("retry-feed").hidden, true);
-      assert.equal(api.currentArticle().id, id(1));
+      assert.equal(state.items[0].id, id(1));
       assert.equal(timers.size, 0);
     }
   });
@@ -455,7 +719,7 @@ describe("AFTERLINE focused UI checks", { concurrency: true }, () => {
     assert.equal(state.retryKind, "meta");
     assert.equal(get("retry-feed").textContent, "Reload archive");
     assert.match(get("feedback-message").textContent, /snapshot changed/);
-    assert.equal(api.currentArticle().id, id(1));
+    assert.deepEqual(plain(state.items.map((item) => item.id)), [id(1)]);
     assert.deepEqual(plain(state.profile), originalProfile);
     assert.equal(get("reader-panel").getAttribute("aria-busy"), "false");
   });
@@ -480,5 +744,129 @@ describe("AFTERLINE focused UI checks", { concurrency: true }, () => {
     assert.equal(get("reader-panel").getAttribute("aria-busy"), "false");
     assert.equal(state.profile.viewed.length, 0);
     assert.equal(timers.size, 0);
+  });
+
+  test("tiles keep fetched text literal, skip insecure images, and badge freshness only in related reading", async () => {
+    const { api, state, setFetch, get } = harness();
+    const hostile = "<img src=x onerror=alert(1)>";
+    setFetch(async () => response(selection([
+      article(1, { title: hostile, source_name: hostile, text: hostile, image_url: "http://example.invalid/image.jpg" }),
+      article(2, { text: "", image_url: "https://example.invalid/image.jpg", fresh: true }),
+    ])));
+    await api.loadFeed(true);
+    const [lead, second] = get("story-grid").children;
+    const [media, body, save] = lead.children;
+    assert.equal(media.children.length, 1, "An insecure image must not be requested.");
+    assert.equal(media.children[0].className, "tile-placeholder");
+    assert.equal(body.children[0].children[0].textContent, hostile);
+    assert.equal(body.children[1].children[0].textContent, hostile);
+    assert.equal(body.children[2].textContent, hostile);
+    assert.equal(save.dataset.save, id(1));
+    assert.equal(save.getAttribute("aria-label"), `Save: ${hostile}`);
+    const image = second.children[0].children[1];
+    assert.deepEqual([image.tagName, image.src, image.referrerPolicy, image.loading],
+      ["IMG", "https://example.invalid/image.jpg", "no-referrer", "lazy"]);
+    assert.equal(second.children[1].children.length, 2, "A headline-only story shows no summary line.");
+    assert.equal(get("story-grid").querySelectorAll("span").filter((node) => node.className.startsWith("tile-badge")).length, 0);
+    state.seed = id(9);
+    await api.loadFeed(true);
+    const badges = get("story-grid").children.map((tile) => tile.children[0].children.at(-1));
+    assert.deepEqual(badges.map((badge) => [badge.className, badge.textContent]),
+      [["tile-badge", "From the archive"], ["tile-badge is-fresh", "Fresh"]]);
+  });
+
+  test("related reading asks for six stories around the open one and keeps its own trail", async () => {
+    const { api, state, setFetch, calls, get, history } = harness();
+    state.meta.domains = { ai: 3 };
+    state.professional = true;
+    setFetch(async () => response(selection([article(1), article(2)], { exhausted: false })));
+    await api.loadFeed(true);
+    setFetch(async () => response(selection([article(1), article(30, { fresh: true }), article(31)])));
+    api.openStory("feed", 0, null);
+    await flush();
+    const related = JSON.parse(calls.at(-1).options.body);
+    assert.deepEqual([related.seed_id, related.limit, related.window, related.domains, related.viewed],
+      [id(1), 6, undefined, ["ai"], [id(1)]]);
+    assert.deepEqual(tileTitles(get("related-grid")), ["Archived story 30", "Archived story 31"]);
+    assert.equal(get("related-grid").children[0].children[0].children.at(-1).textContent, "Fresh");
+    api.openStory("related", 1, null);
+    await flush();
+    assert.equal(api.currentArticle().id, id(31));
+    assert.deepEqual([get("position-current").textContent, get("position-total").textContent], ["2", "2"]);
+    assert.equal(api.canNext(), false);
+    api.previousStory();
+    assert.equal(api.currentArticle().id, id(30));
+    assert.equal(feedCalls(calls).length, 1);
+    assert.deepEqual(history, ["push"], "Opening related stories inside the reader adds no history entries.");
+    setFetch(async () => response(selection([article(40), article(41)])));
+    api.showRelatedFeed();
+    assert.equal(api.currentArticle(), null);
+    assert.deepEqual(history, ["push", "back"]);
+    await flush();
+    const seeded = JSON.parse(calls.at(-1).options.body);
+    assert.deepEqual([seeded.seed_id, seeded.limit, seeded.window], [id(30), 25, undefined]);
+    assert.equal(get("selection-label").textContent, "Related reading");
+    assert.equal(get("selection-note").textContent, "Related to “Archived story 30”");
+    assert.deepEqual(tileTitles(get("story-grid")), ["Archived story 40", "Archived story 41"]);
+  });
+
+  test("browser Back closes the reader in place, and focus returns to the tile that opened it", async () => {
+    const { api, state, setFetch, get, history, document } = harness();
+    setFetch(async () => response(selection([article(1), article(2)])));
+    await api.loadFeed(true);
+    const opener = get("story-grid").children[1].children[1].children[1].children[0];
+    assert.equal(opener.dataset.index, "1");
+    api.openStory("feed", 1, opener);
+    assert.equal(document.activeElement, get("story-title"));
+    api.onPopState();
+    assert.equal(state.readerOpen, false);
+    assert.equal(get("story-dialog").open, false);
+    assert.equal(document.activeElement, opener);
+    assert.deepEqual(history, ["push"], "Back already removed the story entry.");
+    api.openStory("feed", 0, opener);
+    api.closeStory();
+    assert.deepEqual(history, ["push", "push", "back"]);
+    api.openStory("feed", 0, opener);
+    api.onPopState();
+    assert.equal(state.readerOpen, true, "The popstate caused by closing must not close a newly opened story.");
+    api.onPopState();
+    assert.equal(state.readerOpen, false);
+  });
+
+  test("marking every story not interested leaves an explained page with an update, not a blank one", async () => {
+    const { api, state, setFetch, calls, get } = harness();
+    setFetch(async () => response(selection([article(1), article(2)], { exhausted: false })));
+    await api.loadFeed(true);
+    api.openStory("feed", 0, null);
+    api.changePreference("disliked");
+    await api.nextStory();
+    api.changePreference("disliked");
+    api.closeStory();
+    assert.equal(state.items.length, 0);
+    assert.equal(state.feedback.kind, "empty");
+    assert.equal(get("feed-feedback").hidden, false);
+    assert.equal(get("feedback-title").textContent, "Nothing left on this page.");
+    assert.equal(get("refresh-feed").hidden, false);
+    assert.equal(get("feedback-explore").hidden, false);
+    assert.equal(feedCalls(calls).length, 1, "Emptying the page must not refetch on its own.");
+  });
+
+  test("after not-interested choices, closing focuses the opener's story or the next story kept after it", async () => {
+    const { api, setFetch, get, document } = harness();
+    setFetch(async () => response(selection([article(1), article(2), article(3), article(4)])));
+    await api.loadFeed(true);
+    const openButton = (index) => get("story-grid").children[index].children[1].children[1].children[0];
+    api.openStory("feed", 1, openButton(1));
+    await api.nextStory();
+    api.changePreference("disliked");
+    api.closeStory();
+    assert.deepEqual(tileTitles(get("story-grid")), ["Archived story 1", "Archived story 2", "Archived story 4"]);
+    assert.equal(document.activeElement, openButton(1));
+    assert.equal(document.activeElement.textContent, "Archived story 2");
+    api.openStory("feed", 1, openButton(1));
+    api.changePreference("disliked");
+    api.closeStory();
+    assert.deepEqual(tileTitles(get("story-grid")), ["Archived story 1", "Archived story 4"]);
+    assert.equal(document.activeElement.textContent, "Archived story 4");
   });
 });

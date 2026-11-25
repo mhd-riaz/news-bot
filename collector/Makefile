@@ -309,6 +309,26 @@ rec-benchmark: ## Measure retrieval and create a blind relevance sheet (never ov
 rec-serve: ## Serve saved representations on localhost:8001 (TensorFlow is not loaded)
 	cd ml-v2 && uv run --no-sync newsrec serve --id "$(REC_ID)"
 
+DEMO_RECENT_DAYS ?= 7
+DEMO_LIMIT       ?= 30000
+DEMO_CANDIDATES  ?= 40000
+DEMO_POINTER     := ml-v2/artifacts/recommender/LATEST_DEMO
+
+.PHONY: demo-refresh
+demo-refresh: ## Build a fresh-first demo snapshot (every recent article plus an older sample) from the configured database, ~7 min
+	@cd ml-v2 && uv run --no-sync newsrec inspect
+	@id=demo-$$(date -u +%Y%m%dT%H%M%SZ); \
+	cut=$$(python3 -c 'from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat(timespec="seconds"))'); \
+	cd ml-v2 && uv run --no-sync newsrec prepare --id "$$id" --cut "$$cut" --limit $(DEMO_LIMIT) \
+		--candidates $(DEMO_CANDIDATES) --recent-days $(DEMO_RECENT_DAYS) \
+	&& uv run --no-sync newsrec baseline --id "$$id" && uv run --no-sync newsrec train --id "$$id" \
+	&& echo "$$id" > artifacts/recommender/LATEST_DEMO && echo "Built $$id. Restart the ranker with: make demo-serve"
+
+.PHONY: demo-serve
+demo-serve: ## Serve the latest demo-refresh snapshot on localhost:8001
+	@test -s $(DEMO_POINTER) || (echo "No demo snapshot yet: run make demo-refresh"; exit 1)
+	$(MAKE) rec-serve REC_ID=$$(cat $(DEMO_POINTER))
+
 .PHONY: reader
 reader: ## Serve the read-only Stories reader at http://127.0.0.1:8090
 	go run ./cmd/reader

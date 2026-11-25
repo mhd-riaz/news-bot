@@ -45,13 +45,15 @@ func recommendationHandler(t *testing.T, status int, body string) *Recommendatio
 
 func TestRecommendationsSerializeOriginalMetadataAndCleanText(t *testing.T) {
 	t.Parallel()
-	h := recommendationHandler(t, 200, `{"snapshot_id":"test","method":"neural","items":[{"id":"`+recommendedID+`","text":"An excerpt.","text_kind":"Excerpt","input_kind":"body","topic":"0","score":0.8,"reason":"Related to this article"}]}`)
-	request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"limit":1}`))
+	h := recommendationHandler(t, 200, `{"snapshot_id":"test","method":"neural","window":"yesterday","edition_date":"2026-08-09","items":[{"id":"`+recommendedID+`","text":"An excerpt.","text_kind":"Excerpt","input_kind":"body","topic":"0","score":0.8,"reason":"Related to this article","date_verified":true,"fresh":true}]}`)
+	request := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"limit":1,"window":"yesterday","domains":["ai"]}`))
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 	h.Recommend(recorder, request)
 	var result struct {
-		Items []storyResponse `json:"items"`
+		Items       []storyResponse `json:"items"`
+		Window      string          `json:"window"`
+		EditionDate string          `json:"edition_date"`
 	}
 	if err := json.Unmarshal(recorder.Body.Bytes(), &result); err != nil {
 		t.Fatal(err)
@@ -59,6 +61,10 @@ func TestRecommendationsSerializeOriginalMetadataAndCleanText(t *testing.T) {
 	if recorder.Code != 200 || len(result.Items) != 1 || result.Items[0].DateKind != "Collected" ||
 		result.Items[0].Title != "<script>not HTML</script>" || result.Items[0].Text != "An excerpt." {
 		t.Fatalf("response = %d %s", recorder.Code, recorder.Body)
+	}
+	if result.Window != "yesterday" || result.EditionDate != "2026-08-09" ||
+		!result.Items[0].DateVerified || !result.Items[0].Fresh {
+		t.Fatalf("window or date flags missing: %s", recorder.Body)
 	}
 	if strings.Contains(recorder.Body.String(), "<script>") || recorder.Header().Get("Cache-Control") != "no-store" {
 		t.Fatal("JSON escaping or private response cache policy missing")
