@@ -80,7 +80,7 @@ services:
   # absent from the file is left alone — so a value tuned through the API
   # survives a redeploy.
   api:
-    image: ${NEWS_IMAGE:-ghcr.io/mhd-riaz/news-collector:latest}
+    image: ${NEWS_IMAGE:-ghcr.io/mhd-riaz/news-bot:latest}
     # Compose's default pull_policy ("missing") only pulls an image when it is
     # absent locally, so a floating `:latest` tag already cached on the host is
     # never refreshed on redeploy — the container silently keeps running the

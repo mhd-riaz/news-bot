@@ -399,12 +399,17 @@ with a redirect to its login page, which curl would otherwise count as success.
 A 2xx means Coolify queued the deployment; follow it in Coolify. The secrets are
 sent only as request headers, and the job prints Coolify's messages rather than
 the response body, because this repository's workflow logs are public. Roll back
-by setting `NEWS_IMAGE` to a previous `sha-` tag and redeploying.
+by setting `NEWS_IMAGE` and `NEWS_CLASSIFIER_IMAGE` to an earlier release's `sha-`
+tags, both from the same commit so the pair stays compatible, and redeploying;
+unset them to follow `latest` again.
 
-`GITHUB_TOKEN` covers the GHCR push once this repository has the **Write** role
-on each package (package settings → Manage Actions access); a package first
-published from another repository refuses pushes from this one until then. If a
-package is private, authenticate the homelab's Docker daemon once:
+`GITHUB_TOKEN` covers every GHCR push and promotion: this workflow created all
+three packages, so they are linked to this repository and inherit its public
+visibility. Do not publish under a package name that another repository created
+— its token cannot push there and the build fails with
+`permission_denied: write_package`, which is why the Go image is `news-bot`
+rather than `news-collector`. If a package is made private, authenticate the
+homelab's Docker daemon once:
 
 ```bash
 echo "$GH_TOKEN" | docker login ghcr.io -u <username> --password-stdin
