@@ -1,4 +1,4 @@
-// Command api serves the HTTP interface of the news collection system.
+// Command api serves the collector HTTP interface and runs its enabled workers.
 package main
 
 import (
@@ -151,8 +151,8 @@ func run() error {
 		logger.Warn("api authentication is disabled; every endpoint is open to anyone who can reach the port")
 	}
 
-	// The reader-facing site is what makes read events accumulate, and read
-	// events are the one input a later ranker cannot be given retroactively.
+	// This is the legacy feed and its read_events telemetry, not the separate
+	// AFTERLINE reader or its recommendation signals (roadmap C14).
 	var pages http.Handler
 	if cfg.Web.Enabled {
 		// Passed only when non-nil: a nil *MetadataCache handed to a variadic

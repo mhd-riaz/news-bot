@@ -6,7 +6,7 @@ A personal news briefing for a small invited group: you and your brother first, 
 
 The client wants to keep up with their professional field, initially software development, data science and AI. They also want to discover relevant topics they did not know to look for, connect current news with older material, and save items for deeper study.
 
-- **V1 — web, due 15 Nov 2026:**
+- **V1 — web, original target 15 Nov 2026 (not accepted; no revised date approved):**
   - 24×7 collector and a revision-aware batch pipeline that makes new articles recommendable within 1 h.
   - AFTERLINE web reader with Google sign-in, a fresh-first feed and archive, and a daily "yesterday" edition.
   - Likes and dislikes; topic, source and local/professional settings; reader-added RSS feeds; saved stories and topics with notes.
@@ -30,17 +30,43 @@ The client wants to keep up with their professional field, initially software de
   - Rules and MCP.
   - Deployment of the reader and ranker.
 
+## Current implemented state (reviewed 25 Nov 2026)
+
+The phase-1 section above is historical. Later code and local demonstrations are recorded
+in roadmap M1 and DEMO; they do not close V1 acceptance or prove today's service health.
+
+- **Collector:** the shipped source list has 124 feeds, including professional-domain tags.
+  C1 date provenance, revisions, write timestamps, sidecar cleaning/language results,
+  enrichment reclassification and bounded resumable backfill are implemented. The production
+  backfill and deployment verification remain open. Collection itself does not enforce a
+  global English-only admission filter.
+- **Local AFTERLINE demo (24 Nov):** manual recent-first snapshots; Fresh, Yesterday and
+  Archive views; professional-source filtering; a grid front page and full-screen reading
+  view; related-story grids; and a system-aware light/dark switch. Stories and notes can
+  be saved in browser storage across snapshots. Likes, dislikes and viewed history remain
+  per snapshot. No sign-in, server-side preferences, saved topics or reader-added feeds.
+- **Limits:** no automatic revision-aware recommendation index, measured one-hour freshness,
+  persisted per-reader editions, association rules, project MCP server or deployed reader/ranker.
+  The local Yesterday view is computed per request, not stored, and has no topic cap.
+- **Classifier provenance:** D16 supersedes every earlier claim that classifier labels were
+  human-generated. The pooled V4 candidate is local and AI-labelled, not production-promoted;
+  its scores measure AI-label agreement. Human validation and 200 human labels/class are
+  not met. The recommender's separate human pilot is not reclassified by this correction.
+- **Deployment:** publishing/deployment remains gated by `DEPLOY_ENABLED`; the older repository
+  still owns the production package. Do not infer deployment from a successful local image build.
+
 ## Architecture
 
 | Path (under `collector/`) | Role |
 |---|---|
-| `cmd/api`, plus the `collector`, `scrape`, `seed` and `migrate` commands | Collector: scheduling, enrichment, classification, source sync and MongoDB migration on start. The only writer of `articles`. |
+| `cmd/api`, plus the `collector`, `scrape`, `seed`, `migrate` and `backfill` commands | Collector-side commands: scheduling, enrichment, classification, source sync, schema migration and C1 backfill. The only writers of `articles`. |
 | `cmd/reader` | AFTERLINE reader and API; read-only today |
 | `internal/mongodb` | The only schema owner: collection names and the index plan |
 | `internal/domain`, `internal/repository/mongo`, `internal/service`, `internal/handler`, `internal/web` | Domain model, persistence, services, HTTP handlers, templates and static UI |
 | `ml-v2/src/newsrec` | Recommender: `data.py` prepares data, `model.py` trains, `index.py` ranks, `api.py` serves the Flask ranker, plus `evaluate.py` and `cli.py` |
 | `ml-v2/src/newsmlv2` | Shared cleaning, admission, boilerplate and dedup |
 | `ml/` | Closed v1 classifier; `ml/src/newsml/neardup.py` holds the calibrated MinHash/LSH |
+| `ml-v4/src/newsmlv4` | Candidate sampling/verification, truthful AI-label pooling and the separate V4 classifier trainer; no production promotion |
 | `deployments/coolify.compose.yml` | Production stack: MongoDB, classifier and API |
 | `configs/` | `config.yaml`, `reader.yaml` and `sources.yaml` |
 
@@ -85,9 +111,14 @@ Reuse existing code before writing new code:
 
 - Go: run `make check` (format check, vet and unit tests) and `make test-race`. `make test-integration` needs MongoDB on `localhost:27017`.
 - Recommender: run `make rec-setup` once, then `make rec-test` for pytest, Go and `node --test`. Use `make ml2-test` for `newsmlv2`.
-- Local run: `make rec-serve REC_ID=stories-002` and `make reader`, then open http://127.0.0.1:8090/stories.
+- Local reader: `make rec-setup` once, inspect the intended local target with `make rec-inspect`,
+  then `make demo-refresh`, `make demo-serve` and `make reader` in separate serving terminals.
+  Open http://127.0.0.1:8090/stories. Rebuilds are manual; restart the ranker to select the
+  new snapshot. `make rec-serve REC_ID=<existing-id>` still serves a specific saved archive;
+  the private historical `stories-002` files are not guaranteed to be present.
 - Never run `make run` or `make up` against the production database — they migrate and collect.
-- One scheduling-dependent Go rate-limit test is known to be flaky; M9 fixes it.
+- The scheduling-dependent Go rate-limit test was fixed on 26 Oct with recorded repeat-run
+  evidence (roadmap work log). M9's remaining browser coverage and release hardening are still open.
 
 ## Docs
 

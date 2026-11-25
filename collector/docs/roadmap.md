@@ -2,11 +2,14 @@
 
 This is the single source of truth for agents: scope, contracts, milestones, status and decisions. Working rules and the delivered baseline are in [copilot-instructions.md](../../.github/copilot-instructions.md).
 
-**Updated:** 26 Oct 2026 · **V1 due:** 15 Nov 2026 · **Baseline:** code `c06fdf4`, edition `stories-002`
+**Updated:** 25 Nov 2026 · **Original V1 due date:** 15 Nov 2026 (release not accepted; no revised date approved) · **Baseline:** code `c06fdf4`, edition `stories-002`
 
 Task markers: `[ ]` todo · `[~]` in progress (agent, date) · `[x]` done (evidence) · `[!]` blocked (reason)
 
 ## 1. Status board
+
+Statuses distinguish code/local evidence from deployment and release acceptance. They
+are not a new check of running services; the original milestone windows below have passed.
 
 | Milestone | Lead (others' tasks) | Window | Needs | Status |
 | --- | --- | --- | --- | --- |
@@ -21,6 +24,7 @@ Task markers: `[ ]` todo · `[~]` in progress (agent, date) · `[x]` done (evide
 | M8 Freeze and human evaluation | Owner, A | 9–13 Nov | M3–M6 | todo |
 | M9 Hardening and handover | B; A reviews | 10–15 Nov | M7, M8 | todo |
 | [DOC.1 Plain-English progress checklist](recommender-client-review.md#project-progress-checklist) | Copilot | 23 Nov | —; documentation only | task done; no release acceptance |
+| DOC.2 Product documentation and comment refresh | Copilot | 25 Nov | —; documentation only | task done: 61 files refreshed and statically checked; historical evidence preserved; no release acceptance |
 | ML4 Classifier V4 candidate labels (separate from V1/M8) | Copilot | on demand | owner approval | ML4.6 complete: local `v4-ai-072b01a9ceaf-hybrid_svc` from 8,594 truthful AI labels, including 2,582 extra AI-sampled articles; held-out AI-label macro-F1 0.8246. Earlier human-provenance claims are withdrawn. Human validation and 200 human labels/class remain not met; no production promotion |
 | [DEMO Bare-minimum client demo](#demo--bare-minimum-client-demo-separate-from-release-acceptance) (D18) | Copilot | 24–25 Nov | D18 | DEMO.1–DEMO.5 done locally with evidence; DEMO.6 morning refresh and rehearsal open. No V1 requirement or release gate is closed by the demo |
 
@@ -28,7 +32,7 @@ Milestones overlap only through these handoffs. A dependent task starts when its
 
 | Handoff | From → to | Delivers | Target | Status |
 | --- | --- | --- | --- | --- |
-| H1 | M1 → M2 | New articles carry every C1 field | 28 Oct | todo |
+| H1 | M1 → M2 | New articles carry every C1 field | 28 Oct | implemented/tested in M1.1–M1.4; production verification pending |
 | H2a | M2 → M3, M4, M7 | Ranker serves generations with C2 freshness, `source_ids` and verified date-window filters | 31 Oct | todo |
 | H2b | M2 → M5, M6 | First full English index with story groups and multi-topic assignment | 1 Nov | todo |
 | H3 | M3 → M4 | Sign-in, events, settings and saved-items APIs | 4 Nov | todo |
@@ -39,6 +43,8 @@ Milestones overlap only through these handoffs. A dependent task starts when its
 ### 1.1 Schedule
 
 Agents work every day; owner inputs are dated. IDs refer to §4 tasks.
+
+The dates below are the original delivery plan, not a current forecast. As of 25 Nov, V1 acceptance is still open; the local demo does not close it. No replacement deadline has been approved. Today's documentation work is tracked as DOC.2.
 
 | Day | Agent A | Agent B | Owner |
 | --- | --- | --- | --- |
@@ -75,28 +81,28 @@ V1 is the web product, due 15 Nov. V2 is the audio briefing and iPhone app. Andr
 | ID | Requirement | Ver | Contract → milestone | Status |
 | --- | --- | --- | --- | --- |
 | R1 | You and your brother first, then up to ~5 invited readers; not public | V1 | C8, C10 → M3 | todo |
-| R2 | Fresh news first, archive available | V1 | C2 → M2, M3 | todo |
-| R3 | Fresh = verified publish date within 30 days; unverified dates are never fresh; only the owner can relax this (D7) | V1 | C1, C2 → M1, M2 | todo |
+| R2 | Fresh news first, archive available | V1 | C2 → M2, M3 | local DEMO.3–DEMO.4 available; automatic index/hosted release todo |
+| R3 | Fresh = verified publish date within 30 days; unverified dates are never fresh; only the owner can relax this (D7) | V1 | C1, C2 → M1, M2 | local demo enforces C2; production verification todo |
 | R4 | English only, including production | V1 | C1 → M1 | todo |
 | R5 | A new article is recommendable within 1 h of collection, end to end | V1 | C5 → M2 | todo |
-| R6 | Explicit like/dislike plus chosen topics and sources; no implicit signals, no muting | V1 | C7, C8 → M3 | todo |
+| R6 | Explicit like/dislike plus chosen topics and sources; no implicit signals, no muting | V1 | C7, C8 → M3 | browser-local feedback available; account/topic/source settings todo |
 | R7 | Association rules: (a) unpicked topic suggestions, (b) follow-up stories, (c) topic labels | V1 | C6 → M5 | todo |
 | R8 | Runs 24×7 on the home-lab laptop (12 GB RAM, i5, Coolify, Cloudflare Tunnel) | V1 | C15 → M9 | collector running |
 | R9 | Self-hosted MongoDB on the same machine | V1 | C14 | running |
-| R10 | Language, real publish date and boilerplate fixed in the collector | V1 | C1 → M1 | todo |
+| R10 | Language, real publish date and boilerplate fixed in the collector | V1 | C1 → M1 | M1.1–M1.4 implemented/tested; production backfill and quality verification pending |
 | R11 | Never store image files; publisher URL only, text fallback | V1 | C1 | URL stored today |
 | R12 | Google sign-in restricted to invited accounts | V1 | C10 → M3 | todo |
 | R13 | Read-only MCP for AI agents, authenticated with API keys | V1 | C11 → M7 | todo |
-| R14 | Neural model trained for recommendation, compared with existing methods | V1 | C12 → M6 | todo |
+| R14 | Neural model trained for recommendation, compared with existing methods | V1 | C12 → M6 | baseline autoencoder trained/compared; planned C12 model todo |
 | R15 | Human Useful P@5 ≥ 0.65 and not below TF-IDF | V1 | C13 → M8 | todo |
-| R16 | All V1 scope, including hardening, by 15 Nov 2026 | V1 | §1 | todo |
+| R16 | All V1 scope, including hardening, by 15 Nov 2026 | V1 | §1 | original deadline passed; release not accepted; no revised date approved |
 | R17 | Software, data science and AI sources, including MIT, Medium, local and independent publications | V1 | C1 → M1 | done in code (M1.7); reaches production with the next deploy |
-| R18 | Save stories and topics, with notes | V1 | C8 → M3 | todo |
-| R19 | Daily edition of yesterday's relevant stories (text) | V1 | C9 → M4 | todo |
-| R20 | Settings: professional news, local news (city) or both; professional domains | V1 | C8 → M3 | todo |
+| R18 | Save stories and topics, with notes | V1 | C8 → M3 | browser-local stories/notes available in demo; saved topics/account storage todo |
+| R19 | Daily edition of yesterday's relevant stories (text) | V1 | C9 → M4 | per-request Yesterday demo available; stored per-reader C9 editions todo |
+| R20 | Settings: professional news, local news (city) or both; professional domains | V1 | C8 → M3 | professional-source switch available locally; full settings todo |
 | R21 | Readers add their own RSS feeds | V1 | C8 → M3 | todo |
 | R22 | Useful without any paid service; optional paid integrations allowed | all | Rules | ongoing |
-| R23 | Connect current news with older relevant material | V1 | C6, C7 → M5 | todo |
+| R23 | Connect current news with older relevant material | V1 | C6, C7 → M5 | related reading spans fresh/archive locally; C6 rule-based follow-ups todo |
 | V2-1 | Ask how much listening time the user has | V2 | §10 | backlog |
 | V2-2 | One coherent briefing script from the daily edition, sized to that time | V2 | §10 | backlog |
 | V2-3 | Text-to-speech narration | V2 | §10 | backlog |
@@ -106,6 +112,12 @@ V1 is the web product, due 15 Nov. V2 is the audio briefing and iPhone app. Andr
 | L-1 | Android app | later | — | backlog |
 
 ## 3. Contracts (V1)
+
+These are target contracts, not an inventory of implemented endpoints, commands,
+collections or scheduled jobs. Read §4 and the [operating guides](../readme.md) for what
+exists today. Later owner decisions in §7–§8 take precedence, including D3's deferral
+of alert delivery to V2. The local demo exceptions are recorded under DEMO, not treated
+as fulfillment of these contracts.
 
 ### C1. Article and source data
 
@@ -358,7 +370,9 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 
 **Build notes.** `deployments/Dockerfile` uses Go 1.27 and builds every `cmd/*` binary. Go, classifier and recommender images built locally; the compose file parsed with required dummy values. MongoDB provisioning created all five users on a disposable server; each passed an allowed-operation probe and was denied an ungranted collection/operation. Collector collection and index DDL probes also passed.
 
-**Exit:** every item is done with evidence, and CI builds all three images. Remote CI/GHCR/Coolify evidence and production database provisioning are still pending.
+**Exit:** every item is done with evidence, and CI builds all three images. Remote
+CI/GHCR/Coolify publishing/deployment evidence is still pending. Production database
+provisioning was owner-confirmed on 26 Oct (M0.6); it is not an outstanding provisioning task.
 
 ### M1 — Collector hardening and sources (26–30 Oct · A; B for M1.6–M1.8)
 
@@ -380,7 +394,7 @@ That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 - M1.3: validated with `make check`, `make test-race`, and `go test -tags=integration -count=1 ./internal/repository/mongo`.
 - M1.4: `make check` and `go test -tags=integration -count=1 ./internal/mongodb` pass; the migration test verifies both C1 indexes.
 - M1.5: `make check`, `make build`, and the Mongo backfill integration test pass. Production execution is intentionally pending until the production target is provisioned and explicitly selected.
-- M1.5: the filter `{content_rev: {$exists: false}}` makes it resumable, and batches of 50 match the sidecar batch size. It never writes topics.
+- M1.5: the selector covers any missing or null required C1 field, not just an absent `content_rev`, so incomplete legacy records remain eligible. Batches of 50 match the sidecar batch size; revision checks protect concurrent changes. It never writes topics.
 - M1.6: source domains are normalized/validated and round-trip through seed sync, API and Mongo persistence. `added_by` is UUID-validated, exposed in responses, and cannot be supplied by API clients. Focused source tests, Mongo integration tests, `make check` and `make test-race` pass.
 - M1.7: verify each feed with `make collect-source SOURCE=<id>` against a local database before enabling it. Keep `.env` on a local database and select production only explicitly (`NEWS_ENV_FILE=.env.prod`, see the readme). For a throwaway check, set `NEWS_MONGO_DATABASE` to a scratch database. The collector command also needs any `NEWS_AUTH_API_KEYS` value, although it serves no HTTP.
 - M1.7: a feed is added only if it answers with English items and no robots.txt group or licence that applies to every agent reserves AI-training or text and data mining rights (§8). Left-out feeds are recorded at the bottom of `configs/sources.yaml`.
@@ -544,6 +558,8 @@ Owner decision D18 (24 Nov): a client demo on the morning of 25 Nov, presented f
 
 - [x] **DOC.1** (Copilot, 23 Nov) Added the [plain-English progress checklist](recommender-client-review.md#project-progress-checklist): completed work, work in progress, remaining V1 work, later versions and existing acceptance targets. Distinguished local/code completion from production acceptance and applied D16's label-provenance correction. Standard-library checks passed for 6 tables, 38 checklist rows and 57 local file/heading links; the historical technical-review body matches `HEAD` unchanged. `git diff --check -- collector/docs/recommender-client-review.md collector/docs/roadmap.md` passed. Documentation only; no application tests or live-service checks rerun, and no M9.5, milestone or release acceptance claimed.
 
+- [x] **DOC.2** (Copilot, 25 Nov) Refreshed 61 files covering product/operations guides, current status, historical-plan notices, diagrams, source comments and classifier explanatory copy. Collector, local AFTERLINE and model-tooling claims now distinguish implementation, local evidence, deployment and acceptance. Historical measurements/artifacts and thresholds are preserved; D16's AI-label provenance is explicit. Evidence: `git diff --check` and `make -C collector help` passed; the offline checker passed 14 Markdown files, 210 local file/heading links and 282 documented make references, with matching overview diagrams and unchanged Makefile executable content. Both changed Mermaid flowcharts validated. Static source checks preserved non-documentation structure/numbers and Go directives across 15 Go, 22 Python and one JavaScript file; syntax/format checks passed, and all 24 notebook code cells, outputs and metadata are unchanged. No application suites, database operations, services, retraining or production checks ran; no milestone, requirement or release gate is closed by this task.
+
 ### 4.1 V1 release checklist
 
 - [ ] Every V1 requirement in §2 is done or recorded as not met, with evidence
@@ -598,9 +614,9 @@ Owner decision D18 (24 Nov): a client demo on the morning of 25 Nov, presented f
 | D10 | Public hostname for the reader (Cloudflare Tunnel) and the Google OAuth client | 29 Oct | Hostname decided 26 Oct: `news.mxdio.com` (§8). The OAuth client is pending and still blocks M3.3 |
 | D11 | Publish V1 images and automatically deploy on main pushes | M0 | GitHub Actions → GHCR → authenticated Coolify webhook |
 | D12 | How to source and human-label enough V4 examples for the classes below 200, and which shipped publishers permit classifier training? | Before ML4.2/training | Resolved 21 Nov. Rights: every labelled V4 article may be used for training (Medium was excluded at export), and the owner accepts the rights risk for a private, self-hosted model. Sourcing: AI agents select round-2 candidates through the MongoDB MCP server from the taxonomy class descriptions, and reviewers label the blind sheets (ML4.5). Never reuse old labels or lower 200/class |
-| D13 | Whether the V4 labels may be treated as human labels and imported as gold | Before `ml4-labels-import` | Resolved 21 Nov: the labels were made by human reviewers from 12 groups. Keep them as the active sheets; verify against the database before importing. |
+| D13 | Whether the V4 labels may be treated as human labels and imported as gold | Before `ml4-labels-import` | Superseded 22 Nov by D16: the 21 Nov human-review attribution is withdrawn. All existing classifier labels are AI-generated; preserve the original sheets/import records, but do not treat them as human validation. |
 | D14 | How to import round 1 now that the database it was exported from is gone | Before the ML4.2 import | Resolved 21 Nov: import on the export-time database check (`make ml4-labels-import-exported`), and record the 659 articles today's database cannot re-check |
-| D15 | Whether to train before the round-2 human labels arrive | Before ML4.4 | Resolved 21 Nov: train an interim model now on round-1 human gold plus round-2 AI-agent weak labels, with the human shortfall recorded as not met; retrain when reviewers' round-2 labels are imported |
+| D15 | Whether to train before the round-2 human labels arrive | Before ML4.4 | Interim training approved 21 Nov; its assumed human round-1 provenance was withdrawn by D16 on 22 Nov. Interpret the recorded scores as AI-label agreement. Human validation remains not met; ML4.6 records the later pooled local candidate, not production promotion. |
 | D16 | Correct label origins and permit a larger pooled V4 candidate without falsely calling AI labels human | Before ML4.6 | Resolved 22 Nov: owner confirms all old and new labels are AI-generated and approves combining usable records with truthful origins, duplicate/test-leakage exclusions and local candidate training. This supersedes earlier human-provenance assertions and the no-old-label sourcing restriction for this separate candidate only. Existing rights/admission rules and human-validation targets remain unchanged; no production promotion |
 | D17 | How to start the local news reader when its saved recommendation archive is missing | Before LOCAL.1 | Resolved 22 Nov: owner chose the news reader and approved a new local 20,000-article archive from the current database. Use a separate fixed-cut snapshot and the existing recommender workflow; no production changes or implication that the reader uses the V4 topic classifier |
 | D18 | What is the bare-minimum client demo, and how is it shown? | 24 Nov | Resolved 24 Nov: demo on the morning of 25 Nov from the owner's laptop. Fresh news comes from the collector running locally against the local database. Must-haves: fresh-first feed with archive, "Yesterday" page, professional focus, and saved stories with notes in the browser. Hosting, sign-in and the rest of V1 stay open; no V1 scope, deadline or threshold changes |
@@ -704,6 +720,8 @@ Append only. Add one line for each claim, handoff, block or finish.
 | 2026-11-24 | Owner, Copilot | DEMO.4 full-screen layout | Owner asked whether the site is one page and said stories would read better using the whole screen. `/archive` and `/articles/{id}` are the older plain pages, and neither uses the full screen. The owner chose a full-screen reader on `/stories`; evidence is on DEMO.4. `make rec-test` passed again (71 Python, reader Go packages, 26 JavaScript); `git diff --check` clean. The reader was restarted to serve it. |
 | 2026-11-24 | Owner, Copilot | DEMO.4 light/dark switch | Owner asked for a dark version as a switchable theme and chose to start from the computer's setting. CSS variables and a masthead toggle; no new dependency, and the page's security policy is unchanged (no inline script or style). Evidence is on DEMO.4; `git diff --check` clean. The reader was restarted to serve it. |
 | 2026-11-24 | Owner, Copilot | DEMO.4 premium grid redesign | Owner asked for a premium reading space like Apple, Airbnb and Medium, and a grid wherever a story has little text. `/stories` became a grid front page with a full-screen reading view and a related-stories grid; evidence is on DEMO.4. An independent code review found three problems (a blank page after marking every story not interested, the scroll position after "See all related stories", and focus after a not-interested choice); all are fixed and rechecked. `make rec-test` (71 Python, reader Go packages, 32 JavaScript) passed and `git diff --check` is clean. The reader was restarted to serve it. Nothing committed. |
+| 2026-11-25 | Copilot | DOC.2 claimed | Auditing documentation and comments against current source. Collector operations and reader/model documentation are separate, non-overlapping work areas; shared product summaries and the roadmap stay with the coordinating agent. No application behavior, production operation, release gate, contract or deadline change. |
+| 2026-11-25 | Copilot | DOC.2 done | Updated current collector/reader/classifier documentation and misleading comments/help copy across 61 files. Source-backed corrections include C1 backfill eligibility, local versus production MongoDB setup, manual snapshots, browser-storage lifetimes, the 06:00 India-time day boundary and AI-label provenance. Offline documentation, syntax/format, source-preservation and whitespace checks passed (evidence on DOC.2). Historical artifacts/measurements and notebook code/outputs remain intact; no collection/ranking logic, configuration values, acceptance threshold, deadline or deployment changed. |
 
 ## 10. V2 backlog (not designed)
 

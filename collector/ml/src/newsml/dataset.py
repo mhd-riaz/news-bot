@@ -146,21 +146,24 @@ def build(
 ) -> Dataset:
     """Clean, admit, group, label and split — in that order.
 
-    `gold` overrides the weak label where a human has ruled, keyed by article id.
-    A gold label wins outright: that is the whole reason for collecting it, and
+    `gold` overrides the weak label with an imported annotation, keyed by article id.
+    An imported label wins outright: that is the whole reason for collecting it, and
     it is the only way a class no RSS section names can enter the class list.
 
-    `holdout` is the opposite arrangement, and the honest one: the same human
+    `holdout` is the opposite arrangement: the same imported
     labels are withheld from training entirely and returned as their own split,
-    so the model is scored against people instead of against the weak teacher
+    so the model is scored against reference annotations instead of the weak teacher
     that trained it. The whole near-duplicate group of a held-out article is
     withheld too — otherwise a reworded wire copy of a scored article sits in
     train and the number flatters itself.
 
     Passing both is the arrangement a shipped model needs: one slice of the
-    human labels teaches the rare classes, a disjoint slice scores the result.
+    imported labels teaches the rare classes, a disjoint slice scores the result.
     Only an article appearing in both is an error, because that is the one case
     where the model is tested on a label it was handed.
+
+    Existing classifier annotations are AI-generated under roadmap D16. The
+    legacy `gold`/`LabelSource.HUMAN` names do not prove human authorship.
 
     `collapse_to_group` and `use_weak_labels` are v3-era hooks for the retired
     two-level taxonomy. Under the fixed v4 taxonomy every class already is a

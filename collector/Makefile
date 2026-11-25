@@ -58,14 +58,14 @@ cover: ## Report unit-test coverage per package
 	go tool cover -func=coverage.out | tail -1
 
 .PHONY: check
-check: fmt-check vet test ## Run every gate required before a milestone is done
+check: fmt-check vet test ## Check Go formatting, vet and unit tests; race/integration are separate
 
 .PHONY: run
-run: ## Run the API against the local config
+run: ## Run the collector/API; migrates and writes to the configured database
 	go run ./cmd/api -config $(CONFIG)
 
 .PHONY: migrate
-migrate: ## Create MongoDB collections and indexes
+migrate: ## Apply collection/index schema migrations to the configured database
 	go run ./cmd/migrate -config $(CONFIG)
 
 .PHONY: seed
@@ -97,7 +97,7 @@ backfill: ## Fill missing C1 article fields in bounded, resumable batches
 	go run ./cmd/backfill -config $(CONFIG) -limit $(BACKFILL_LIMIT) -delay $(BACKFILL_DELAY)
 
 .PHONY: up
-up: ## Start MongoDB, run the migration and start the API
+up: ## Build and start the configured Compose services; the collector writes to its database
 	$(COMPOSE) up --build -d
 
 .PHONY: down
@@ -121,7 +121,7 @@ classifier-up: ## Start the internal classifier service
 	$(COMPOSE) up --build -d classifier
 
 .PHONY: classifier-smoke
-classifier-smoke: ## Submit one classification request; pass NEWS_CLASSIFIER_API_KEY when configured
+classifier-smoke: ## Submit an unauthenticated classifier probe; requires classifier auth disabled
 	@$(COMPOSE) exec -T classifier python -c 'import json; from urllib.request import Request, urlopen; request = Request("http://127.0.0.1:8000/v1/classify", data=json.dumps({"items":[{"id":"smoke","title":"Market update","summary":"","body":""}]}).encode(), headers={"Content-Type":"application/json"}); print(urlopen(request).read().decode())'
 
 .PHONY: mongo-up
@@ -133,8 +133,8 @@ clean: ## Remove build and coverage artefacts
 	rm -rf $(BIN_DIR) coverage.out coverage.html
 
 # --- Offline ML (ml/, Python) ------------------------------------------------
-# Training and data preparation never run on the homelab; the 2 GB budget is a
-# serving budget. These targets are laptop-only and never touch the Go build.
+# These manual classifier-study commands are separate from always-on collection.
+# Serving memory targets do not describe the memory needed for training.
 
 .PHONY: ml-setup
 ml-setup: ## Create the ml/ virtualenv and install pinned dependencies
@@ -158,7 +158,7 @@ ml-snapshot: ## Freeze a dataset with its labels: make ml-snapshot CUT=2026-08-2
 		--no-language-check --gold data/labels/v1/gold.jsonl data/labels/v2/gold.jsonl
 
 .PHONY: ml-train
-ml-train: ## Fit the shipping classifier from a snapshot: make ml-train SNAPSHOT=data/snapshots/20260825-120
+ml-train: ## Fit the legacy classifier from a snapshot: make ml-train SNAPSHOT=data/snapshots/20260825-120
 	cd ml && uv run newsml train --snapshot $(SNAPSHOT)
 
 .PHONY: ml-labels-export
@@ -166,7 +166,7 @@ ml-labels-export: ## Write blind labelling sheets: make ml-labels-export SIZE=15
 	cd ml && uv run newsml export-labels $(if $(SIZE),--size $(SIZE),) $(if $(SHARDS),--shards $(SHARDS),) $(if $(OVERLAP),--overlap $(OVERLAP),) $(if $(CUT),--collected-before $(CUT),)
 
 .PHONY: ml-labels-import
-ml-labels-import: ## Validate completed sheets and write the gold set: make ml-labels-import SHEETS="a.csv b.csv"
+ml-labels-import: ## Validate sheets and write legacy gold.jsonl; the filename does not establish human provenance
 	cd ml && uv run newsml import-labels --sheets $(SHEETS)
 
 .PHONY: ml4-labels-export
@@ -209,16 +209,17 @@ ml4-labels-verify: ## Verify exported V4 text has not changed: make ml4-labels-v
 	cd ml && PYTHONPATH=../ml-v4/src uv run python -m newsmlv4.verify --run ../ml-v4/data/$(RUN)
 
 .PHONY: ml4-labels-import
-ml4-labels-import: ## Validate completed V4 sheets and write human gold: make ml4-labels-import RUN=<run>
+ml4-labels-import: ## Validate V4 sheets and write legacy gold.jsonl; provenance must be recorded separately
 	@test -n "$(RUN)" || { echo "Set RUN to the name of a directory inside ml-v4/data/" >&2; exit 1; }
 	@test ! -e "ml-v4/data/$(RUN)/gold.jsonl" || { echo "Refusing to overwrite V4 gold" >&2; exit 1; }
 	$(MAKE) ml4-labels-verify RUN=$(RUN)
 	cd ml && uv run newsml import-labels --sheets ../ml-v4/data/$(RUN)/*.csv --out ../ml-v4/data/$(RUN)/gold.jsonl
 
 # Only for a run whose export database is gone (roadmap D14): checks the sheets against
-# the export fingerprints, records a re-check against today's database, then writes gold.
+# the export fingerprints, records a re-check against today's database, then writes
+# legacy gold.jsonl. Existing classifier labels are AI-generated (roadmap D16).
 .PHONY: ml4-labels-import-exported
-ml4-labels-import-exported: ## Write V4 human gold on the export-time DB check: make ml4-labels-import-exported RUN=<run>
+ml4-labels-import-exported: ## Import V4 labels on the export-time DB check (D14); not proof of human review
 	@test -n "$$NEWS_ML_MONGO_URI" || { echo "Set NEWS_ML_MONGO_URI to a local read-only MongoDB URI (do not print it)" >&2; exit 1; }
 	@test -n "$(RUN)" || { echo "Set RUN to the name of a directory inside ml-v4/data/" >&2; exit 1; }
 	cd ml && PYTHONPATH=../ml-v4/src uv run python -m newsmlv4.importer --run ../ml-v4/data/$(RUN)
@@ -243,10 +244,10 @@ ml-notebook: ## Execute every notebook headlessly and fail if one has rotted
 	cd ml && uv run --with nbconvert --with ipykernel jupyter nbconvert \
 		--to notebook --execute notebooks/*.ipynb --output-dir /tmp/newsml-nb
 
-# --- ml-v2 (body-aware classifier, POC) --------------------------------------
-# A standalone package, not an evolution of ml/. It classifies on the article body
-# as well as the headline, and reruns v1's configuration on its own snapshot so the
-# two are comparable. See ml-v2/docs/plan.md.
+# --- ml-v2 (closed classifier study and shared text tools) -------------------
+# The classifier study compares body-aware models with the original headline model.
+# This package also hosts the serving sidecar and AFTERLINE recommender; use the
+# rec-* and demo-* targets below for the reader. ml-v2/docs/plan.md is historical.
 
 .PHONY: ml2-setup
 ml2-setup: ## Create the ml-v2 virtualenv and install dependencies
@@ -257,7 +258,7 @@ ml2-test: ## Run the ml-v2 test suite
 	cd ml-v2 && uv run pytest
 
 .PHONY: ml2-labels
-ml2-labels: ## Re-vendor the gold labels from ml/ and print the digest that pins them
+ml2-labels: ## Re-vendor legacy AI-generated classifier labels from ml/ and print their digest
 	cp ml/data/labels/gold-combined.jsonl ml-v2/data/labels/gold.jsonl
 	@shasum -a 256 ml-v2/data/labels/gold.jsonl
 
@@ -278,6 +279,7 @@ ml2-run: ## Run one experiment config: make ml2-run CONFIG=configs/experiments/b
 	cd ml-v2 && uv run newsmlv2 run --config $(CONFIG)
 
 # --- Read-only recommendation demo -----------------------------------------
+# Historical baseline ID; use a new REC_ID for builds, or demo-refresh/demo-serve.
 REC_ID ?= stories-002
 
 .PHONY: rec-setup
@@ -315,7 +317,7 @@ DEMO_CANDIDATES  ?= 40000
 DEMO_POINTER     := ml-v2/artifacts/recommender/LATEST_DEMO
 
 .PHONY: demo-refresh
-demo-refresh: ## Build a fresh-first demo snapshot (every recent article plus an older sample) from the configured database, ~7 min
+demo-refresh: ## Build a recent-first snapshot within the configured candidate/article budgets, plus an older sample
 	@cd ml-v2 && uv run --no-sync newsrec inspect
 	@id=demo-$$(date -u +%Y%m%dT%H%M%SZ); \
 	cut=$$(python3 -c 'from datetime import datetime, timedelta, timezone; print((datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat(timespec="seconds"))'); \
@@ -330,7 +332,7 @@ demo-serve: ## Serve the latest demo-refresh snapshot on localhost:8001
 	$(MAKE) rec-serve REC_ID=$$(cat $(DEMO_POINTER))
 
 .PHONY: reader
-reader: ## Serve the read-only Stories reader at http://127.0.0.1:8090
+reader: ## Serve the read-only AFTERLINE reader at http://127.0.0.1:8090/stories
 	go run ./cmd/reader
 
 .PHONY: rec-test

@@ -1,7 +1,22 @@
-# ml-v2 — Body-Aware 13-Class News Classifier (POC)
+# ml-v2 — Body-Aware 13-Class News Classifier (closed study)
 
-> Living document. Update status as phases land; append to the decision log rather than
-> rewriting history.
+> **Historical record, status clarified 25 Nov 2026.** Phases A–H and the measurements
+> below are closed classifier-study evidence, not the current product plan or a task
+> source. Use [the roadmap](../../docs/roadmap.md) for current work. The old “next:
+> decide on serving” and “ship nothing” statements below describe that study stage:
+> the body-aware `newsmlv2.serve` bundle is now used by the classifier sidecar
+> (`app/api.py`, configured through `NEWSML_MODEL_DIR`), while `newsrec` serves the
+> separate AFTERLINE recommender. See the [reader guide](../../docs/recommender.md)
+> and [local V4 candidate guide](../../ml-v4/README.md); V4 is not production-promoted.
+>
+> **Provenance correction — D16, 22 Nov:** the owner confirms that all old and new
+> classifier labels are AI-generated, including those called “human” or “gold” here.
+> Those human-origin assertions are withdrawn. Original datasets, artifacts and
+> measurements remain unchanged; scores, hypothesis comparisons and calibration
+> describe agreement with AI labels, not human-validated accuracy or a demonstrated
+> probability of correctness against human judgement. Human validation and the
+> 200 human labels/class target are **not met**. This does not reclassify the separate
+> recommender human pilot.
 
 **Status:** **Phases A–H complete. The test split is open and closed.** · snapshot
 `v2-001` · **final: test macro-F1 0.751 [0.719, 0.780]**, or **83.4% accuracy at 80.7%

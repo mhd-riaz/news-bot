@@ -14,13 +14,11 @@ from pymongo import MongoClient
 
 from .config import mongo_uri
 
-# Every Indian Express feed ships an empty <description>, which is 2,000 articles
-# — a quarter of the corpus — reduced to a bare headline. The lede falls back to
-# the opening of the scraped body, and caps both fields at the same length so
-# that how much text an article carries never encodes which source it came from.
+# Some feeds omit descriptions. Bound the summary/body fallback lede so missing
+# summaries do not leave body-bearing articles with headline-only input.
 LEDE_CHARS = 400
 
-# The fields Phase 2 needs. Projecting explicitly keeps the working set small and
+# The legacy preparation fields. Projecting explicitly keeps the working set small and
 # makes it obvious when a new dependency on a field is introduced.
 PROJECTION = {
     "_id": 1,

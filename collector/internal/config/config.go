@@ -99,8 +99,8 @@ type Auth struct {
 	BasicPassword string `yaml:"-"`
 }
 
-// Web holds the reader-facing pages. They share the API's port, its process
-// and its credentials; only whether they are served at all is separate.
+// Web holds the legacy collector-feed pages, not the separate AFTERLINE reader.
+// They share the API's port, process and credentials.
 type Web struct {
 	// Enabled serves the pages. Off leaves the process a pure API.
 	Enabled bool `yaml:"enabled"`
@@ -191,7 +191,7 @@ type Scraper struct {
 	MaxResponseBytes int64 `yaml:"max_response_bytes"`
 
 	// AllowPrivateNetworks mirrors collector.allow_private_networks for article
-	// fetches, and is refused the same way outside development.
+	// fetches, and is refused the same way in production.
 	AllowPrivateNetworks bool `yaml:"allow_private_networks"`
 
 	// MinContentWords is the shortest extraction accepted as an article; a
@@ -282,8 +282,8 @@ func Default() *Config {
 		},
 		Auth: Auth{
 			// Off in the built-in defaults so a bare `go run` works, but the
-			// shipped config file turns it on and validation refuses to leave it
-			// off in production, so nothing reaches a server unguarded.
+			// shipped config file turns it on and production validation refuses
+			// to leave it off. Development mode may still serve without auth.
 			Enabled:      false,
 			APIKeyHeader: DefaultAPIKeyHeader,
 		},

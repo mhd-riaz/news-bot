@@ -1,6 +1,8 @@
-# Classifier V4: local AI-label candidate and human-review workflow
+# Classifier V4: local AI-label candidate and future human-review workflow
 
-Human reviewers: start with [reviewer instructions](reviewer-instructions.md) before editing a candidate CSV.
+**Status, 25 Nov 2026:** the pooled AI-label model below is a local candidate only.
+For future genuine human review, start with the
+[reviewer instructions](reviewer-instructions.md) before editing a new candidate CSV.
 
 On 22 Nov the owner confirmed that **all old and new classifier labels are
 AI-generated**, including round 1 previously described as human gold. Those
@@ -13,6 +15,13 @@ The owner approved a larger local V4 candidate using usable old and new labels,
 including the existing AI-sampled proposal effort. No AI judgement becomes human
 gold. Human validation and the 200 human labels/class target are **not met**, and
 this task does not promote a model to production.
+
+Private exports, label files, model cards and bundles linked below are local,
+ignored artifacts; they need not exist on a fresh checkout. The production
+sidecar loads the body-aware `newsmlv2` bundle from `NEWSML_MODEL_DIR`
+(`/models/v2-001` in the Coolify compose file), not this V4 candidate.
+V4 uses title+summary and a different response/metadata contract; changing that
+environment variable alone is not a supported promotion.
 
 ## Pooled AI-label candidate (D16)
 
@@ -29,7 +38,7 @@ the source feed metadata; no full bodies or credentials are needed. From
 
 ```bash
 make ml4-pool ARTICLES="<private article export>" SOURCES="<private source export>" OUT="<new pool>"
-make ml4-train DATASET="<new pool>" ACCEPT_SHORTFALL=1
+make ml4-train DATASET="<new pool>"
 ```
 
 The measured pool `v4-ai-pooled-20261122T000000Z` contains **8,594** usable
@@ -69,7 +78,8 @@ tests. The model, manifest, split IDs and training log stay private under
 `data/models/v4-ai-072b01a9ceaf/`; production promotion is not approved.
 
 `ACCEPT_SHORTFALL=1` records any remaining AI-label class deficits as not met; it
-does not change the target or satisfy the human-label requirement. The model card
+is an owner-approved exception, not the default build path. It does not change
+the target or satisfy the human-label requirement. The model card
 and manifest explicitly report **AI-label agreement only**. Its calibration and
 confidence cut are provisional on AI labels, not a demonstrated probability of
 being correct against human judgement. The new model saves its development/test
@@ -152,9 +162,10 @@ Keep `article_id` unchanged and keep the four completed CSVs inside their run
 directory. The old labels for `v4-20261110T120557Z` are AI-generated (D16), despite their
 historical `gold.jsonl` filename and stored human-origin claims. They are inputs
 to the pooled candidate, not human gold. The following workflow is for **future
-genuine human review**, not for importing AI judgements as human labels. From
-`collector/`, first run
-`make ml4-labels-verify RUN=v4-20261110T120557Z` with
+genuine human review**, not for importing AI judgements as human labels. Preserve
+the corrected historical sheets; do not overwrite or re-import them as human work.
+Verification checks text and label consistency, not authorship. From
+`collector/`, first run `make ml4-labels-verify RUN=<new-human-reviewed-run>` with
 `NEWS_ML_MONGO_URI` set. If verification succeeds, run
 `make ml4-labels-import RUN=<run>` with `NEWS_ML_MONGO_URI` still set. This
 verifies text and overlap agreement, calls the existing `newsml import-labels`
@@ -250,15 +261,26 @@ cross-fitted folds (sigmoid or isotonic, whichever has the lower out-of-fold log
 loss), given one global confidence cut at 0.80 precision, and scored once on
 the sealed test split.
 
-The trainer writes `bundle.joblib`, `manifest.json` and `model-card.md` under
-the ignored `ml-v4/data/models/`, in a directory named after the human gold
-alone. It refuses to overwrite an earlier model for the same gold, because a
-retrain would reopen its test split; adding weak labels does not change that.
+The trainer writes `bundle.joblib`, `manifest.json`, `model-card.md` and
+`split.jsonl` under the ignored `ml-v4/data/models/`. The directory is keyed by
+the primary label-corpus digest (`v4-ai-<digest>` for a pool, `v4-<digest>` for
+genuine human runs), not by optional weak labels. It refuses to overwrite an
+earlier model for the same corpus, because a retrain would reopen its test split.
 The directory is created just before the test split is opened, so an empty or
 partial directory means a run stopped after opening it, and it blocks a retrain
 in the same way. `MODELS=a,b` limits the ladder.
 
-The model reads title and summary. The production sidecar sends title and
-body, so serving this model needs a separate, owner-approved promotion task.
-Keep the existing human held-out test cases sealed; do not tune on them or
-describe model predictions as gold labels.
+Both paths use seed `20261110`, a stratified 80% development / 20% test split,
+and repeated stratified 5-fold selection with three repeats on development.
+Calibration compares sigmoid with isotonic by nested out-of-fold log loss,
+then averages five calibrated models. One global cut targets 0.80 precision
+on the primary corpus's out-of-fold labels, with at least 50 retained examples.
+For the pooled path, all those labels are AI-generated; meeting the AI-label
+count or precision target does not meet the human target.
+
+The model reads title and summary. The production sidecar uses title and body
+(summary only as a fallback), so serving V4 needs a separate, owner-approved
+input and API-contract promotion task. Preserve every existing held-out split
+and its recorded opening; do not tune on it, re-open it for another selection,
+or describe model predictions as gold. Existing classifier held-out labels
+are AI-generated under D16, not human acceptance cases.

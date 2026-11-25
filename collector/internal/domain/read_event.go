@@ -12,9 +12,8 @@ type ReadEventKind string
 
 // The three things worth recording about a reader.
 const (
-	// ReadEventImpression is a card that entered the viewport. It is the only
-	// source of negative examples a ranker will ever have: a click log records
-	// what was chosen but never what was offered and passed over.
+	// ReadEventImpression is a card that entered the viewport, including cards
+	// that were shown but not opened.
 	ReadEventImpression ReadEventKind = "impression"
 
 	// ReadEventClick is a reader opening the article.
@@ -57,11 +56,11 @@ const (
 	MaxReadEventAge = 6 * time.Hour
 )
 
-// ReadEvent is one recorded interaction.
+// ReadEvent is one legacy collector-feed interaction, not an AFTERLINE
+// recommendation signal (roadmap C14).
 //
-// It is written by the browser and by the article route, and read only offline,
-// so it carries no denormalised article fields: whatever Phase 8 needs about
-// the article it joins from the article itself, which cannot then drift.
+// Browser uploads and the article route write it. There is no HTTP log-reading
+// route; offline analysis can join article metadata by ArticleID.
 type ReadEvent struct {
 	ID string `bson:"_id"`
 
@@ -69,8 +68,7 @@ type ReadEvent struct {
 	Kind      ReadEventKind `bson:"kind"`
 
 	// Position is where the card sat in the feed, zero-based, or
-	// PositionUnknown. Without it a ranker learns that the top of the page is
-	// good rather than that the article was.
+	// PositionUnknown. It supports offline analysis of position bias.
 	Position int `bson:"position_in_feed"`
 
 	// DwellMillis is set only on a dwell event.

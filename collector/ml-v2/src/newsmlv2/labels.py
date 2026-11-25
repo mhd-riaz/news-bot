@@ -1,8 +1,11 @@
-"""Read the 13-class taxonomy and the gold labels.
+"""Read the 13-class taxonomy and legacy imported reference annotations.
 
 Both are vendored into this package so ml-v2 builds without reaching into `../ml/`.
 The label file is not committed, so its sha256 is the only integrity anchor tying a
 snapshot to the labels it was built from -- every manifest records it.
+
+All existing classifier labels are AI-generated (roadmap D16, 22 Nov 2026).
+Historical ``gold`` filenames or human-origin metadata do not establish authorship.
 """
 
 from __future__ import annotations
@@ -47,7 +50,7 @@ def read_taxonomy(path: Path | None = None) -> Taxonomy:
 
 
 def read_gold(path: Path | None = None) -> dict[str, str]:
-    """article_id -> topic. One human label per article; later rows win."""
+    """article_id -> topic from imported annotations; later rows win."""
     labels: dict[str, str] = {}
     for line in (path or config.LABEL_PATH).read_text(encoding="utf-8").splitlines():
         if line.strip():

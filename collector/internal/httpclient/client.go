@@ -1,9 +1,7 @@
-// Package httpclient is the application's only outbound HTTP client. Feed URLs
-// are operator-supplied, so every fetch is a potential server-side request
-// forgery: the client therefore validates the URL, refuses to connect to any
-// address that is not publicly routable, bounds redirects and caps how much of
-// a response it will read. Keeping this in one package means no caller can
-// accidentally reach the network without those guards.
+// Package httpclient guards untrusted feed, article and robots fetches. It
+// validates URLs, blocks non-public destinations unless private networking is
+// explicitly allowed, bounds redirects and caps response sizes. The trusted
+// classifier and remote bootstrap source lists use separate HTTP clients.
 package httpclient
 
 import (

@@ -1,5 +1,16 @@
 # Submission checklist
 
+**Historical August 2026 classifier submission, not the current product checklist.**
+The artifact names, example predictions, counts and completion labels below describe
+that submission. Use the [collector guide](../readme.md), [AFTERLINE guide](../docs/recommender.md)
+and [roadmap](../docs/roadmap.md) for the current collector and reading demo.
+
+**Provenance correction (25 Nov 2026, roadmap D16):** all classifier reference labels
+were AI-generated, including those earlier called human gold. The retained classifier
+scores measure agreement with AI labels, not human-validated accuracy or calibration.
+Do not describe this submission as meeting the human-validation target. Do not retrain
+over the archived `v2-001` model or reopen its sealed test split.
+
 **Supervised Machine Learning — Classification · Mini Project · due 29 August 2026**
 Mohamed Riaz · PES1PGE25DS037
 
@@ -8,18 +19,21 @@ Mohamed Riaz · PES1PGE25DS037
 | Marks | Component | Artifact | Status |
 | ---: | --- | --- | --- |
 | 4 | User interface | `ml-v2/app/streamlit_app.py` — run it live | ready |
-| 4 | Validation / testing | UI *Validation* tab · `ml-v2/docs/plan.md` · model card · 133 tests | ready |
+| 4 | Validation / testing | UI *Validation* tab · `ml-v2/docs/plan.md` · model card · 133 tests at submission time | historical record |
 | 4 | Novelty / innovation | calibrated confidence + abstention + the body A/B | ready |
 | 4 | PPT presentation | `slides/news-topic-classifier.pptx` (17 slides) | **read it through once** |
 | 4 | 2-page IEEE report | `report/ieee-report.pdf` — compiled, 2 pages | ready |
 
 ## Building each artifact
 
+The commands below record the original build, starting in `collector/submission/`.
+They require private classifier data/artifacts; they are not the AFTERLINE demo setup.
+
 ```bash
 cd ../ml-v2
 
 uv sync --group dev --group demo
-uv run pytest                                   # 133 tests
+uv run pytest                                   # current counts may differ from the submission
 uv run newsmlv2 train --id v2-001               # bundle + metrics.json + model-card.md
 uv run python scripts/build_figures.py          # ../submission/report/figures/*.png
 
@@ -55,6 +69,7 @@ Start the app before the session; the first model load takes ~30 seconds and is 
 cached.
 
 ```bash
+# From collector/, with the archived classifier artifact available
 uv run --directory ml-v2 streamlit run app/streamlit_app.py
 ```
 
@@ -94,8 +109,9 @@ and structurally cannot see the text that made v2 work.
 **"0.751 isn't very high."**
 Macro-F1 over 13 classes with a `sport`-to-`conflict_war` imbalance of 6.7:1, against a
 majority-class floor of 0.025. And ~18.6% of the errors sit on class pairs where the
-human annotators disagreed with each other, so there is a real ceiling below 1.0.
-The number that matters operationally is 83.4% accuracy on the 80.7% it chooses to file.
+AI-generated reference labels disagreed with each other. That does not establish a
+human-accuracy ceiling. The recorded 83.4% on the 80.7% it chooses to file is AI-label
+agreement, not a measurement of operational correctness.
 
 **"How do you know it isn't overfitting?"**
 Grouped, temporal splits; no story group spans two splits; intervals bootstrapped over

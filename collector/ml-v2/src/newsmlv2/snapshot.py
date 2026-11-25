@@ -1,7 +1,7 @@
 """Freeze a dataset so a number can be reproduced months later.
 
-The corpus grows by roughly 1,500 articles every 12 hours, so nothing is reproducible
-until a cut is frozen. A snapshot is that freeze: the admitted rows, the labels joined
+The collector keeps growing the corpus, so a study needs a frozen cut.
+A snapshot is that freeze: the admitted rows, the labels joined
 onto them, the split assignment, and a manifest recording every input that shaped it.
 
 Two changes from v1 that matter:
@@ -11,6 +11,10 @@ Two changes from v1 that matter:
   several times smaller and much faster to load, and keeps column types.
 * **Title, summary and body are stored separately.** v1 froze one concatenated string,
   which structurally prevents weighting fields differently later.
+
+All historical classifier labels are AI-generated under roadmap D16 (22 Nov
+2026), including labels whose stored metadata says human. Snapshot hashes preserve
+the original artifacts; they do not certify label authorship or human validation.
 """
 
 from __future__ import annotations
@@ -34,8 +38,7 @@ ARTICLES = "articles.parquet"
 REJECTIONS = "rejections.parquet"
 MANIFEST = "manifest.json"
 
-# Default body truncation for model input. Phase D sweeps this; the cap exists because
-# the longest body is 175k characters against a 3.3k median.
+# Body truncation fixed by the closed classifier study; serving uses the same cap.
 BODY_CHARS = 4000
 
 _COMPRESSION = "zstd"

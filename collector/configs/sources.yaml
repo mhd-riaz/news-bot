@@ -1,4 +1,4 @@
-# Sources applied by `make seed`. Re-running is safe: an entry is matched on its
+# Sources applied by the API bootstrap and `make seed`. Entries are matched on
 # feed_url, so an existing source is updated rather than duplicated.
 #
 # Required: name, feed_url, type (rss|atom), language (ISO 639-1), country
@@ -7,8 +7,10 @@
 # added_by (reader UUID). An omitted optional key keeps whatever is already
 # stored, so a value tuned through the API is not reset by a re-seed.
 #
-# domains is what a reader's professional mix selects on (roadmap C8). V1 uses
-# four tags: technology (general tech news), software, ai and data-science.
+# domains supports the local demo's professional focus and planned account
+# settings (roadmap C8). V1 uses four tags: technology (general tech news),
+# software, ai and data-science. Declared language is not detected text language;
+# the collector does not globally reject non-English articles.
 # TestShippedSourcesFileIsValid rejects any other tag in this file.
 
 sources:

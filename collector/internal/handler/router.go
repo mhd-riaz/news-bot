@@ -41,7 +41,8 @@ func NewRouter(health *Health, sources *Source, runs *CollectionRun, articles *A
 	mux := http.NewServeMux()
 
 	// Health stays open: the container healthcheck and the reverse proxy probe it
-	// before any credential is in play, and it reveals nothing but liveness.
+	// before any credential is in play. Probes expose version/status and MongoDB
+	// availability, not overall collector or classifier health.
 	mux.HandleFunc("GET /health/live", health.Live)
 	mux.HandleFunc("GET /health/ready", health.Ready)
 

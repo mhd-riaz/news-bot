@@ -195,7 +195,10 @@ class GoldResult:
 
 
 def evaluate_on_gold(name: str, data: Dataset, *, seed: int = SEED) -> tuple[GoldResult, Pipeline]:
-    """Fit on the weak labels, score against the human ones.
+    """Fit on the training split and score against imported holdout annotations.
+
+    The historical classifier references are AI-generated under roadmap D16;
+    a legacy ``gold`` split name does not make these human-validation scores.
 
     Two numbers, because they answer two different questions and quoting either
     one alone is misleading. `macro_f1_in_scope` asks how well the model does on

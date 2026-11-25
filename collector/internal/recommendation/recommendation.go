@@ -23,7 +23,8 @@ var (
 	ErrNotIndexed  = errors.New("article outside indexed archive")
 )
 
-// Windows are the ranker's news views: C2 fresh, the C9 daily edition and the archive.
+// Windows select the demo's date partitions. Yesterday is computed per request,
+// not the persisted reader edition required by C9.
 var windows = map[string]bool{"": true, "fresh": true, "yesterday": true, "archive": true}
 
 type Request struct {

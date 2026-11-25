@@ -666,7 +666,7 @@ def sample_proposals(
 def write_weak_labels(
     run: Path, selected: Sequence[Candidate], proposals: Mapping[str, Proposal], taxonomy: Taxonomy
 ) -> Path:
-    """The AI agents' class for each selected candidate, kept apart from human gold."""
+    """AI-agent labels for selected candidates, separate from imported reference sheets."""
     path = run / WEAK_LABELS
     with path.open("x", encoding="utf-8") as handle:
         for candidate in sorted(selected, key=lambda c: c.article.id):

@@ -2,11 +2,15 @@
 
 A snapshot is the boundary between this phase and every later one. After it
 exists, training never touches MongoDB — it reads a directory whose contents are
-a pure function of `(git sha, cleaning_version, seed, corpus)`.
+a function of `(git sha, cleaning_version, seed, corpus, annotations)`.
 
 Byte-identical rebuilds are an acceptance criterion, so the data files are JSONL
 with sorted keys and a fixed row order, and every mutable fact (timestamps, host,
 paths) lives in the manifest rather than in the data.
+
+Existing classifier annotations are AI-generated (roadmap D16, 22 Nov 2026).
+Historical ``human`` fields and generated prose are preserved legacy metadata,
+not evidence of human review.
 """
 
 from __future__ import annotations
@@ -337,7 +341,7 @@ def _data_card(manifest: dict, rows: list[dict]) -> str:
         "",
         f"| Taxonomy version | `{manifest.get('taxonomy_version')}` |",
         "| --- | --- |",
-        f"| Hand-labelled articles | {labelled:,} |",
+        f"| AI-annotated articles | {labelled:,} |",
         f"| Labels offered but not admitted | {counts.get('labels_offered', 0) - labelled:,} |",
         f"| Split boundary placed by | {boundaries.get('placed_by', '—')} |",
         f"| Train ends | {boundaries.get('train_until') or '—'} |",
@@ -368,7 +372,7 @@ def _data_card(manifest: dict, rows: list[dict]) -> str:
         "- The split boundary is a publication time chosen from the labelled articles",
         "  and frozen here. Labelling stops at whenever the last round was drawn, so",
         "  cutting over the whole corpus would leave the test split almost unlabelled.",
-        "- Every label here is human. Weak labels from feed sections are not written:",
-        "  they agree with a person only ~74% of the time — see `docs/plan.md`.",
+        "- Classifier reference annotations are AI-generated (D16); stored human-origin tags",
+        "  are legacy metadata, not human validation. RSS weak-label agreement was ~74%.",
     ]
     return "\n".join(lines) + "\n"
