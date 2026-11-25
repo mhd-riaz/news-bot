@@ -23,6 +23,7 @@ def main(argv: list[str] | None = None) -> int:
             command.add_argument("--cut", type=datetime.fromisoformat, required=True)
             command.add_argument("--limit", type=int, default=20_000)
             command.add_argument("--candidates", type=int, default=30_000)
+            command.add_argument("--recent-days", type=int, default=0)
         elif name == "train":
             command.add_argument("--epochs", type=int, default=30)
         elif name == "benchmark":
@@ -43,7 +44,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("id must be a short filesystem-safe snapshot name")
     directory = args.root / args.id
     if args.command == "prepare":
-        result = data.freeze(directory, cut=args.cut, limit=args.limit, candidates=args.candidates)
+        result = data.freeze(
+            directory, cut=args.cut, limit=args.limit, candidates=args.candidates,
+            recent_days=args.recent_days,
+        )
     elif args.command in ("baseline", "train"):
         from . import model
 

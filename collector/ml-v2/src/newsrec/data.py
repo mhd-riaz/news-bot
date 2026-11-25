@@ -7,7 +7,7 @@ import json
 import os
 import random
 from collections import Counter
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -84,16 +84,32 @@ def input_text(title: str, summary: str, body: str) -> tuple[str, str]:
     return f"{title}\n{' '.join(support.split()[:SUPPORT_WORDS])}".strip(), kind
 
 
+def date_provenance(document: dict[str, Any]) -> tuple[str, bool]:
+    """C1 date provenance: keep stored fields; otherwise equal publish/collect times are a fallback."""
+    verified = document.get("date_verified")
+    if isinstance(verified, bool):
+        source = document.get("published_at_source")
+        return (source or ("feed" if verified else "collected_fallback")), verified
+    published, collected = document.get("published_at"), document.get("collected_at")
+    if not published or published == collected:
+        return "collected_fallback", False
+    return "feed", True
+
+
 def freeze(
-    directory: Path, *, cut: datetime, limit: int = 20_000, candidates: int = 30_000
+    directory: Path, *, cut: datetime, limit: int = 20_000, candidates: int = 30_000,
+    recent_days: int = 0,
 ) -> dict[str, Any]:
-    """Reservoir-sample a stable Mongo cursor, clean it, and persist IDs/text plus provenance."""
+    """Freeze a cohort: every recent article up to the candidate budget, plus a reservoir sample
+    of older ones; clean it, and persist IDs/text plus provenance."""
     if directory.exists():
         raise FileExistsError(f"{directory} already exists; use a new snapshot id")
     if cut.tzinfo is None or cut > datetime.now(UTC):
         raise ValueError("cut must be a timezone-aware instant in the past")
     if not 100 <= limit <= candidates <= 200_000:
         raise ValueError("require 100 <= limit <= candidates <= 200000")
+    if type(recent_days) is not int or not 0 <= recent_days <= 365:
+        raise ValueError("recent_days must be an integer between 0 and 365")
 
     rng = random.Random(SEED)
     selected: list[dict[str, Any]] = []
@@ -102,29 +118,46 @@ def freeze(
         name: 1 for name in (
             "_id", "source_id", "source_name", "url", "normalized_url", "canonical_url",
             "title", "image_url", "content_hash", "language", "country",
-            "published_at", "collected_at", "scrape_status",
+            "published_at", "collected_at", "scrape_status", "published_at_source", "date_verified",
         )
     }
     projection.update({
         "summary": {"$substrCP": [{"$ifNull": ["$summary", ""]}, 0, 3000]},
         "content": {"$substrCP": [{"$ifNull": ["$content", ""]}, 0, 12_000]},
     })
+    older_than = cut - timedelta(days=recent_days)
+    recent: list[dict[str, Any]] = []
     scanned = 0
     with MongoClient(uri, tz_aware=True, serverSelectionTimeoutMS=10_000) as client:
         database = client[database_name]
-        cursor = database.articles.find(
-            {"collected_at": {"$lt": cut}}, projection
-        ).sort("_id", 1).batch_size(512)
-        for scanned, document in enumerate(cursor, 1):
-            if len(selected) < candidates:
-                selected.append(document)
-            else:
-                position = rng.randrange(scanned)
-                if position < candidates:
-                    selected[position] = document
+        domains = {
+            str(source["_id"]): sorted(source.get("domains") or [])
+            for source in database.sources.find({}, {"_id": 1, "domains": 1})
+        }
+        if recent_days:
+            # Newest first, so a busy window keeps its latest articles within the budget.
+            recent = list(database.articles.find(
+                {"collected_at": {"$gte": older_than, "$lt": cut}}, projection
+            ).sort("collected_at", -1).limit(candidates).batch_size(512))
+        budget = candidates - len(recent)
+        if budget:
+            cursor = database.articles.find(
+                {"collected_at": {"$lt": older_than}}, projection
+            ).sort("_id", 1).batch_size(512)
+            for scanned, document in enumerate(cursor, 1):
+                if len(selected) < budget:
+                    selected.append(document)
+                else:
+                    position = rng.randrange(scanned)
+                    if position < budget:
+                        selected[position] = document
+    scanned += len(recent)
     if not scanned:
         raise ValueError("the selected Mongo database contains no articles before the cut")
-    print(f"Read {scanned} records; preparing {len(selected)} candidates.", flush=True)
+    recent_ids = {document["_id"] for document in recent}
+    selected.extend(recent)
+    print(f"Read {scanned} records; preparing {len(selected)} candidates "
+          f"({len(recent)} from the last {recent_days} days).", flush=True)
 
     selected.sort(key=lambda document: document["_id"])
     articles = [_to_article(document) for document in selected]
@@ -157,20 +190,30 @@ def freeze(
             display, display_kind = "", "Headline only"
         published = article.published_at
         collected = article.collected_at
+        date_source, date_verified = date_provenance(document)
+        source_id = str(document.get("source_id") or "")
         rows.append({
             "id": article.id, "title": title.text, "text": text, "text_kind": kind,
             "display_text": display, "display_kind": display_kind,
             "publisher": article.publisher, "source_name": article.source_name,
+            "source_id": source_id, "domains": domains.get(source_id, []),
             "url": document.get("canonical_url") or article.url,
             "image_url": document.get("image_url", ""),
             "published_at": published.isoformat() if published else None,
             "collected_at": collected.isoformat() if collected else None,
             "date_kind": "Collected" if published == collected else "Stored publication date",
+            "date_source": date_source, "date_verified": date_verified,
             "language_confidence": language_confidence,
             "content_hash": article.content_hash,
             "normalized_url": document.get("normalized_url") or article.url,
         })
     rng.shuffle(rows)
+    # Recent articles come first, newest first; the shuffled older sample fills the rest.
+    fresh = sorted(
+        (row for row in rows if row["id"] in recent_ids),
+        key=lambda row: row["collected_at"] or "", reverse=True,
+    )
+    rows = fresh + [row for row in rows if row["id"] not in recent_ids]
     rows = sorted(rows[:limit], key=lambda row: row["id"])
     if len(rows) < 100:
         raise ValueError(f"only {len(rows)} articles passed preparation; at least 100 are needed")
@@ -189,6 +232,10 @@ def freeze(
         "support_words": SUPPORT_WORDS, "database": database_name,
         "scanned": scanned, "candidates": len(selected),
         "articles": len(rows), "rejections": dict(rejected),
+        "recent_days": recent_days,
+        "recent_articles": sum(row["id"] in recent_ids for row in rows),
+        "date_verified": sum(row["date_verified"] for row in rows),
+        "domain_tagged": sum(bool(row["domains"]) for row in rows),
         "input_kinds": dict(Counter(row["text_kind"] for row in rows)),
         "images": sum(bool(row["image_url"]) for row in rows),
         "publishers": len({row["publisher"] for row in rows}),
@@ -198,7 +245,10 @@ def freeze(
         ],
         "documents_sha256": digest(output),
         "language_note": "Seeded langdetect and script guard; not verified human language labels.",
-        "date_note": "Original collector may have substituted collection time for a missing date.",
+        "date_note": (
+            "Original collector may have substituted collection time for a missing date. "
+            "A date counts as verified only from the feed or page, never the collection time."
+        ),
     }
     write_json(directory / "manifest.json", manifest)
     return manifest

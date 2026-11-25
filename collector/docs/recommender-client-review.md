@@ -1,6 +1,162 @@
-# AFTERLINE: client and architecture review briefing
+# AFTERLINE: plain-English progress checklist
 
-**Review date:** 23 October 2026  
+**Project-record review date:** 23 November 2026
+
+**Audience:** readers with basic computer knowledge; no machine-learning background needed
+
+## Project progress checklist
+
+**A working news-reading demo has been built, but the complete private web service is not finished.**
+The news collector is recorded as running on the owner's home computer.
+The reading demo was last demonstrated on 22 November. Neither statement is a new check that the services are running today.
+
+AFTERLINE gathers news and suggests what to read. The first release, called **V1**, is a website for about five invited people, not a public sign-up service.
+**V2** is the later audio and iPhone version. The website must be useful without paying for an outside service.
+
+This checklist summarises the [project roadmap](roadmap.md), [recorded results](recommender-results.md) and the latest detailed task entries.
+It is a review of those records, not a new inspection of the live service.
+Where an older summary disagrees with a later detailed entry or owner decision, the later record is used.
+The technical review at the end is historical, not a second current task list.
+
+**Dates:** the original V1 target was **15 November 2026**, which has passed.
+The records do not show full release acceptance or an approved replacement date.
+This checklist does not change the deadline, reduce the scope or close a release gate.
+
+### How to read the tables
+
+| Mark and status | Meaning |
+| --- | --- |
+| `[x] Done` | There is recorded evidence for the result described. Read the limit: done on one computer or done in code does not mean available in the live service. |
+| `[~] In progress` | Part of the work is done, but an action, check or approval remains. This includes work waiting on someone else. |
+| `[ ] Yet to do` | There is no recorded completion of this planned work. This does not prove that nobody has started it. |
+
+A **classifier** sorts news into topics. A **recommender** suggests what someone might want to read.
+Finishing a classifier does not finish the news website or prove that its reading suggestions are useful.
+**Machine learning** means finding patterns in examples. A trained **model** is a program that has learned those patterns.
+
+### What is done
+
+| Check | Completed work | What the evidence does, and does not, show | Record |
+| --- | --- | --- | --- |
+| `[x] Done` | The news-collection foundation | The collector and its database are recorded as running on the home computer. The whole reader service has not passed the final always-on checks. | [R8-R9](roadmap.md#2-requirements) |
+| `[x] Done` | A working news-reading demo | On 22 November, a separate local archive with 20,000 articles from 53 publishers was built and displayed. All three reading methods returned real articles. This was not a live-service release. | [LOCAL.1](roadmap.md#4-milestones) |
+| `[x] Done` | Three ways to find related articles | Word matching and two learned methods are available in the demo. Word matching remains the default based on the earlier comparisons; the new archive has no new human-quality result. | [Earlier comparisons](recommender-results.md), [LOCAL.1](roadmap.md#4-milestones) |
+| `[x] Done` | Basic reading controls | The original demo has like/dislike controls, related reading and interest selection. Choices are kept in that browser, not in a signed-in account shared across devices. | [Delivered reader](#11-delivered-reader-experience) |
+| `[x] Done` | Code to improve article information | Tested code cleans text, detects language, records where dates came from and tracks article changes. Completing the work on the live archive is still pending. | [M1.1-M1.4](roadmap.md#4-milestones) |
+| `[x] Done` | More news sources prepared | Source settings and 25 added feeds were tested on a separate database. The additions are done in code, not confirmed as deployed to the live service. | [M1.6-M1.7](roadmap.md#4-milestones) |
+| `[x] Done` | Basic database access and memory settings | Access checks passed on a test database; the owner confirmed live account setup. Memory limits are configured for the services already deployed. This is not a full security or capacity sign-off. | [M0.6-M0.7](roadmap.md#4-milestones) |
+| `[x] Done` | A fair way to choose the final reading tests | The procedure for selecting 50 test cases is implemented and tested. The actual final reader study still needs to happen. | [M0.4](roadmap.md#4-milestones) |
+| `[x] Done` | One unreliable automated test fixed | The timing-related test fix has recorded repeat-run evidence. Other testing work in the same milestone remains. | [M9.1 work log](roadmap.md#9-work-log) |
+| `[x] Done` | A newer topic-classifier candidate trained locally | A separate candidate was trained using 8,594 artificial-intelligence-generated labels (AI labels). It has not been approved by human testing or put into the live service. It is not the reading demo's recommender. | [ML4.6 and its correction](roadmap.md#4-milestones) |
+| `[x] Done` | A fresh-news demo for the 25 November review | On 24 November the reader gained Fresh, Yesterday and Archive views, a professional-news switch, and saved stories with notes. It ran on news collected that day. It runs on one laptop and keeps choices and notes in that browser only; it is not the hosted, signed-in service. | [DEMO tasks](roadmap.md#demo--bare-minimum-client-demo-separate-from-release-acceptance) |
+
+### What is in progress
+
+| Check | Work in progress | What still needs to happen | Record |
+| --- | --- | --- | --- |
+| `[~] In progress` | Moving this project into the live service safely | Ready-to-run software packages can be built on one computer, but publishing the main package is blocked by its connection to the older project. Complete the safe handover and prove that the packages reach and run on the live computer. | [M0.5](roadmap.md#4-milestones), [18 November decision](roadmap.md#8-decision-log) |
+| `[~] In progress` | Arranging the human reading review | The scoring rules were approved. Confirm the testers and their available review times; the original November grading dates have passed. | [M0.2](roadmap.md#4-milestones) |
+| `[~] In progress` | Updating old articles with the new information | The update program is built and tested. Run it on the live archive after the approved deployment, check the results and confirm news collection was not interrupted. | [M1.5](roadmap.md#4-milestones) |
+| `[~] In progress` | Finishing automatic website checks | The unreliable-test fix is done. Automatic checks still need to cover more of the code that runs in the browser. | [M9.1](roadmap.md#4-milestones) |
+| `[~] In progress` | Completing and reviewing the newer classifier work | A local candidate exists, but reviews and human validation remain. The 22 November correction says all old and new classifier labels were AI-generated, including ones earlier called human labels. The target of 200 human-reviewed examples for each of 13 topics is **not met**. | [ML4 tasks](roadmap.md#4-milestones), [D16](roadmap.md#7-open-decisions-owner) |
+
+### What is yet to be done for V1
+
+The last column names the detailed tasks in the roadmap. These rows group related tasks; they are not estimates of equal-sized jobs.
+
+| Check | Work still needed | What finished should look like | Record |
+| --- | --- | --- | --- |
+| `[ ] Yet to do` | Check article dates and live data quality | Report which publishers have trustworthy publication dates. Verify the live data has the required cleaned text and language information. Do not silently relax the date rules. | [M1.9, M1 exit](roadmap.md#4-milestones), [C1-C2](roadmap.md#3-contracts-v1) |
+| `[ ] Yet to do` | Health checks, backups and recovery | Add the planned service checks, make a daily encrypted backup on another device and prove that a backup can be restored. Sending alerts to the owner is deferred to V2, not a V1 delivery promise. | [M1.8](roadmap.md#4-milestones), [D2-D3](roadmap.md#7-open-decisions-owner) |
+| `[ ] Yet to do` | Keep recommendations up to date automatically | Build the full searchable article list, add new and changed articles regularly, remove articles that no longer qualify and recover safely from failures. A bad update must leave the previous working list available. | [M2.1-M2.7](roadmap.md#4-milestones) |
+| `[ ] Yet to do` | Prove the one-hour news target | Test delayed articles, changes, failures, restarts and recovery. Then measure continuously for 48 hours: no article accepted into the recommendation list may take over 60 minutes from collection to becoming recommendable. Measure changed articles separately too. | [M2.8-M2.9](roadmap.md#4-milestones), [C5](roadmap.md#c5-freshness-sla-r5) |
+| `[ ] Yet to do` | Private Google sign-in and the hosted reader | Create the Google sign-in setup, allow only invited accounts, protect each person's data and deploy the reader with sign-in required. Testers must actually sign in and use it. | [M3.1, M3.3, M3.8-M3.9](roadmap.md#4-milestones), [D10](roadmap.md#7-open-decisions-owner) |
+| `[ ] Yet to do` | Likes and settings that follow the reader | Store likes, dislikes, topics and publisher choices in the account. Add professional/local news settings, city, reset, data download and deletion. Check that choices survive a browser reset and a device change. | [M3.2, M3.7-M3.8](roadmap.md#4-milestones) |
+| `[ ] Yet to do` | A fresh-news page and a separate archive | Fresh stories must be English, have a verified publication date and be no more than 30 days old, with future dates excluded. Older stories and stories with unverified dates belong in the archive; unverified dates need a clear label. | [M3.4](roadmap.md#4-milestones), [C2](roadmap.md#c2-freshness) |
+| `[ ] Yet to do` | Saved stories, saved topics and notes | Readers can save both stories and topics, add notes and find them again on another device. | [M3.5](roadmap.md#4-milestones) |
+| `[ ] Yet to do` | Reader-added news feeds | Readers can add their own publishers' automatic article lists, see collection status and disable their feeds. Only the existing collector fetches them, using its safety checks. | [M3.6](roadmap.md#4-milestones) |
+| `[ ] Yet to do` | A daily selection of yesterday's news | Build and store each reader's edition, avoid repeated versions of one event and explain when there are too few stories. An edition stays unchanged unless rebuilt. Testers review three consecutive editions. | [M4.1-M4.5](roadmap.md#4-milestones) |
+| `[ ] Yet to do` | Topic discovery and genuine follow-up stories | Suggest relevant topics the reader has not chosen, explain the links, give topics clear names and connect stories to later developments and relevant older reading. People must judge whether the links make sense. Adding these rules must not make the practice reading scores worse. | [M5.1-M5.7](roadmap.md#4-milestones) |
+| `[ ] Yet to do` | The planned improved recommendation model | Train and serve the new model, compare it fairly with the existing methods and prove that replacing a model is safe. Use practice cases for tuning, never the final test cases. | [M0.3, M6.1-M6.5](roadmap.md#4-milestones) |
+| `[ ] Yet to do` | Safe, read-only access for AI assistants | Assistants can search and read using their own access keys. They cannot change records, start training or access a reader's private account data. Check rejected and revoked keys too. | [M7.1-M7.4](roadmap.md#4-milestones) |
+| `[ ] Yet to do` | The final human reading test | Freeze the system and its suggested lists. All invited testers, at least two people, grade 50 reading cases without knowing which method made each suggestion. Report whether the target below was met. AI scores are not a replacement. | [M8.1-M8.3](roadmap.md#4-milestones) |
+| `[ ] Yet to do` | Final safety, speed and release checks | Review sign-in, permissions and safe display of publisher text. Confirm content/image permissions and that images are stored only as links, not image files. Test several users together, rehearse recovery, enable weekly model updates after evaluation, update release documentation and run the release checklist. | [M9.2-M9.6](roadmap.md#4-milestones), [D5-D6](roadmap.md#7-open-decisions-owner) |
+
+### The checks that decide whether the work passes
+
+These are the main existing plan targets, not new or lowered targets. The detailed linked tasks also apply.
+The owner must decide any change to a target, deadline or feature.
+
+| Area | Required result in plain English | Current evidence |
+| --- | --- | --- |
+| News freshness | Over 48 straight hours, both the slowest new-article time and the time that 95 out of 100 articles stay within must be at most 60 minutes. Count every article accepted into the recommendation list. | Not yet demonstrated. See [M2 exit](roadmap.md#4-milestones). |
+| Topic suggestions | People judge at least 70% sensible across 20 practice profiles. Every suggestion shows its reason. | Not yet demonstrated. See [C6](roadmap.md#c6-association-rules-r7-r23). |
+| Follow-up stories | People judge at least 70% of follow-ups genuine across 30 sampled articles. Every follow-up points to a later development. | Not yet demonstrated. See [C6](roadmap.md#c6-association-rules-r7-r23). |
+| Topic names | At least 80% of 30 sampled labels make sense, and every topic has a label. | Not yet demonstrated. See [C6](roadmap.md#c6-association-rules-r7-r23). |
+| Reading usefulness | Across the final 50 cases, at least 65% of the top-five suggestions must be rated useful, and the chosen method must not do worse than word matching. The small earlier pilot does not pass this final test. | Full human acceptance is unverified. See [C13](roadmap.md#c13-evaluation-r15) and [earlier results](recommender-results.md). |
+| Several people using it together | The owner confirms the test load. The current default target is five readers plus two AI assistants, with 95 out of 100 responses taking no more than half a second. | This load has not been demonstrated. Earlier one-reader speed tests do not count. See [D5](roadmap.md#7-open-decisions-owner). |
+| Release readiness | All required services run with healthy checks for 24 hours; recovery was rehearsed within the last 48 hours; release tests pass; requirements and unmet targets are honestly recorded. | The [V1 release checklist](roadmap.md#41-v1-release-checklist) is still unchecked. |
+
+**If a target is missed, write "not met".**
+Keeping the best available reading method as a fallback does not turn a failed target into a pass.
+Do not treat AI-generated classifier labels as human-checked answers, or classifier scores as proof of useful recommendations.
+
+### What belongs to later versions
+
+These are planned ideas, not completed features or promises for V1.
+V2 has not yet been designed in detail.
+
+| Check | Later work | Meaning | Record |
+| --- | --- | --- | --- |
+| `[ ] Yet to do - V2` | Choose a listening time | Ask how many minutes the listener has. | [V2-1](roadmap.md#2-requirements) |
+| `[ ] Yet to do - V2` | A briefing that fits that time | Turn the stored daily edition into one ordered spoken script of the right length. | [V2-2](roadmap.md#2-requirements) |
+| `[ ] Yet to do - V2` | Spoken narration | Read the briefing aloud. | [V2-3](roadmap.md#2-requirements) |
+| `[ ] Yet to do - V2` | Voice controls | Accept spoken playback, save and topic-exploration commands. | [V2-4](roadmap.md#2-requirements) |
+| `[ ] Yet to do - V2` | iPhone app | Bring editions, audio, saved items and notes to an app. | [V2-5](roadmap.md#2-requirements) |
+| `[ ] Yet to do - V2` | Assistant access to personal saved items | Decide and build safe access to a reader's own saved stories and notes. V1 assistants do not get this access. | [V2-6](roadmap.md#2-requirements) |
+| `[ ] Yet to do - V2` | Deliver alerts to the owner | Choose an alert channel and add delivery; this was deferred from V1. | [D3](roadmap.md#7-open-decisions-owner) |
+| `[ ] Yet to do - after V2` | Android app | Build the Android version after V2. | [L-1](roadmap.md#2-requirements) |
+
+### The 25 November demo
+
+**What it shows:** today's news first, a short "yesterday" selection, news limited to AI, software and data-science sources, older background behind today's stories, and saved stories with notes. It runs on the owner's laptop, and likes, settings and notes stay in that browser.
+
+**Before the demo** (from `collector/`, about 10 minutes; leave the collector running):
+
+1. `make demo-refresh` takes a new snapshot of the latest news (about 7 minutes).
+2. Stop the old ranker, then run `make demo-serve`.
+3. In a second terminal, run `make reader`, then open http://127.0.0.1:8090/stories in a private browser window, so the demo starts with no likes, settings or saved stories from rehearsals. It starts in the computer's light or dark setting.
+
+**Suggested walk-through:**
+
+1. **Fresh** opens on a grid of the newest stories with a verified publication date: one large lead story, then rows of three. The snapshot time is under "The collection", at the bottom of the page.
+2. Tick **Professional focus**: only AI, software, data-science and technology sources remain.
+3. **Choose interests**: pick two or three of today's stories. The page title changes to "For you".
+4. Open a story: it reads full screen, like a magazine page. At the end, **Related reading** shows six related stories, each marked "Fresh" or "From the archive"; **See all related stories** opens the full set. Whether older archive stories appear depends on the story, so pick one in rehearsal that has older background.
+5. **Save** a story (☆ on any tile, or **Save** inside the story) and type a note, then open **Saved stories** to show it.
+6. Switch to **Yesterday**: up to ten stories from yesterday, in India time, ranked by the chosen interests.
+7. Optional: switch the lens between TF–IDF, SVD and Neural, or press **Dark theme** at the top right.
+
+**What not to claim:** this is not the hosted service and has no sign-in. Choices live in one browser. The snapshot is refreshed by hand, so the one-hour freshness target is not shown. Topic suggestions, follow-up stories, assistant access and the human reading test are not built yet. The earlier reading-quality numbers come from a small pilot and do not meet the final target.
+
+### Keeping this checklist accurate
+
+Change a row to **Done** only when its linked task has recorded evidence.
+Keep the scope visible: code written, local demo, live deployment and human acceptance are different results.
+Update the roadmap first, then this summary. Do not calculate a completion percentage from these rows: the jobs differ greatly in size.
+
+## Historical technical review
+
+<details>
+<summary>Open the earlier client and architecture review (23 October 2026)</summary>
+
+The review below describes the original `stories-002` demonstration.
+It is retained as historical evidence, not the current release status or a list of decisions still awaiting approval.
+Later roadmap decisions and the checklist above take precedence.
+The separate local archive built on 22 November does not replace or revalidate its measurements.
+
+**Original review date:** 23 October 2026
+
 **Audience:** client stakeholders, solution architect and engineering reviewers  
 **Delivered edition:** `stories-002`  
 **Current application-code checkpoint inspected:** `c06fdf4`  
@@ -494,3 +650,5 @@ Small human judgement coverage, AI-assessment bias, English-language and publish
 - [Evaluation and provenance enforcement](../ml-v2/src/newsrec/evaluate.py)
 - [Story markup](../internal/web/templates/stories.html), [styling](../internal/web/static/stories.css) and [browser behavior](../internal/web/static/stories.js)
 - [JavaScript regression checks](../scripts/stories.test.mjs)
+
+</details>
