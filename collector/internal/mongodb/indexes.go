@@ -28,10 +28,10 @@ type CollectionIndexes struct {
 
 // IndexPlan is the full set of indexes the application depends on.
 //
-// The unique indexes on articles are the database-level enforcement of the
-// deduplication order: normalized URL, then canonical URL, then source plus feed
-// GUID. content_hash is the final fallback lookup and is deliberately not unique,
-// because two sources may legitimately syndicate byte-identical content.
+// Article identity lookup order lives in the repository. Globally unique
+// dedup_id and normalized_url, plus source-scoped feed_guid uniqueness, settle
+// concurrent inserts. content_hash is a source-scoped fallback lookup and is
+// deliberately not unique: different sources may syndicate identical content.
 func IndexPlan() []CollectionIndexes {
 	return []CollectionIndexes{
 		{
@@ -224,10 +224,9 @@ func IndexPlan() []CollectionIndexes {
 		{
 			Collection: CollectionReadEvents,
 			Models: []mongo.IndexModel{
-				// Read events are written by the browser and read offline, in
-				// two shapes only: the whole log in time order, which is how a
-				// ranker is trained on a temporal split, and one article's
-				// history, which is how a single card is explained.
+				// These indexes support offline legacy-event analysis by time,
+				// article or kind. read_events are not AFTERLINE recommendation
+				// signals (roadmap C14).
 				{
 					Keys:    bson.D{{Key: "occurred_at", Value: -1}, {Key: "_id", Value: -1}},
 					Options: options.Index().SetName("ix_occurred_cursor"),

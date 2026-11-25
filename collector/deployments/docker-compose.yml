@@ -1,8 +1,10 @@
 name: news-collector
 
-# Local development stack. Copy .env.example to .env at the project root first:
+# Local development stack. Copy .env.example to .env under collector/ first:
 # the API refuses to start with auth enabled and no credentials configured, and
-# .env is where those credentials come from.
+# .env is where those credentials come from. NEWS_ENV_FILE does not override
+# this file's explicit env_file entries. MongoDB has no auth and host ports bind
+# all interfaces; do not expose this development stack to untrusted networks.
 
 services:
   mongo:

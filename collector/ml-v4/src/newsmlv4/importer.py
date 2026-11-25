@@ -1,4 +1,8 @@
-"""Write V4 human gold on the export-time database check (roadmap D14).
+"""Import V4 sheets using the export-time database check (roadmap D14).
+
+Round 1 was later confirmed AI-generated (D16, 22 Nov 2026). Its legacy
+``gold.jsonl`` name and human-origin metadata are superseded, not proof of
+human review. This validator checks text and agreement, not authorship.
 
 `make ml4-labels-import` re-checks every candidate against the live local database by
 ID and then calls `newsml import-labels`, which refuses any ID the database does not
@@ -10,7 +14,7 @@ accepted the export-time database check instead. This path:
   the database at export, with every candidate labelled and no conflicting overlaps;
 * looks each candidate up in today's database by content hash or title with the same
   fingerprint, and records what it finds rather than requiring it;
-* writes gold in the `newsml import-labels` format and never overwrites it.
+* writes annotations in the legacy `newsml import-labels` format without overwriting.
 """
 
 from __future__ import annotations
@@ -101,7 +105,7 @@ def import_gold(
     taxonomy: Taxonomy,
     data_root: Path = DATA_ROOT,
 ) -> dict[str, Any]:
-    """Validate the sheets offline, record today's re-check, and write gold. Returns the record."""
+    """Validate sheet text, record today's re-check and write legacy-format annotations."""
     if (run / GOLD).exists():
         raise FileExistsError(f"refusing to overwrite {run / GOLD}")
     selection = load_selection(run, data_root)
@@ -170,7 +174,7 @@ def import_gold(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Write V4 human gold on the export-time database check (roadmap D14)"
+        description="Import V4 annotations using the export-time database check (D14); text checks do not certify human authorship"
     )
     parser.add_argument("--run", required=True, type=Path, help="directory inside ml-v4/data/")
     args = parser.parse_args(argv)

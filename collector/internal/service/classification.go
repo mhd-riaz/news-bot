@@ -22,7 +22,8 @@ type ClassificationDeps struct {
 	Logger      *slog.Logger
 }
 
-// ClassificationService retries articles that could not be classified before storage.
+// ClassificationService fills pending topic and derived fields, including work
+// reset by material enrichment changes.
 type ClassificationService struct {
 	deps ClassificationDeps
 }

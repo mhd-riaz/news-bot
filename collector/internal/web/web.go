@@ -5,9 +5,8 @@
 // embedded in the binary, so a deployment stays one image with no asset
 // pipeline behind it.
 //
-// Contextual escaping is what stands between scraped third-party text and
-// stored XSS, so every field reaches the page through a template action and
-// nothing here builds HTML by concatenation.
+// Server-rendered third-party text is escaped by html/template. The Stories
+// client assigns API text with textContent, never publisher-supplied HTML.
 package web
 
 import (
@@ -61,7 +60,7 @@ type ReadEvents interface {
 	Record(ctx context.Context, inputs []domain.ReadEventInput) (int64, error)
 }
 
-// Handler serves the pages and the one endpoint they write to.
+// Handler serves embedded pages, assets and optional legacy telemetry.
 type Handler struct {
 	articles Articles
 	events   ReadEvents
@@ -206,7 +205,7 @@ func (h *Handler) feed(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, http.StatusOK, "feed.html", view)
 }
 
-// article renders one article and records the click that opened it.
+// article renders a legacy article page and records its click when telemetry is enabled.
 func (h *Handler) article(w http.ResponseWriter, r *http.Request) {
 	article, err := h.articles.Get(r.Context(), r.PathValue("id"))
 	if err != nil {
@@ -263,8 +262,8 @@ type telemetryPayload struct {
 	} `json:"events"`
 }
 
-// readEvents accepts a telemetry flush. It is the only state-changing request a
-// browser makes, so it is also the only one that needs cross-origin defence.
+// readEvents accepts legacy telemetry with cross-origin checks when events is set.
+// cmd/reader blocks this route and supplies no telemetry writer.
 func (h *Handler) readEvents(w http.ResponseWriter, r *http.Request) {
 	if !sameOrigin(r) {
 		http.Error(w, "cross-origin requests are not accepted here", http.StatusForbidden)

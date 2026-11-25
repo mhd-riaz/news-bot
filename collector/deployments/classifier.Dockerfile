@@ -1,4 +1,4 @@
-# Build context is the repository root:
+# Build context is collector/; run from that directory:
 #   docker build -f deployments/classifier.Dockerfile .
 
 FROM python:3.13-slim-trixie

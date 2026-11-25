@@ -1,6 +1,7 @@
-"""Offline data preparation and modelling for the news collector.
+"""Legacy classifier study and shared offline preparation utilities.
 
-Never deployed. Reads the bronze corpus, never writes to it.
+Commands read the corpus and write local artifacts, never MongoDB. Newer tooling
+reuses this package's cleaning, annotation and near-duplicate utilities.
 """
 
 from .config import CLEANING_VERSION, SEED

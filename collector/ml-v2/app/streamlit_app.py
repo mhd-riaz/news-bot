@@ -1,22 +1,18 @@
-"""Demo UI for the news topic classifier.
+"""Historical v2-001 classifier explorer, not the AFTERLINE reader or V4 candidate.
 
-Two things this is trying to show, beyond "it predicts a class":
-
-1. **The confidence number means something.** It has been corrected so that 0.80 really
-   does mean right about 80% of the time -- the "is the confidence honest?" chart on the
-   Validation tab is the evidence, and the confidence threshold in the sidebar is what
-   that honesty buys you.
-2. **The model can say "I don't know".** Below the threshold it declines rather than
-   guessing, which is why accuracy on what it files (83%) is well above accuracy when it
-   is forced to answer everything (78%).
+All classifier label datasets are AI-generated (roadmap D16, 22 Nov 2026).
+The displayed historical metrics and calibration measure AI-label agreement.
+Earlier human-origin wording is superseded, and a confidence of 0.80 is not a
+demonstrated 80% correctness rate against human judgement. The confidence cut
+still controls abstention; operating that control is not human validation.
 
 This screen is shown in a live viva, so the copy stays inside the course vocabulary --
 confusion matrix, precision/recall/F1, macro-averaging, decision boundary, threshold,
 train/validation/test, bootstrap, bagging and boosting. Anything the module did not cover
 is either glossed in one line or kept off the screen.
 
-No logic lives here. Everything comes from `newsmlv2.serve` and the metrics written by
-`newsmlv2 train`, so the demo cannot drift from the measured model.
+Inference comes from `newsmlv2.serve`; the charts read the frozen classifier
+metrics. The historical screen copy and measurements are not V1 acceptance.
 """
 
 from __future__ import annotations
@@ -98,7 +94,7 @@ def load_metrics() -> dict:
 
 @st.cache_data(show_spinner="Reading the frozen snapshot...")
 def load_unlabelled(limit: int = 400) -> pd.DataFrame:
-    """Real articles from the corpus that no human ever labelled."""
+    """Body-bearing rows without a topic label in the frozen v2-001 snapshot."""
     snap = snapshot_mod.read(config.SNAPSHOT_DIR / SNAPSHOT_ID)
     frame = snap.frame
     pool = frame[frame["topic"].isna() & frame["has_body"]]
@@ -156,19 +152,23 @@ val, test = metrics["validation"], metrics["test"]
 st.title("News Topic Classifier")
 st.caption(
     "Files an English news article into one of 13 topics — and declines to answer when "
-    "it is not sure enough. Supervised ML (Classification) mini-project · "
+    "it is not sure enough. Historical v2-001 study: all classifier reference labels are "
+    "AI-generated (D16), including labels previously called human gold. Scores and "
+    "calibration measure AI-label agreement, not human-validated accuracy. Human validation "
+    "and the 200 human labels/class target are not met. "
+    "Supervised ML (Classification) mini-project · "
     "Mohamed Riaz · PES1PGE25DS037"
 )
 
 with st.sidebar:
     st.subheader("The model")
     st.metric("Test macro-F1", f"{test['macro_f1']:.3f}",
-              help="Macro-averaged F1 — the F1 of each of the 13 classes worked out on "
+              help="Agreement with AI reference labels: macro-averaged F1 — the F1 of each of the 13 classes worked out on "
                    "its own, then averaged with equal weight, so a small class is not "
                    "drowned out by a large one. 95% interval "
                    f"[{test['macro_f1_low']:.3f}, {test['macro_f1_high']:.3f}] · the test "
                    f"set was opened once, on {test['opened_on']}, and closed again")
-    st.metric("Accuracy on filed articles", f"{test['accuracy_filed']:.1%}",
+    st.metric("AI-label agreement on filed articles", f"{test['accuracy_filed']:.1%}",
               delta=f"{test['accuracy_filed'] - test['accuracy_without_abstention']:+.1%} "
                     "vs answering everything")
     st.caption(
@@ -181,20 +181,21 @@ with st.sidebar:
     st.divider()
     st.subheader("Confidence threshold")
     st.caption(
-        "How sure must it be before it files an article without a human reading it? "
-        "Everything below the line goes to a person instead of being guessed at. This is "
-        "the classification threshold: raise it and precision "
-        "on what it files goes up, at the cost of answering fewer articles."
+        "How high must the calibrated AI-label score be before it files an article? "
+        "Below the line the prediction is held for possible review; this demo does not "
+        "send it to a person. The curve shows the historical trade-off between coverage "
+        "and agreement with AI labels, not human-validated precision."
     )
     cut = st.slider("Threshold", 0.0, 0.95, float(metrics["cut"]), 0.01)
     coverage, on_kept = interpolate(metrics["coverage_curve"], cut)
     left, right = st.columns(2)
     left.metric("Filed automatically", f"{coverage:.0%}")
-    right.metric("...and right this often", f"{on_kept:.0%}")
+    right.metric("Agreement with AI labels", f"{on_kept:.0%}")
     if abs(cut - metrics["cut"]) > 1e-9:
         st.caption(f"The default is {metrics['cut']:.3f}, picked from cross-validation "
-                   "scores inside the training set so that filed articles come out about "
-                   "90% correct. It was never picked on validation or on test.")
+                   "scores inside the training set with a target of "
+                   "90% agreement with AI labels. It was never picked on validation or on test; "
+                   "that target does not establish human accuracy.")
 
 classify_tab, validation_tab, batch_tab, method_tab = st.tabs(
     ["Classify an article", "Validation", "Run it on the corpus", "How it was built"]
@@ -222,8 +223,8 @@ with classify_tab:
         column.button(name, on_click=use_sample, args=(name,), use_container_width=True)
     columns[-1].button("A real one it is unsure about", on_click=use_uncertain,
                        use_container_width=True,
-                       help="Picks the lowest-confidence article from a sample of real "
-                            "collected news that nobody ever labelled.")
+                       help="Picks the lowest-confidence article from collected news "
+                            "without a reference topic in the frozen snapshot.")
 
     title = st.text_input("Headline", key="title", placeholder="Paste the headline")
     body = st.text_area("Article body", key="body", height=200,
@@ -247,7 +248,7 @@ with classify_tab:
                 else:
                     st.warning(f"### Held for review — looks like {pretty(result.topic)}")
                     st.caption(f"Confidence {result.confidence:.1%} is below the {cut:.2f} "
-                               "threshold, so this goes to a person rather than being filed.")
+                               "threshold, so this demo holds the prediction; it does not contact a reviewer.")
                 st.progress(result.confidence)
 
                 margin = ranked[0][1] - ranked[1][1]
@@ -259,7 +260,7 @@ with classify_tab:
                     )
 
             with detail:
-                st.markdown("**Where the probability went**")
+                st.markdown("**Class probabilities calibrated against AI labels**")
                 st.dataframe(
                     pd.DataFrame(
                         [{"Topic": pretty(t), "Probability": p} for t, p in ranked[:6]]
@@ -304,9 +305,9 @@ with validation_tab:
              delta=f"{test['macro_f1'] - val['macro_f1']:+.3f} vs validation")
     c.metric("Confidence gap (test)", f"{test['ece']:.3f}",
              delta=f"{test['ece'] - val['ece']:+.3f} vs validation", delta_color="inverse",
-             help="Average distance between the confidence it claims and how often it "
-                  "turns out to be right. 0.021 means the claim is off by about two "
-                  "points — the thing AUC cannot see, because AUC only scores ranking.")
+             help="Average distance between confidence and observed AI-label agreement. "
+                  "0.021 means a gap of about two points against those references, not "
+                  "human judgements. AUC only scores ranking, not this calibration.")
     d.metric("Body vs headline", f"+{metrics['body_ab']['delta']:.3f}",
              help="Macro-F1 gained by reading the article instead of just the headline. "
                   "Tested only on the articles the two versions disagreed about, rather "
@@ -316,8 +317,8 @@ with validation_tab:
     st.caption(
         f"Validation is {val['n']:,} articles, test is {test['n']:,}. The test set was "
         f"opened exactly once ({test['opened_on']}) and nothing was changed in response "
-        "to what it said — that is what makes it an honest estimate rather than a second "
-        "validation set."
+        "to what it said. This estimates agreement with the recorded AI labels, not "
+        "human-validated accuracy; the test was not reused as a second validation set."
     )
 
     st.subheader("Per class")
@@ -355,10 +356,10 @@ with validation_tab:
     with left:
         st.subheader("Is the confidence honest?")
         st.caption(
-            "Each point is a band of predictions: of everything it called with about 70% "
-            "confidence, how much was actually right? On the straight line it is exactly "
-            "as right as it claims. Above the line it is under-confident — the safe "
-            "direction for a system that is allowed to hold articles back."
+            "Each point is a band of predictions: at about 70% confidence, what fraction "
+            "matched the AI reference labels? 'Actually right' in this historical chart "
+            "means AI-label agreement, not human correctness. The straight line shows "
+            "matching confidence and observed agreement; it does not certify human accuracy."
         )
         reliability = pd.DataFrame([
             {"Claimed": b["claimed"], "Actually right": b["actual"],
@@ -370,10 +371,9 @@ with validation_tab:
     with right:
         st.subheader("What the threshold costs")
         st.caption(
-            "Raise the threshold and the model files fewer articles but is right more "
-            "often on the ones it does file. It is the precision–recall trade-off in a "
-            "different pair of clothes, and it is the whole argument for letting a "
-            "classifier decline to answer."
+            "The historical curve compares the fraction filed with agreement against AI "
+            "reference labels at each threshold. It is not a measured human-accuracy curve "
+            "or a guarantee that future articles will meet the same agreement rate."
         )
         curve = pd.DataFrame(metrics["coverage_curve"]).rename(columns={
             "cut": "Confidence threshold", "coverage": "Filed",
@@ -383,9 +383,9 @@ with validation_tab:
 
     st.subheader("Where it goes wrong")
     st.caption(
-        "The most common confusions are the same class pairs the human labellers "
-        "disagreed on when the corpus was labelled — 18.6% of errors sit on those pairs, "
-        "so part of this gap is in the labels rather than in the model."
+        "18.6% of model/reference mismatches sit on class pairs previously described as "
+        "human annotation disagreements. D16 withdraws that human-origin claim. This "
+        "share does not establish human ambiguity or a formal ceiling on model quality."
     )
     st.dataframe(
         pd.DataFrame([
@@ -406,11 +406,12 @@ with validation_tab:
 
 
 with batch_tab:
-    st.subheader("Real articles nobody labelled")
+    st.subheader("Snapshot articles without reference labels")
     st.caption(
-        "These are drawn from the frozen snapshot — genuine collected news that was never "
+        "These have no reference topic in the frozen snapshot — collected news that was never "
         "part of training, validation or test. It is the closest thing to watching the "
-        "model work on data it has never met. Every click draws a different batch."
+        "model work on data it has never met, not a human-labelled quality check. "
+        "Every click draws a different batch."
     )
 
     how_many = st.slider("How many articles", 20, 300, 60, 20)
@@ -456,8 +457,9 @@ with batch_tab:
 with method_tab:
     st.subheader("From a raw feed to a trained model")
     st.caption(
-        "Six steps turn collected news into something worth learning from, and only then "
-        "is it split. Every step throws articles away on a written rule, never by hand."
+        "This is the historical v2 classifier pipeline, with AI-generated reference labels. "
+        "Its split and measurements are not the separate V4 candidate's protocol or "
+        "evidence of human validation."
     )
 
     corpus_dot = r"""
@@ -473,7 +475,7 @@ digraph corpus {
   clean [label="2  Clean the text\nstrip menus, ads, wire-agency tags"];
   admit [label="3  Keep only real articles\nno quizzes, galleries, price bulletins"];
   group [label="4  Group the same story\nsyndicated copies become one group"];
-  gold  [label="5  Hand labels\n13 topics"];
+  gold  [label="5  AI reference labels\n13 topics"];
   split [label="6  Split by time, and by story"];
 
   raw -> furn -> clean -> admit -> group -> gold -> split;
@@ -507,10 +509,10 @@ digraph corpus {
                  "What it does": "Rejects anything under 12 body words or 3 title words, plus quizzes, photo galleries, horoscopes, gold-rate and weather bulletins, sponsored posts, exact duplicates, and impossible timestamps.",
                  "Why": "A photo gallery has no topic to learn. Training on one teaches the model noise."},
                 {"Step": "4  Story grouping",
-                 "What it does": "Compares each article with its 8 nearest neighbours on word overlap and groups them when the similarity clears 0.50. The threshold was set by hand-judging 43 pairs.",
+                 "What it does": "Compares each article with its 8 nearest neighbours on word overlap and groups them when the similarity clears 0.50. The threshold used 43 historical pair judgements; this does not establish human validation.",
                  "Why": "Five papers running one wire story are one observation, not five — and the split has to know that."},
                 {"Step": "5  Labels",
-                 "What it does": "Applies the 13-topic list by hand, with a written definition and an exclusion note for each topic. Anything a human could not place is marked unsorted and dropped.",
+                 "What it does": "Uses AI-generated annotations for the 13-topic list, with a written definition and exclusion note for each topic. Annotations marked unsorted are set aside, not evidence of human review.",
                  "Why": "A forced label on a genuinely ambiguous article is a wrong answer the model is then graded against."},
             ]),
             hide_index=True, use_container_width=True,
@@ -519,15 +521,15 @@ digraph corpus {
     st.subheader("How the data was split")
     st.markdown(
         f"""
-Train, validation and test are the three standard sets — fit on one, choose
-on the second, report on the third — but a news corpus makes a plain random split lie to
-you, so two extra rules apply.
+This historical classifier study fits on train, chooses on validation and reports on
+test against AI reference labels. Its grouped, chronological protocol below is not
+the stratified protocol used by the separate V4 candidate.
 
 - **{metrics['splits']['train']:,} / {metrics['splits']['val']:,} / {metrics['splits']['test']:,}**,
   roughly 70 / 15 / 15.
 - **Split by time, not at random.** Every validation article was collected after every
   training article, and every test article after every validation one. So the test score
-  answers the question that matters: how does it do on news it has not seen yet?
+  measures agreement with AI labels on later news, not human-validated accuracy.
 - **Split by story, not by article.** A story group never straddles a boundary.
   {metrics['splits']['dropped']:,} articles sat across one and were dropped whole rather
   than allowed to leak, because a syndicated copy on the training side and its twin on the
@@ -540,7 +542,7 @@ you, so two extra rules apply.
     st.subheader("Inside the model")
     st.caption(
         "The model is a chain of four stages, not one algorithm. Only one of those stages "
-        "picks a topic — the rest turn text into numbers, make the confidence honest, and "
+        "picks a topic — the rest turn text into numbers, calibrate against AI labels, and "
         "decide whether to answer at all."
     )
 
@@ -557,7 +559,7 @@ digraph stack {
   feat [label="1.  TEXT INTO NUMBERS\nword columns      227,846\nletter columns     72,422\ntotal            300,268\n \ntransforms only"];
   svm  [label="2.  LINEAR SVM\n13 sets of weights, each topic\nfitted against the other twelve\n \nTHE ONLY STAGE THAT\nPICKS A TOPIC",
         fillcolor="#e6f4ea", color="#7fae90"];
-  cal  [label="3.  ISOTONIC REGRESSION\nturns a raw score into\na probability\n \nlearns, but never\npicks a topic",
+  cal  [label="3.  ISOTONIC REGRESSION\ncalibrates class probabilities\nagainst AI labels\n \nlearns, but never\npicks a topic",
         fillcolor="#fdf3e0", color="#c9a765"];
   gate [label="4.  THRESHOLD  __CUT__\ncompare and route\n \nno learning at all"];
   out  [label="FILE IT\nor HOLD IT FOR A PERSON",
@@ -586,7 +588,7 @@ digraph stack {
              "Does it learn?": "Yes — a 13 x 300,268 table of weights",
              "Does it pick the topic?": "Yes — this is the classifier"},
             {"Stage": "3  Isotonic regression",
-             "What it does": "Maps a raw score onto the frequency it was actually right at",
+             "What it does": "Maps a raw score onto observed agreement with AI reference labels",
              "Does it learn?": "Yes — 65 curves (13 topics x 5 folds)",
              "Does it pick the topic?": "No"},
             {"Stage": "4  Threshold",
@@ -648,7 +650,7 @@ one-vs-rest way of doing multi-class with a two-class model. Whichever score com
 highest is the answer.
 
 **5 — The weights are learnt by widening the gap.** Training nudges each set of weights
-until the correct topic's score sits above the rest by as wide a margin as it can manage,
+until the recorded AI topic's score sits above the rest by as wide a margin as it can manage,
 while a penalty holds the weights themselves small. That penalty is what stops 300,268
 columns from simply memorising 5,487 training articles. Each topic's mistakes are also
 scaled up in proportion to how rare it is, so Education and Environment are not quietly
@@ -657,11 +659,11 @@ sacrificed to get Politics and Sport right.
 **6 — A score is not a probability, so it gets converted.** The raw sum can be 0.4 or 3.1
 and means nothing on its own. To fix that, the training set is cut into five folds; for each
 fold the model is refitted on the other four and scored on the fold it never saw, and those
-held-out scores are lined up against what the answers actually turned out to be. That gives
-a curve mapping "score of 1.7" to "right about 88% of the time". Five such curves are
-averaged into the one the app uses. Because every score behind the curve came from data the
-model had not seen, the resulting confidence is honest — and the *is the confidence honest?*
-chart on the Validation tab is the check, not the claim.
+held-out scores are compared with the recorded AI labels. That gives a curve mapping
+"score of 1.7" to an estimated "88% agreement with AI labels". Five such curves are
+averaged into the one the app uses. Unseen calibration rows help measure agreement with
+those references; they do not prove human correctness. The *is the confidence honest?*
+chart on the Validation tab checks calibration against AI labels only.
 
 **7 — Only then does the threshold apply.** The top probability is compared against the
 threshold in the sidebar. Above it the article is filed; below it, held for a person.
@@ -707,7 +709,7 @@ guessing at the first — those numbers are literally the sum the decision was m
                 {"Question": "The topics are unbalanced. Doesn't the model just learn the big ones?",
                  "Answer": "Errors on a rare topic are weighted up in proportion to how rare it is, and the headline number is macro-F1 — each topic scored separately and then averaged with equal weight — so a small topic being ignored would show up immediately."},
                 {"Question": "Why convert scores to probabilities at all?",
-                 "Answer": "Because the model is allowed to decline. Refusing to answer below 0.584 only makes sense if 0.584 means something; an uncalibrated score does not."},
+                 "Answer": "Because the model is allowed to decline. The 0.584 cut is calibrated against AI labels; 0.584 is not a demonstrated probability of being correct against human judgement."},
             ]),
             hide_index=True, use_container_width=True,
         )
@@ -756,9 +758,9 @@ guessing at the first — those numbers are literally the sum the decision was m
 - **Letter-pattern columns** — for Indian-English spellings and word endings.
 - **A linear model fitted to widen the gap between classes** — same shape as logistic
   regression, measurably better across 300,268 sparse columns.
-- **Making the confidence honest** — we were taught that AUC judges ranking rather than
-  whether the number itself is trustworthy, and this project needed it to be trustworthy
-  before it could decline to answer.
+- **Calibrating confidence against AI labels** — AUC judges ranking rather than
+  probability calibration. The fitted conversion and abstention curve describe
+  AI-label agreement, not human validation.
 - **Splitting the training set into folds** — needed somewhere to fit that correction and
   pick the threshold without ever touching validation or test.
 - **Grouping by story and ordering by time before splitting** — leakage control that a
@@ -784,13 +786,13 @@ words beat 33.
 the gap is real rather than luck: the two confidence intervals do not overlap, and a
 paired test run over only the articles the two versions disagreed about gives
 p = {metrics['body_ab']['mcnemar_p']:.1e}. That is the headline result, and it is a
-*measured* answer rather than an assumed one.
+*measured* difference on the archived AI reference set, not human-validated accuracy.
         """
     )
 
     st.subheader("What was tried and rejected")
-    st.caption("Every row was measured against the model already in place, with an "
-               "interval or a paired test. Nothing was dropped on a hunch.")
+    st.caption("Every row compares models against the archived AI reference labels, with an "
+               "interval or a paired test. These are not human-accuracy measurements.")
     st.dataframe(
         pd.DataFrame([
             {"Idea": "Stripping names and places out of the text first", "Result": "no version of the rule helped", "Kept?": "No"},
@@ -802,8 +804,8 @@ p = {metrics['body_ab']['mcnemar_p']:.1e}. That is the headline result, and it i
             {"Idea": "A neural model that turns whole sentences into features", "Result": "−0.061 macro-F1", "Kept?": "No"},
             {"Idea": "Majority vote across the best models", "Result": "+0.001 — indistinguishable from no change", "Kept?": "No"},
             {"Idea": "A separate threshold for each class", "Result": "no better than one threshold for all 13", "Kept?": "No"},
-            {"Idea": "Turning raw scores into honest probabilities", "Result": "costs 0.002 F1, makes the confidence trustworthy", "Kept?": "Yes"},
-            {"Idea": "Holding back anything below the threshold", "Result": "78% → 83% accuracy on what it files", "Kept?": "Yes"},
+            {"Idea": "Calibrating raw scores against AI labels", "Result": "costs 0.002 F1; human correctness remains unvalidated", "Kept?": "Yes"},
+            {"Idea": "Holding back anything below the threshold", "Result": "78% → 83% agreement with AI labels on what it files", "Kept?": "Yes"},
             {"Idea": "Reading the full article, not just the headline", "Result": "+0.059 macro-F1", "Kept?": "Yes"},
         ]),
         hide_index=True, use_container_width=True,
@@ -818,7 +820,8 @@ can actually be built lands on 0.771. The disagreement is one-sided: the sentenc
 model rescues 70 articles the linear model got wrong while breaking 148 it had right, and
 a majority vote has no way of telling which side of that trade it is on.
 
-So the accuracy came from **data preparation**, not from the classifier. Removing repeated
+In this study, the AI-label agreement gains came from **data preparation**, not a
+human-validated accuracy improvement. Removing repeated
 furniture lines, grouping near-identical copies of the same story, deciding which articles
 were fit to train on, and splitting the data honestly did the work. The model itself is a
 plain linear one, and every attempt to replace it with something heavier lost.
@@ -828,6 +831,9 @@ plain linear one, and every attempt to replace it with something heavier lost.
     with st.expander("How the evaluation avoids fooling itself"):
         st.markdown(
             """
+These checks protect comparisons against AI references; they cannot establish human
+label authorship or human-validated accuracy.
+
 - **Train, validation and test share no story and no day.** No story appears in two
   splits, and every test article was collected after every training article, so the test
   set is a genuine future rather than a random slice of the same days.
@@ -848,7 +854,7 @@ plain linear one, and every attempt to replace it with something heavier lost.
   number, not a probability — the same reason logistic regression puts a sigmoid on top
   of its weighted sum. Here that number is converted into a probability using a
   conversion fitted on cross-validation folds *inside* the training set, which is why the
-  confidence can be checked honestly against how often it is right.
+  confidence can be checked against observed AI-label agreement, not human correctness.
             """
         )
 
@@ -870,7 +876,7 @@ plain linear one, and every attempt to replace it with something heavier lost.
 st.divider()
 st.caption(
     f"Snapshot `{metrics['snapshot_id']}` · "
-    f"{sum(metrics['splits'].values()):,} labelled articles "
+    f"{sum(metrics['splits'].values()):,} AI-labelled articles "
     f"(train {metrics['splits'].get('train', 0):,} / val {metrics['splits'].get('val', 0):,} "
     f"/ test {metrics['splits'].get('test', 0):,}) · 13 classes · 40 publishers · "
     f"{test['predict_ms_per_article']:.2f} ms per article"

@@ -8,17 +8,17 @@ flowchart TB
     subgraph LAPTOP["💻 Your laptop"]
         subgraph APP["② Collector app · Go · make run · port 8080"]
             N3["③ Feed checker<br/>finds new headlines"]
-            N4["④ Duplicate filter<br/>saves each story once"]
+            N4["④ Duplicate checks<br/>links · feed IDs · text hashes"]
             N6["⑥ Full-text fetcher<br/>gets the whole story"]
             N9["⑨ News pages + API<br/>newest stories first"]
         end
         N5[("⑤ MongoDB database<br/>make mongo-up · port 27017")]
         N7["⑦ Topic classifier · Python<br/>optional · needs a trained model"]
         N8["⑧ Topic-model training<br/>ml · ml-v2 · ml-v4"]
-        N10["⑩ Recommender training<br/>TF-IDF · SVD · neural"]
-        N11["⑪ Ranker<br/>make rec-serve · port 8001"]
+        N10["⑩ Manual snapshot + training<br/>TF-IDF · SVD · neural"]
+        N11["⑪ Ranker<br/>make demo-serve / rec-serve · port 8001"]
         N12["⑫ AFTERLINE reader<br/>make reader · port 8090"]
-        N13["⑬ Your web browser"]
+        N13["⑬ Your web browser<br/>choices · saved stories · notes · theme"]
     end
 
     N1 -- "each feed every 10 min – 2 h" --> N3
@@ -31,7 +31,7 @@ flowchart TB
     N8 -. "model file" .-> N7
     N13 -- "browse the newest stories" --> N9
     N9 -- "read" --> N5
-    N5 -- "copy up to 20,000 stories" --> N10
+    N5 -- "freeze a bounded English snapshot" --> N10
     N10 -- "saved story numbers" --> N11
     N13 -- "likes · dislikes" --> N12
     N12 -- "rank these for me" --> N11

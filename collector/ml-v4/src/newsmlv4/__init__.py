@@ -1,1 +1,1 @@
-"""Fresh, model-assisted candidate sampling for human classifier labels."""
+"""Private classifier sampling, provenance-aware label pooling and local V4 training."""

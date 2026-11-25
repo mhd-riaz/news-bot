@@ -17,7 +17,7 @@ server:
   shutdown_timeout: 15s
   max_header_bytes: 1048576
 
-# Guards every /api/v1 route; /health stays open for probes. A request is
+# Guards every /api/v1 route; /health/live and /health/ready stay open. A request is
 # accepted if it carries a known API key in api_key_header, or valid HTTP basic
 # credentials. The credentials themselves are deliberately absent from this
 # file: they are read only from the environment, which .env feeds locally and
@@ -32,8 +32,8 @@ auth:
   enabled: true
   api_key_header: X-API-Key
 
-# The reader-facing pages, served on the same port and behind the same
-# credentials as the API.
+# The legacy feed pages, served on the same port and behind the same credentials
+# as the API. AFTERLINE uses cmd/reader and configs/reader.yaml separately.
 web:
   enabled: true
   # Also the spacing between consecutive pages' feed positions, so changing it

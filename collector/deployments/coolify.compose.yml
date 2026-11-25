@@ -2,8 +2,9 @@
 #
 # Create a "Docker Compose" resource in Coolify and paste this file, or point it
 # at this path in the repository. The image is built and pushed by GitHub
-# Actions (.github/workflows/news-collector.yml), so the homelab only pulls —
-# it never runs an application build.
+# Actions (.github/workflows/news-collector.yml) only when DEPLOY_ENABLED is true
+# on main. This stack pulls application images; it does not build them. It does
+# not yet deploy the AFTERLINE reader, ranker, batch pipeline or MCP server.
 #
 # Coolify fills SERVICE_* itself and keeps the generated values stable across
 # deployments. Variables written as ${NAME:?} are required and must be set in
@@ -13,8 +14,8 @@
 
 services:
   mongo:
-    # Pinned rather than `mongo:7`: only `api` sets pull_policy: always, so a
-    # floating tag stays on whatever image the host cached first and silently
+    # Pinned rather than `mongo:7`: MongoDB does not set pull_policy: always, so a
+    # floating tag could stay on the host's cached image and silently
     # misses patch releases. Bump this explicitly.
     image: mongo:7.0.48
     restart: unless-stopped
@@ -22,8 +23,8 @@ services:
     mem_limit: 3g
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${SERVICE_USER_MONGO}
-      # The 64-character variant is free of symbols, so it needs no escaping
-      # when it is embedded in the connection URI below.
+      # Coolify keeps this generated root password stable. The API uses the
+      # separately provisioned collection-scoped collector credential below.
       - MONGO_INITDB_ROOT_PASSWORD=${SERVICE_PASSWORD_64_MONGO}
     # Published on the host's loopback only, for Compass/mongosh. Docker
     # publishes ports ahead of the host firewall, so a `ufw allow ...` rule
@@ -127,7 +128,7 @@ services:
       mongo:
         condition: service_healthy
     healthcheck:
-      # /health is unauthenticated on purpose, so this probe needs no credential.
+      # /health/ready is public and checks MongoDB, not classifier readiness.
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/health/ready"]
       interval: 15s
       timeout: 5s

@@ -1,6 +1,10 @@
-"""Export articles for blind human labelling, and read the completed sheets back.
+"""Export blind annotation sheets and validate completed labels.
 
-The gold set is the only thing every reported number rests on, so two properties
+All existing classifier annotations are AI-generated (roadmap D16, 22 Nov 2026).
+Legacy ``gold``/``human`` metadata does not establish authorship; this importer
+checks content and agreement, not whether a person made the judgement.
+
+The imported reference set is what the reported scores compare against, so two properties
 matter more than convenience:
 
 * **Blind.** The sheet carries the title and summary and nothing else. No source,
@@ -208,9 +212,9 @@ def _from_unlabelled_desk(article: Article, taxonomy: Taxonomy) -> bool:
 def _desk_prior(
     seeds: dict[str, str], desks: dict[str, bool], base: float, strength: float = 5.0
 ) -> defaultdict[str, float]:
-    """For each class, how often a human found it on a source with no topic label.
+    """For each class, how often imported annotations occur on sources with no topic label.
 
-    Measured, not assumed. On the round-1 gold set this separates sharply:
+    Measured, not assumed. On the historical round-1 annotations this separated sharply:
     `politics_protest` 100%, `disaster_accident` 86%, `crime` 79% — against
     `tech_consumer` 2% and `business_markets` 4%. Which is the whole reason the
     rare classes are rare. A section feed hands out its own weak label, so the
@@ -320,7 +324,7 @@ def choose_targeted_sample(
     retrieval's own error rate is paid for. See `_retrieval_precision`.
 
     The ranking is nearest-centroid over TF-IDF: a class is represented by the
-    average of the articles a human already filed under it, with its taxonomy
+    average of the articles already annotated with it, with its taxonomy
     description mixed in so a class with few examples still has a direction, and
     the publisher's own topical tags folded into the text on both sides.
     Classes take turns rather than each taking its whole quota in one go, so a
@@ -667,7 +671,7 @@ def read_gold(path: Path) -> dict[str, str]:
 def split_gold(
     gold: dict[str, str], *, eval_share: float = 0.25, seed: int = 0
 ) -> tuple[dict[str, str], dict[str, str]]:
-    """Divide the human labels into a slice that teaches and a slice that scores.
+    """Divide imported annotations into a slice that teaches and a slice that scores.
 
     Stratified by topic, because the rare classes are the entire reason the gold
     set was collected: a uniform draw would hand every `conflict_war` label to
@@ -760,7 +764,7 @@ def write_adjudication_sheet(disputed: list[Conflict], path: Path) -> Path:
 
 @dataclass(frozen=True, slots=True)
 class Agreement:
-    """How well the weak signals match the humans. The ceiling on Phase 3."""
+    """Agreement of weak signals with the legacy imported reference annotations."""
 
     gold_count: int
     covered: int
@@ -781,12 +785,12 @@ class Agreement:
 
 
 def weak_vs_gold(gold: dict[str, str], articles: dict[str, Article], taxonomy: Taxonomy) -> Agreement:
-    """Compare every weak signal against the human label.
+    """Compare every weak signal against the imported reference annotation.
 
-    This is the number Phase 3 cannot exceed: a classifier trained on weak labels
-    inherits their error. Measured at the *group* level as well as the exact
-    class, because a publisher prior can only ever name a group, so scoring it on
-    exact-child match would understate it for a reason that is not its fault.
+    This is a weak-label diagnostic, not a formal ceiling on classifier quality.
+    The historical reference labels are AI-generated (D16), not human ground truth.
+    The legacy taxonomy also measures group-level agreement so a publisher prior
+    that names only a group is not scored solely on exact-child matches.
     """
     parent_of = {c.id: (c.parent or c.id) for c in taxonomy.classes}
 
