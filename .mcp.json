@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "news-bot": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--frozen", "--project", "server", "newsbot-mcp", "--transport", "stdio"],
+      "tools": ["*"]
+    }
+  }
+}

@@ -26,87 +26,57 @@ The client wants to keep up with their professional field, initially software de
   - A read-only MCP server for AI agents.
 - **V2 — audio and iPhone:** ask for the user's listening time, narrate a briefing sized to it from the daily edition, accept spoken commands, and ship an iPhone app. Android follows V2.
 
-**The plan, contracts and status live in [docs/project/roadmap.md](../docs/project/roadmap.md).** `docs/history/classifier-plan.md` and `docs/history/ml/v2/plan.md` are closed classifier plans: use them as history only, never as a task source.
+**The plan, contracts and status live in [docs/project/roadmap.md](../docs/project/roadmap.md).** The closed plans in `docs/history/` are history only, never a task source.
 
-## Delivered in phase 1 (baseline `c06fdf4`)
+## Where things are
 
-- **Collector** (Go 1.27, `cmd/api`): 99 RSS/Atom sources, full-text enrichment, a 13-class topic-classifier sidecar and MongoDB `news` (~172,667 articles, ~2,661/day on 25 Oct). It runs 24×7 on the home-lab laptop via Coolify and Cloudflare Tunnel.
-- **AFTERLINE MVP:** frozen edition `stories-002` (20,000 articles from 40 publishers, cut on 22 Oct). TF-IDF is the default; SVD-256 and a Keras denoising autoencoder (64-d, 82,496 parameters) are selectable. It has eight MiniBatchKMeans content groups and conservative, quadratic story grouping.
-- **Serving:** a read-only Go reader (`cmd/reader`, `/stories`) calls a private Flask ranker and hydrates results with one bounded MongoDB query. Local single-reader p95 is ≤ 15.12 ms.
-- **Reader:** Stories-style UI with onboarding, like/dislike, related reading and method switching. Preferences live in browser storage per snapshot.
-- **Evidence:** a human pilot covered 20 pairs (TF-IDF P@5 0.80). A separate AI-assisted run covered 40 cases (TF-IDF 0.565 > SVD 0.480 > Neural 0.380). The 0.65 target is unverified. Details are in [recommender-results.md](../docs/project/recommender-results.md).
-- **Not delivered:**
-  - Incremental indexing and freshness.
-  - Reader sign-in; the demo runs on loopback with auth off.
-  - Server-side preferences.
-  - Rules and MCP.
-  - Deployment of the reader and ranker.
-
-## Current implemented state (reviewed 25 Nov 2026)
-
-The phase-1 section above is historical. Later code and local demonstrations are recorded
-in roadmap M1 and DEMO; they do not close V1 acceptance or prove today's service health.
-
-- **Collector:** the shipped source list has 124 feeds, including professional-domain tags.
-  C1 date provenance, revisions, write timestamps, sidecar cleaning/language results,
-  enrichment reclassification and bounded resumable backfill are implemented. The production
-  backfill and deployment verification remain open. Collection itself does not enforce a
-  global English-only admission filter.
-- **Local AFTERLINE demo (24 Nov):** manual recent-first snapshots; Fresh, Yesterday and
-  Archive views; professional-source filtering; a grid front page and full-screen reading
-  view; related-story grids; and a system-aware light/dark switch. Stories and notes can
-  be saved in browser storage across snapshots. Likes, dislikes and viewed history remain
-  per snapshot. No sign-in, server-side preferences, saved topics or reader-added feeds.
-- **Limits:** no automatic revision-aware recommendation index, measured one-hour freshness,
-  persisted per-reader editions, association rules, project MCP server or deployed reader/ranker.
-  The local Yesterday view is computed per request, not stored, and has no topic cap.
-- **Classifier provenance:** D16 supersedes every earlier claim that classifier labels were
-  human-generated. The pooled V4 model is human-labelled; its scores measure human-label agreement.
-  The owner approved it for production on 27 Nov (D19) on that basis alone. Human validation
-  and 200 human labels/class are not yet met. The recommender's separate human pilot is not
-  reclassified by this correction.
-- **Deployment:** publishing/deployment remains gated by `DEPLOY_ENABLED`; the older repository
-  still owns the production package. Do not infer deployment from a successful local image build.
-  V4 reaches production only when its bundle is on the `classifier-models` volume ([docs/services/classifier.md](../docs/services/classifier.md)).
-
-## Architecture
-
-| Path (under `collector/`) | Role |
+| Folder | What it is |
 |---|---|
-| `cmd/api`, plus the `collector`, `scrape`, `seed`, `migrate` and `backfill` commands | Collector-side commands: scheduling, enrichment, classification, source sync, schema migration and C1 backfill. The only writers of `articles`. |
-| `cmd/reader` | AFTERLINE reader and API; read-only today |
-| `internal/mongodb` | The only schema owner: collection names and the index plan |
-| `internal/domain`, `internal/repository/mongo`, `internal/service`, `internal/handler`, `internal/web` | Domain model, persistence, services, HTTP handlers, templates and static UI |
-| `../ml/src/newsrec` | Recommender: `data.py` prepares data, `model.py` trains, `index.py` ranks, `api.py` serves the Flask ranker, plus `evaluate.py` and `cli.py` |
-| `../ml/src/newsmlv2` | Shared cleaning, admission, boilerplate and dedup |
-| `../ml/src/newsml` | Closed v1 classifier; `neardup.py` holds the calibrated MinHash/LSH |
-| `../ml/src/newsmlv4` | Candidate sampling/verification, truthful AI-label pooling and the separate V4 classifier trainer; no production promotion |
-| `../ml/classifier` | The classifier sidecar service (`app/api.py`) and its Dockerfile; models come from `../ml/models.toml` |
-| `../data/labels` | The one topic-label dataset: IDs, topics and train/test splits, no article text |
-| `../deployment/compose/coolify.compose.yml` | Production stack: MongoDB, classifier and API |
-| `configs/` | `config.yaml`, `reader.yaml` and `sources.yaml` |
+| `collector/` | Go 1.27. Reads 124 RSS/Atom feeds day and night, cleans and enriches articles, and asks the classifier for topics. The only program that writes `articles`. `collector/internal/mongodb` owns the database layout for the whole app. |
+| `ml/` | Python 3.12, one uv project: the classifier service (`ml/classifier`), the ranker service (`ml/recommender`), training code (`ml/src`: `newsml`, `newsmlv2`, `newsrec`, `newsmlv4`) and the list of model files (`ml/models.toml`). Model files are downloaded into `ml/models/` and never committed. |
+| `server/` | Python 3.12. The web server: the reader API, Google sign-in, sessions, and the built React app. The same code also runs `newsbot-mcp`, the separate read-only MCP program for AI agents. |
+| `frontend/` | React + TypeScript with Vite: the AFTERLINE reader, checked by Biome. |
+| `data/labels/` | The one topic-label dataset: article IDs, topics and the train/test split. No article text. |
+| `deployment/` | The Helm chart (`helm/news-bot`), Docker Compose files (`compose/`), environment templates (`env/`) and database users (`mongo/`). |
+| `docs/` | Plain-English docs. `docs/project/roadmap.md` is the plan; `docs/history/` keeps closed work. |
+| `run.sh` | Starts the whole app on this computer. |
+| `.github/` | CI (`workflows/ci.yml`), these instructions, path-specific instructions (`instructions/`) and skills (`skills/`). Shared MCP settings live in `/.mcp.json`, because the tools do not read MCP settings from `.github/`. |
 
-Reuse existing code before writing new code:
+How a story reaches a reader: collector → MongoDB → ranker snapshot (built with `make -C ml demo-refresh`) → ranker service → server → React app. The collector calls the classifier to give each article a topic.
 
-- Lease protocol: `internal/repository/mongo/lock.go` and `application_locks`.
-- SSRF guard: `internal/httpclient`.
-- Robots and rate limiting: `internal/robots` and `internal/ratelimit`.
-- JSON-LD extraction: `internal/extract`.
-- API-key auth: `handler.Authenticator`.
-- Cleaning, admission and dedup: `newsmlv2`.
-- Clean text and detected language for articles: the existing classifier-sidecar call (`internal/classifier`, `ml/classifier/app/api.py`).
+## Current state (27 Nov 2026)
+
+These are code and local checks. They do not close V1 acceptance or prove today's service health.
+
+- **Restructure:** the repository was reorganised on 27 Nov (roadmap milestone RS, decision D21). Old study code is at git tag `before-restructure`, and a full private copy is `mhd-riaz/news-bot-archive`.
+- **Collector:** C1 date provenance, revisions, write timestamps, cleaning and language results, reclassification and resumable backfill are built. The production backfill and deployment checks are still open. Collection does not reject non-English articles by itself.
+- **Reader:** the Python server and React app replace the Go reader: Fresh, Yesterday and Archive views, professional focus, a grid front page and full-screen reading view, related stories, saved stories with notes in browser storage, and a light/dark switch. Google sign-in is built but not yet tested with a real OAuth client (roadmap D10). There are no server-side likes, settings or saved items, saved topics or reader-added feeds yet (M3).
+- **Limits:** ranker snapshots are rebuilt by hand. There is no automatic revision-aware index, no measured one-hour freshness, no stored per-reader editions and no association rules yet (M2 to M5).
+- **MCP:** five read-only tools. `get_story_group` and `get_rules` wait for association rules and story links (M5).
+- **Classifier:** the production model is `v4-ai-072b01a9ceaf-hybrid_svc` (D19), trained on the labels in `data/labels/`; that folder's README says how the labels were made. Human validation and 200 human labels per class are not met.
+- **Deployment:** production still runs on Coolify with `deployment/compose/coolify.compose.yml`, and publishing is gated by `DEPLOY_ENABLED`. A local image build is not a deployment.
+
+Phase-1 history and the measured recommender results are in [recommender-results.md](../docs/project/recommender-results.md).
+
+## Reuse before writing new code
+
+- Leases: `collector/internal/repository/mongo/lock.go` and `application_locks`.
+- SSRF guard: `collector/internal/httpclient`. Robots and rate limits: `collector/internal/robots` and `collector/internal/ratelimit`.
+- JSON-LD extraction: `collector/internal/extract`. API keys for the collector API: `handler.Authenticator`.
+- Cleaning, admission and dedup: `newsmlv2` in `ml/src`. Clean text and detected language for an article: the classifier call (`collector/internal/classifier`, `ml/classifier/app/api.py`).
+- Reading articles, ranking calls and settings for the web app and MCP: `server/src/newsbot_server/core`.
 
 ## Hard rules
 
-1. Collection never stops because of pipeline, model or reader failures.
+1. Collection never stops because of pipeline, model, ranker or server failures.
 2. Never delete or rewrite original `articles` fields outside the collector's own logic. Derived data goes into new fields; raw text stays.
 3. Evidence comes before claims: no metric, capability or `[x]` without a recorded measurement or demonstration. A fallback is not a pass; record unmet criteria as **not met**.
 4. Keep human and AI-assisted judgements in separate records. Never tune or train on sealed acceptance cases.
 5. Escalate owner decisions in roadmap §7; never take them. These include scope, deadlines, R3, thresholds, content rights and retention.
-6. Secrets live only in the environment or Coolify secrets — never in `configs/`, code, logs or archives. Never print the MongoDB URI; `make rec-inspect` (in `ml/`) checks the target safely.
-7. Render third-party text only through `html/template` or `textContent`. State-changing browser requests need a session and CSRF protection.
-8. Declare every new collection or index in `internal/mongodb`, and add a roadmap C14 row before first use.
-9. Add no dependency or infrastructure without a one-line reason in roadmap §8. This includes vector databases, brokers, caches, LLMs or paid APIs, and JavaScript toolchains. Prefer the standard library, then an existing dependency, then a small package. The web reader has no JavaScript build step.
+6. Secrets live only in the environment, in `deployment/env/<environment>.env` (ignored by git) or in platform secrets — never in configs, code, logs or archives. Never print the MongoDB URI; `make -C ml rec-inspect` checks the target safely.
+7. Show third-party text only as text (React text, `textContent`). Never use `dangerouslySetInnerHTML`. State-changing browser requests need a signed-in session and the cross-site check.
+8. Declare every new collection or index in `collector/internal/mongodb`, and add a roadmap C14 row before first use.
+9. Add no dependency or infrastructure without a one-line reason in roadmap §8. This includes vector databases, brokers, caches, LLMs, paid APIs and JavaScript packages. Prefer the standard library, then an existing dependency, then a small package. The React app uses Vite, TypeScript, Biome and Vitest (D21); keep its dependency list short.
 10. English only. No V1 feature may require a paid service.
 11. Do not redistribute the raw corpus; publish only derived metrics and figures.
 12. Pin, seed and make Python work reproducible. Notebooks call `src/` and never define logic.
@@ -123,24 +93,20 @@ Reuse existing code before writing new code:
 7. Close a milestone only after the other agent reviews its exit criteria.
 8. Keep roadmap edits small: your task lines, the status board and the append-only logs.
 
-## Build and test (from `collector/`)
+## Build and test
 
-- Go: run `make check` (format check, vet and unit tests) and `make test-race`. `make test-integration` needs MongoDB on `localhost:27017`.
-- Python (from `ml/`): run `make setup` once, then `make test` for every ML test. `make rec-test` in `ml/`
-  runs the recommender's pytest; `make rec-test` in `collector/` runs its Go and `node --test` checks.
-- Local reader: in `ml/`, `make setup` once, inspect the intended local target with `make rec-inspect`,
-  then `make demo-refresh` and `make demo-serve`; run `make reader` in `collector/`, each in its own terminal.
-  Open http://127.0.0.1:8090/stories. Rebuilds are manual; restart the ranker to select the
-  new snapshot. `make rec-serve REC_ID=<existing-id>` still serves a specific saved archive;
-  the private historical `stories-002` files are not guaranteed to be present.
-- Never run `make run` or `make up` against the production database — they migrate and collect.
-- The scheduling-dependent Go rate-limit test was fixed on 26 Oct with recorded repeat-run
-  evidence (roadmap work log). M9's remaining browser coverage and release hardening are still open.
+- Whole app on this computer: `./run.sh` (`./run.sh help` lists every command).
+- `collector/`: `make check`, `make test-race`, and `make test-integration` (needs MongoDB on localhost:27017).
+- `ml/`: `make setup` once, then `make test`.
+- `server/`: `uv sync --frozen`, then `uv run pytest`.
+- `frontend/`: `npm ci`, then `npm run ci` (Biome, type check, tests, build).
+- `deployment/`: `helm lint` and `helm template` with each values file in `deployment/helm/news-bot`, `docker compose -f deployment/compose/compose.yaml config`, and `node --test deployment/mongo/mongo-users.test.mjs`.
+- CI (`.github/workflows/ci.yml`) runs all of these. `ci-passed` is the check `main` requires.
+- Never run collector commands that write (`make run`, `make migrate`, `make seed`, `make collect*`, `make scrape*`, `make backfill*`) against the production database.
 
 ## Docs
 
-- [roadmap.md](../docs/project/roadmap.md) — V1/V2 plan, contracts, status and decisions.
-- [recommender.md](../docs/services/recommender.md) — recommender setup and operation.
-- [recommender-results.md](../docs/project/recommender-results.md) — measured phase-1 evidence and limits.
-- [recommender-client-review.md](../docs/project/recommender-client-review.md) — client briefing; update it with evidence at milestone exits.
-- [collector/README.md](../collector/README.md) — collector operations.
+- [roadmap.md](../docs/project/roadmap.md): the V1/V2 plan, contracts, status and decisions.
+- [recommender-results.md](../docs/project/recommender-results.md): measured phase-1 evidence and limits.
+- [recommender-client-review.md](../docs/project/recommender-client-review.md): the client briefing; update it with evidence at milestone exits.
+- Each part has its own README: [collector](../collector/README.md), [ml](../ml/README.md), [server](../server/README.md), [frontend](../frontend/README.md) and [data/labels](../data/labels/README.md).
