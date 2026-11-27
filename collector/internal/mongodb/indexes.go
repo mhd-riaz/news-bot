@@ -241,6 +241,43 @@ func IndexPlan() []CollectionIndexes {
 				},
 			},
 		},
+		{
+			Collection: CollectionReaders,
+			Models: []mongo.IndexModel{
+				// The owner invites by email, and sign-in looks the invite up by
+				// it, so one email can hold only one invite.
+				{
+					Keys:    bson.D{{Key: "email", Value: 1}},
+					Options: options.Index().SetName("uq_email").SetUnique(true),
+				},
+				// First sign-in binds a Google account; partial, because an
+				// invite has no account until then.
+				{
+					Keys: bson.D{{Key: "google_sub", Value: 1}},
+					Options: options.Index().
+						SetName("uq_google_sub").
+						SetUnique(true).
+						SetPartialFilterExpression(bson.D{{Key: "google_sub", Value: bson.D{{Key: "$gt", Value: ""}}}}),
+				},
+			},
+		},
+		{
+			Collection: CollectionReaderSessions,
+			Models: []mongo.IndexModel{
+				// TTL(0) removes a session once its idle or absolute expiry,
+				// whichever is sooner, has passed. The server also checks the
+				// expiry itself, because the TTL monitor runs only once a minute.
+				{
+					Keys:    bson.D{{Key: "expires_at", Value: 1}},
+					Options: options.Index().SetName("ttl_expires_at").SetExpireAfterSeconds(0),
+				},
+				// Revoking a reader ends every one of their sessions.
+				{
+					Keys:    bson.D{{Key: "reader_id", Value: 1}},
+					Options: options.Index().SetName("ix_reader"),
+				},
+			},
+		},
 	}
 }
 

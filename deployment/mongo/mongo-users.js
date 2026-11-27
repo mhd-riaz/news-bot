@@ -1,5 +1,7 @@
 const databaseName = process.env.NEWS_MONGO_DATABASE || "news";
-const accountNames = ["collector", "batch", "ranker", "reader", "owner"];
+const accountNames = ["collector", "batch", "ranker", "reader", "owner", "mcp"];
+// The MCP program's login: MongoDB itself must refuse any write it attempts (D21).
+const readOnlyAccounts = ["mcp"];
 const passwords = Object.fromEntries(
   accountNames.map((name) => [name, process.env[`NEWS_MONGO_${name.toUpperCase()}_PASSWORD`]])
 );
@@ -23,24 +25,37 @@ const readWrite = [...read, ...write];
 const crud = [...readWrite, ...remove];
 
 const collections = {
-  articles: { collector: crud, batch: read, ranker: [], reader: read, owner: read },
-  sources: { collector: crud, batch: [], ranker: [], reader: readWrite, owner: crud },
-  collection_runs: { collector: readWrite, batch: [], ranker: [], reader: [], owner: read },
-  feed_cache_metadata: { collector: readWrite, batch: [], ranker: [], reader: [], owner: read },
-  application_locks: { collector: crud, batch: crud, ranker: [], reader: [], owner: crud },
-  read_events: { collector: readWrite, batch: [], ranker: [], reader: [], owner: [...read, ...remove] },
-  index_generations: { collector: [], batch: readWrite, ranker: read, reader: [], owner: readWrite },
-  pipeline_runs: { collector: [], batch: readWrite, ranker: [], reader: [], owner: read },
-  association_rules: { collector: [], batch: crud, ranker: read, reader: [], owner: read },
-  story_links: { collector: [], batch: crud, ranker: read, reader: [], owner: read },
-  topic_labels: { collector: [], batch: readWrite, ranker: read, reader: [], owner: readWrite },
-  readers: { collector: [], batch: [], ranker: [], reader: readWrite, owner: crud },
-  reader_sessions: { collector: [], batch: [], ranker: [], reader: crud, owner: [...read, ...remove] },
-  reader_events: { collector: [], batch: read, ranker: [], reader: crud, owner: [...read, ...remove] },
-  reader_settings: { collector: [], batch: read, ranker: [], reader: crud, owner: [...read, ...remove] },
-  saved_items: { collector: [], batch: [], ranker: [], reader: crud, owner: [...read, ...remove] },
-  editions: { collector: [], batch: [], ranker: [], reader: crud, owner: [...read, ...remove] },
+  articles: { collector: crud, batch: read, ranker: [], reader: read, owner: read, mcp: read },
+  sources: { collector: crud, batch: [], ranker: [], reader: readWrite, owner: crud, mcp: [] },
+  collection_runs: { collector: readWrite, batch: [], ranker: [], reader: [], owner: read, mcp: [] },
+  feed_cache_metadata: { collector: readWrite, batch: [], ranker: [], reader: [], owner: read, mcp: [] },
+  application_locks: { collector: crud, batch: crud, ranker: [], reader: [], owner: crud, mcp: [] },
+  read_events: { collector: readWrite, batch: [], ranker: [], reader: [], owner: [...read, ...remove], mcp: [] },
+  index_generations: { collector: [], batch: readWrite, ranker: read, reader: [], owner: readWrite, mcp: [] },
+  pipeline_runs: { collector: [], batch: readWrite, ranker: [], reader: [], owner: read, mcp: [] },
+  association_rules: { collector: [], batch: crud, ranker: read, reader: [], owner: read, mcp: [] },
+  story_links: { collector: [], batch: crud, ranker: read, reader: [], owner: read, mcp: [] },
+  topic_labels: { collector: [], batch: readWrite, ranker: read, reader: [], owner: readWrite, mcp: [] },
+  readers: { collector: [], batch: [], ranker: [], reader: readWrite, owner: crud, mcp: [] },
+  reader_sessions: { collector: [], batch: [], ranker: [], reader: crud, owner: [...read, ...remove], mcp: [] },
+  reader_events: { collector: [], batch: read, ranker: [], reader: crud, owner: [...read, ...remove], mcp: [] },
+  reader_settings: { collector: [], batch: read, ranker: [], reader: crud, owner: [...read, ...remove], mcp: [] },
+  saved_items: { collector: [], batch: [], ranker: [], reader: crud, owner: [...read, ...remove], mcp: [] },
+  editions: { collector: [], batch: [], ranker: [], reader: crud, owner: [...read, ...remove], mcp: [] },
 };
+
+for (const [collection, permissions] of Object.entries(collections)) {
+  for (const name of accountNames) {
+    if (!Array.isArray(permissions[name])) {
+      throw new Error(`${collection} must list permissions for ${name}`);
+    }
+  }
+  for (const name of readOnlyAccounts) {
+    if (permissions[name].some((action) => !read.includes(action))) {
+      throw new Error(`${name} must stay read-only, but ${collection} grants it more`);
+    }
+  }
+}
 
 const database = db.getSiblingDB(databaseName);
 const ddlPrivileges = [

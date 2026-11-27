@@ -5,9 +5,9 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 
 const source = readFileSync(new URL("./mongo-users.js", import.meta.url), "utf8");
-const accounts = ["collector", "batch", "ranker", "reader", "owner"];
+const accounts = ["collector", "batch", "ranker", "reader", "owner", "mcp"];
 
-function harness() {
+function harness(script = source) {
   const env = { NEWS_MONGO_DATABASE: "provisioning_test" };
   for (const name of accounts) env[`NEWS_MONGO_${name.toUpperCase()}_PASSWORD`] = randomBytes(32).toString("hex");
   const roles = new Map();
@@ -31,7 +31,7 @@ function harness() {
     },
     updateUser: (name, value) => save(users, "updateUser", name, value),
   };
-  const run = () => runInNewContext(source, {
+  const run = () => runInNewContext(script, {
     process: { env },
     db: { getSiblingDB: (name) => {
       assert.equal(name, env.NEWS_MONGO_DATABASE);
@@ -77,4 +77,35 @@ test("invalid provisioning inputs fail before any database mutation", () => {
     assert.throws(state.run, /NEWS_MONGO_DATABASE|NEWS_MONGO_BATCH_PASSWORD|distinct passwords/);
     assert.equal(state.writes.length, 0);
   }
+});
+
+test("mcp can read articles and nothing else", () => {
+  const state = harness();
+  state.run();
+  assert.deepEqual(state.roles.get("news_mcp").privileges, [
+    { resource: { db: "provisioning_test", collection: "articles" }, actions: ["find"] },
+  ]);
+  assert.deepEqual(state.users.get("mcp").roles, [{ role: "news_mcp", db: "provisioning_test" }]);
+});
+
+test("reader holds the C14 rights on readers and reader_sessions", () => {
+  const state = harness();
+  state.run();
+  const actions = (collection) =>
+    state.roles.get("news_reader").privileges.find(({ resource }) => resource.collection === collection).actions;
+  assert.deepEqual(actions("readers"), ["find", "insert", "update"]);
+  assert.deepEqual(actions("reader_sessions"), ["find", "insert", "update", "remove"]);
+});
+
+test("a write permission for mcp or a missing mcp password stops provisioning before any change", () => {
+  const widened = source.replace("owner: read, mcp: read }", "owner: read, mcp: readWrite }");
+  assert.notEqual(widened, source);
+  const state = harness(widened);
+  assert.throws(state.run, /mcp must stay read-only/);
+  assert.equal(state.writes.length, 0);
+
+  const missing = harness();
+  delete missing.env.NEWS_MONGO_MCP_PASSWORD;
+  assert.throws(missing.run, /NEWS_MONGO_MCP_PASSWORD/);
+  assert.equal(missing.writes.length, 0);
 });

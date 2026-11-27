@@ -137,6 +137,58 @@ func TestNormalizedURLUniquenessIsEnforced(t *testing.T) {
 	}
 }
 
+// The Python server relies on these indexes: one invite per email, one reader per
+// Google account (but many invites before first sign-in), and TTL-expired sessions.
+func TestReaderIndexesAreEnforced(t *testing.T) {
+	client := newTestClient(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if _, err := EnsureCollections(ctx, client.Database()); err != nil {
+		t.Fatalf("EnsureCollections: %v", err)
+	}
+	if _, err := EnsureIndexes(ctx, client.Database()); err != nil {
+		t.Fatalf("EnsureIndexes: %v", err)
+	}
+
+	readers := client.Database().Collection(CollectionReaders)
+	for i, doc := range []bson.D{
+		{{Key: "_id", Value: "reader-1"}, {Key: "email", Value: "a@example.test"}, {Key: "invited", Value: true}},
+		{{Key: "_id", Value: "reader-2"}, {Key: "email", Value: "b@example.test"}, {Key: "invited", Value: true}},
+	} {
+		if _, err := readers.InsertOne(ctx, doc); err != nil {
+			t.Fatalf("invite %d without a Google account must be accepted: %v", i, err)
+		}
+	}
+	if _, err := readers.InsertOne(ctx, bson.D{{Key: "_id", Value: "reader-3"}, {Key: "email", Value: "a@example.test"}}); err == nil {
+		t.Fatal("the unique index must reject a second invite for one email")
+	}
+	if _, err := readers.UpdateByID(ctx, "reader-1", bson.D{{Key: "$set", Value: bson.D{{Key: "google_sub", Value: "sub-1"}}}}); err != nil {
+		t.Fatalf("binding a Google account: %v", err)
+	}
+	if _, err := readers.UpdateByID(ctx, "reader-2", bson.D{{Key: "$set", Value: bson.D{{Key: "google_sub", Value: "sub-1"}}}}); err == nil {
+		t.Fatal("the unique index must stop one Google account binding two readers")
+	}
+
+	cursor, err := client.Database().Collection(CollectionReaderSessions).Indexes().List(ctx)
+	if err != nil {
+		t.Fatalf("list session indexes: %v", err)
+	}
+	var specs []struct {
+		Name               string `bson:"name"`
+		ExpireAfterSeconds *int32 `bson:"expireAfterSeconds"`
+	}
+	if err := cursor.All(ctx, &specs); err != nil {
+		t.Fatalf("decode session indexes: %v", err)
+	}
+	for _, spec := range specs {
+		if spec.Name == "ttl_expires_at" && spec.ExpireAfterSeconds != nil && *spec.ExpireAfterSeconds == 0 {
+			return
+		}
+	}
+	t.Fatalf("reader_sessions has no TTL index on expires_at: %+v", specs)
+}
+
 func TestPingFailsAgainstUnreachableDeployment(t *testing.T) {
 	client, err := Connect(Settings{
 		URI:                    "mongodb://127.0.0.1:1",
