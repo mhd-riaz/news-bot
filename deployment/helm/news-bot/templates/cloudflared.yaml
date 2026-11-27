@@ -1,0 +1,57 @@
+{{- if .Values.cloudflared.enabled }}
+{{- $fullname := include "news-bot.fullname" . }}
+# Cloudflare Tunnel: makes the web app (and the MCP program) reachable from the
+# internet without opening a port on your router. The tunnel and its public host
+# names are set up in the Cloudflare Zero Trust dashboard; this pod only runs it,
+# with the token from the Secret (NEWS_CLOUDFLARE_TUNNEL_TOKEN). See NOTES.txt
+# for the service addresses to enter in the dashboard.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-cloudflared
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "cloudflared") | nindent 4 }}
+spec:
+  replicas: {{ .Values.cloudflared.replicas }}
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      {{- include "news-bot.selectorLabels" (dict "root" $ "component" "cloudflared") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "news-bot.labels" (dict "root" $ "component" "cloudflared") | nindent 8 }}
+    spec:
+      {{- include "news-bot.podBasics" . | nindent 6 }}
+      # The image's own "nonroot" user.
+      {{- include "news-bot.podSecurity" (dict "uid" 65532) | nindent 6 }}
+      containers:
+        - name: cloudflared
+          image: {{ .Values.cloudflared.image }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - cloudflared
+            - tunnel
+            - --no-autoupdate
+            - --loglevel
+            - info
+            - --metrics
+            - 0.0.0.0:2000
+            - run
+          env:
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "TUNNEL_TOKEN" "key" "NEWS_CLOUDFLARE_TUNNEL_TOKEN") | nindent 12 }}
+          ports:
+            - name: metrics
+              containerPort: 2000
+          {{- include "news-bot.containerSecurity" . | nindent 10 }}
+          # /ready answers 200 only while the tunnel is connected to Cloudflare.
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.cloudflared.resources | nindent 12 }}
+{{- end }}

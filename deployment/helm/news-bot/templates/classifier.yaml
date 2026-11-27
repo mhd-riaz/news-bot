@@ -1,0 +1,141 @@
+{{- $fullname := include "news-bot.fullname" . }}
+{{- $model := .Values.classifier.model }}
+# The classifier: sorts each article into a topic. Only the collector may call it
+# (see networkpolicy.yaml). Its model lives on its own disk; an init container
+# downloads it the first time and checks it on every start.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $fullname }}-classifier-models
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "classifier") | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with .Values.classifier.storage.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.classifier.storage.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-classifier
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "classifier") | nindent 4 }}
+spec:
+  selector:
+    {{- include "news-bot.selectorLabels" (dict "root" $ "component" "classifier") | nindent 4 }}
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-classifier
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "classifier") | nindent 4 }}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  # The model disk can be used by one node at a time. While the classifier
+  # restarts, the collector keeps collecting; new articles wait for their topic.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "news-bot.selectorLabels" (dict "root" $ "component" "classifier") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "news-bot.labels" (dict "root" $ "component" "classifier") | nindent 8 }}
+    spec:
+      {{- include "news-bot.podBasics" . | nindent 6 }}
+      {{- include "news-bot.podSecurity" (dict) | nindent 6 }}
+      initContainers:
+        # Downloads the model listed in ml/models.toml when it is missing or wrong,
+        # then checks bundle.joblib. A correct model is never downloaded again.
+        - name: get-model
+          image: {{ include "news-bot.image" (dict "root" $ "image" .Values.classifier.image) }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              python /app/scripts/download_models.py --dest /data {{ $model.name }}
+              echo "$NEWSML_MODEL_SHA256  /data/{{ $model.folder }}/bundle.joblib" | sha256sum -c -
+          env:
+            - name: HOME
+              value: /tmp
+            - name: NEWSML_MODEL_SHA256
+              value: {{ $model.bundleSha256 | quote }}
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "GITHUB_TOKEN" "optional" true) | nindent 12 }}
+          {{- include "news-bot.containerSecurity" . | nindent 10 }}
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {memory: 256Mi}
+          volumeMounts:
+            - name: models
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: classifier
+          image: {{ include "news-bot.image" (dict "root" $ "image" .Values.classifier.image) }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          # The same start command as production (coolify.compose.yml): refuse a
+          # model whose fingerprint does not match.
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              echo "$NEWSML_MODEL_SHA256  $NEWSML_MODEL_DIR/bundle.joblib" | sha256sum -c -
+              exec gunicorn --bind=0.0.0.0:8000 --workers=1 --threads=4 --timeout=120 app.wsgi:app
+          env:
+            - name: HOME
+              value: /tmp
+            - name: NEWSML_MODEL_DIR
+              value: "/data/{{ $model.folder }}"
+            - name: NEWSML_MODEL_SHA256
+              value: {{ $model.bundleSha256 | quote }}
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "NEWSML_API_KEY" "key" "NEWS_CLASSIFIER_API_KEY") | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8000
+          {{- include "news-bot.containerSecurity" . | nindent 10 }}
+          # The text encoder warms up before the port opens.
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            periodSeconds: 15
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.classifier.resources | nindent 12 }}
+          volumeMounts:
+            - name: models
+              mountPath: /data
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: {{ $fullname }}-classifier-models
+        - name: tmp
+          emptyDir: {}

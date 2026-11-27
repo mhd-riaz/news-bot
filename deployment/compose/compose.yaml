@@ -1,17 +1,44 @@
-name: news-collector
+# The whole news-bot app on one computer (a laptop), with Docker Compose.
+#
+# The easy way is ./run.sh at the top of the repository. It makes the settings file
+# deployment/env/local.env, downloads the model, builds the images, starts every
+# service in the right order and builds the ranker's first snapshot.
+#
+# By hand, from the top of the repository:
+#   docker compose -f deployment/compose/compose.yaml --env-file deployment/env/local.env up -d --build
+#   docker compose -f deployment/compose/compose.yaml --env-file deployment/env/local.env --profile mcp up -d
+#
+# Safety:
+# - Every port is published on 127.0.0.1 only, so only this computer can reach it.
+#   If another program already uses a port, choose another one with a LOCAL_PORT_...
+#   line in local.env (see local.env.example).
+# - MongoDB here has no password. That is fine only because its port is on 127.0.0.1.
+# - Containers get only the settings they need, never the whole local.env file.
+# - To use a MongoDB that already runs on this computer instead of the one below,
+#   add the file compose.external-mongo.yaml (read the notes at its top).
 
-# Local development stack. Copy deployment/env/local.env.example to local.env first:
-# the API refuses to start with auth enabled and no credentials configured, and
-# local.env is where those credentials come from. NEWS_ENV_FILE does not override
-# this file's explicit env_file entries. MongoDB has no auth and host ports bind
-# all interfaces; do not expose this development stack to untrusted networks.
+name: news-bot
+
+# Shared hardening for the app containers: a read-only file system with a small
+# writable /tmp, no Linux capabilities and no way to gain more rights.
+x-hardened: &hardened
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
 
 services:
+  # The database. Pinned to the same version as production (roadmap C15).
   mongo:
-    image: mongo:7
+    image: mongo:7.0.48
     restart: unless-stopped
+    command: ["mongod", "--wiredTigerCacheSizeGB", "${LOCAL_MONGO_CACHE_GB:-1}"]
+    mem_limit: ${LOCAL_MONGO_MEMORY:-2g}
+    security_opt: [no-new-privileges:true]
     ports:
-      - "27017:27017"
+      - "127.0.0.1:${LOCAL_PORT_MONGO:-27017}:27017"
     volumes:
       - mongo-data:/data/db
     healthcheck:
@@ -21,63 +48,191 @@ services:
       retries: 10
       start_period: 20s
 
-  # The model comes from `make -C ml models` (ml/models.toml); it is not in git.
+  # Sorts each article into a topic. The model folder comes from
+  # `make -C ml models` (run.sh does it); it is not in git.
   classifier:
+    <<: *hardened
+    image: news-collector-classifier:local
     build:
       context: ../../ml
       dockerfile: classifier/Dockerfile
-    restart: unless-stopped
-    env_file:
-      - path: ../env/local.env
-        required: false
+    mem_limit: 1536m
     environment:
-      NEWSML_MODEL_DIR: /models/v4-ai-072b01a9ceaf
+      NEWSML_MODEL_DIR: /models/${NEWS_CLASSIFIER_MODEL:-v4-ai-072b01a9ceaf}
       NEWSML_API_KEY: ${NEWS_CLASSIFIER_API_KEY:-}
-    expose:
-      - "8000"
+      HOME: /tmp
+    ports:
+      - "127.0.0.1:${LOCAL_PORT_CLASSIFIER:-8000}:8000"
     volumes:
-      - ../../ml/models/classifier/v4-ai-072b01a9ceaf:/models/v4-ai-072b01a9ceaf:ro
+      - type: bind
+        source: ../../ml/models/classifier
+        target: /models
+        read_only: true
+        bind:
+          create_host_path: false
     healthcheck:
-      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health/ready')"]
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health/ready', timeout=4)"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 120s
 
-  # The API migrates the database and applies configs/sources.yaml itself, on
-  # every start. `make migrate` and `make seed` still exist for applying either
-  # without a restart.
-  api:
+  # Reads the news feeds and saves new articles. It is the only service that
+  # writes articles. It migrates the database and loads configs/sources.yaml on
+  # every start.
+  collector:
+    <<: *hardened
+    image: news-bot:local
     build:
       context: ../../collector
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    # Secrets come from .env, which is never baked into the image. Values under
-    # environment: below override env_file, so credentials are deliberately
-    # absent from that list.
-    env_file:
-      - path: ../env/local.env
-        required: false
+    mem_limit: 512m
+    stop_grace_period: 20s
     environment:
+      NEWS_APP_ENVIRONMENT: development
       NEWS_SERVER_HOST: 0.0.0.0
       NEWS_SERVER_PORT: "8080"
-      NEWS_MONGO_URI: mongodb://mongo:27017
-      NEWS_MONGO_DATABASE: news
-      NEWS_APP_ENVIRONMENT: development
-      NEWS_LOGGING_LEVEL: info
-      NEWS_LOGGING_FORMAT: json
+      NEWS_MONGO_URI: mongodb://mongo:27017/
+      NEWS_MONGO_DATABASE: ${NEWS_MONGO_DATABASE:-news}
+      NEWS_LOGGING_LEVEL: ${NEWS_LOGGING_LEVEL:-info}
+      NEWS_LOGGING_FORMAT: ${NEWS_LOGGING_FORMAT:-text}
+      # The collector's own API (/api/v1/...) needs this key in the X-API-Key header.
+      NEWS_AUTH_ENABLED: "true"
+      NEWS_AUTH_API_KEYS: ${NEWS_AUTH_API_KEYS:-}
+      NEWS_AUTH_BASIC_USERNAME: ${NEWS_AUTH_BASIC_USERNAME:-}
+      NEWS_AUTH_BASIC_PASSWORD: ${NEWS_AUTH_BASIC_PASSWORD:-}
+      NEWS_SCHEDULER_ENABLED: ${NEWS_SCHEDULER_ENABLED:-true}
+      NEWS_SCHEDULER_INTERVAL: ${NEWS_SCHEDULER_INTERVAL:-60s}
       NEWS_CLASSIFIER_ENABLED: "true"
+      NEWS_CLASSIFIER_ENDPOINT: http://classifier:8000
+      NEWS_CLASSIFIER_API_KEY: ${NEWS_CLASSIFIER_API_KEY:-}
+    ports:
+      - "127.0.0.1:${LOCAL_PORT_COLLECTOR:-8080}:8080"
     depends_on:
       mongo:
         condition: service_healthy
     healthcheck:
+      # /health/ready checks MongoDB only, not the classifier.
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/health/ready"]
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 30s
+
+  # Picks stories for each reader from a snapshot: a frozen copy of recent stories
+  # built by `./run.sh refresh`. It uses the snapshot named in
+  # ml/artifacts/recommender/LATEST_DEMO, or the one in NEWS_RANKER_SNAPSHOT.
+  ranker:
+    <<: *hardened
+    image: news-recommender:local
+    build:
+      context: ../../ml
+      dockerfile: recommender/Dockerfile
+    mem_limit: 1536m
+    environment:
+      NEWS_RECOMMENDER_API_KEY: ${NEWS_RECOMMENDER_API_KEY:-}
+      NEWS_RANKER_SNAPSHOT: ${NEWS_RANKER_SNAPSHOT:-}
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        id="$${NEWS_RANKER_SNAPSHOT:-}"
+        if [ -z "$$id" ] && [ -f /snapshots/LATEST_DEMO ]; then id="$$(cat /snapshots/LATEST_DEMO)"; fi
+        if [ -z "$$id" ] || [ ! -f "/snapshots/$$id/manifest.json" ]; then
+          echo "No ranker snapshot yet. Build one with: ./run.sh refresh" >&2
+          exit 1
+        fi
+        export NEWSREC_MODEL_DIR="/snapshots/$$id"
+        echo "Serving ranker snapshot $$id"
+        exec gunicorn --bind=0.0.0.0:8001 --workers=1 --threads=4 --timeout=120 'newsrec.api:create_app()'
+    ports:
+      - "127.0.0.1:${LOCAL_PORT_RANKER:-8001}:8001"
+    volumes:
+      - type: bind
+        source: ../../ml/artifacts/recommender
+        target: /snapshots
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8001/health/ready', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # The reader's web app (the React pages and their API). Sign-in is off on a
+  # laptop: you are the "Local reader". The web app allows that inside a container
+  # only in development and only because the port below is on 127.0.0.1.
+  web:
+    <<: *hardened
+    image: news-bot-server:local
+    build:
+      context: ../..
+      dockerfile: server/Dockerfile
+    mem_limit: 256m
+    environment:
+      NEWS_APP_ENVIRONMENT: development
+      NEWS_AUTH_ENABLED: "false"
+      NEWS_AUTH_TRUST_PUBLISHED_LOOPBACK: "true"
+      NEWS_SERVER_PORT: "8090"
+      NEWS_PUBLIC_URL: http://127.0.0.1:${LOCAL_PORT_WEB:-8090}
+      NEWS_MONGO_URI: mongodb://mongo:27017/
+      NEWS_MONGO_DATABASE: ${NEWS_MONGO_DATABASE:-news}
+      NEWS_RECOMMENDER_ENDPOINT: http://ranker:8001
+      NEWS_RECOMMENDER_API_KEY: ${NEWS_RECOMMENDER_API_KEY:-}
+      NEWS_LOGGING_LEVEL: ${NEWS_LOGGING_LEVEL:-info}
+      NEWS_LOGGING_FORMAT: ${NEWS_LOGGING_FORMAT:-text}
+    ports:
+      # Keep "127.0.0.1:" here. Without it other computers could use the app.
+      - "127.0.0.1:${LOCAL_PORT_WEB:-8090}:8090"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      # /health/ready needs MongoDB and the ranker.
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8090/health/ready', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # The read-only MCP program for AI agents. It starts only with the "mcp"
+  # profile: `./run.sh --mcp`, or `--profile mcp` by hand. Agents send
+  # "Authorization: Bearer <key>"; local.env keeps the key (LOCAL_MCP_AGENT_KEY).
+  # Here MongoDB has no users, so read-only is not enforced by the database; the
+  # Helm chart sets that up for the home server.
+  mcp:
+    <<: *hardened
+    image: news-bot-server:local
+    build:
+      context: ../..
+      dockerfile: server/Dockerfile
+    profiles: [mcp]
+    command: ["newsbot-mcp"]
+    mem_limit: 256m
+    environment:
+      NEWS_APP_ENVIRONMENT: development
+      NEWS_MCP_PORT: "8091"
+      NEWS_MCP_MONGO_URI: mongodb://mongo:27017/
+      NEWS_MONGO_DATABASE: ${NEWS_MONGO_DATABASE:-news}
+      NEWS_MCP_API_KEYS: ${NEWS_MCP_API_KEYS:-}
+      NEWS_MCP_RATE_LIMIT: ${NEWS_MCP_RATE_LIMIT:-60}
+      NEWS_MCP_ALLOWED_HOSTS: 127.0.0.1:${LOCAL_PORT_MCP:-8091},localhost:${LOCAL_PORT_MCP:-8091}
+      NEWS_RECOMMENDER_ENDPOINT: http://ranker:8001
+      NEWS_RECOMMENDER_API_KEY: ${NEWS_RECOMMENDER_API_KEY:-}
+      NEWS_LOGGING_LEVEL: ${NEWS_LOGGING_LEVEL:-info}
+      NEWS_LOGGING_FORMAT: ${NEWS_LOGGING_FORMAT:-text}
+    ports:
+      - "127.0.0.1:${LOCAL_PORT_MCP:-8091}:8091"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8091/health/ready', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
   mongo-data:

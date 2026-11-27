@@ -34,6 +34,11 @@ COPY classifier/app /app/app
 COPY configs/boilerplate.yaml /app/configs/boilerplate.yaml
 COPY taxonomy.yaml /app/taxonomy.yaml
 
+# The model download script and its list, so a Kubernetes init container can fill the
+# model volume: python /app/scripts/download_models.py --dest <volume>
+COPY scripts/download_models.py /app/scripts/download_models.py
+COPY models.toml /app/models.toml
+
 USER 10001:10001
 
 EXPOSE 8000

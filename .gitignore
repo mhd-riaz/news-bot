@@ -271,6 +271,9 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# run.sh's own working files: logs, a lock, and test copies.
+/.run/
+
 # One env file per environment lives in deployment/env/. Only the .example
 # templates and the README are committed; the filled-in files hold passwords
 # and keys. This block stays last so it overrides the env/ and ENV/ rules above.

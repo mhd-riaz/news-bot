@@ -1,0 +1,98 @@
+{{- if .Values.mongo.enabled }}
+{{- $fullname := include "news-bot.fullname" . }}
+# MongoDB: one pod with its own disk. The disk (PersistentVolumeClaim
+# data-<name>-mongo-0) is kept when you uninstall the chart, so no data is lost.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-mongo
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "mongo") | nindent 4 }}
+spec:
+  # Headless: the name points straight at the MongoDB pod.
+  clusterIP: None
+  selector:
+    {{- include "news-bot.selectorLabels" (dict "root" $ "component" "mongo") | nindent 4 }}
+  ports:
+    - name: mongo
+      port: 27017
+      targetPort: mongo
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $fullname }}-mongo
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "mongo") | nindent 4 }}
+spec:
+  serviceName: {{ $fullname }}-mongo
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "news-bot.selectorLabels" (dict "root" $ "component" "mongo") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "news-bot.labels" (dict "root" $ "component" "mongo") | nindent 8 }}
+    spec:
+      {{- include "news-bot.podBasics" . | nindent 6 }}
+      # The mongo image's own user (999), so its start script never needs root.
+      {{- include "news-bot.podSecurity" (dict "uid" 999) | nindent 6 }}
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: mongo
+          image: {{ .Values.mongo.image }}
+          imagePullPolicy: IfNotPresent
+          args: ["--wiredTigerCacheSizeGB", {{ .Values.mongo.wiredTigerCacheSizeGB | toString | quote }}]
+          env:
+            # Used only the first time, when the data folder is empty.
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "MONGO_INITDB_ROOT_USERNAME" "key" "NEWS_MONGO_ROOT_USERNAME") | nindent 12 }}
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "MONGO_INITDB_ROOT_PASSWORD" "key" "NEWS_MONGO_ROOT_PASSWORD") | nindent 12 }}
+            - name: HOME
+              value: /tmp
+          ports:
+            - name: mongo
+              containerPort: 27017
+          {{- include "news-bot.containerSecurity" . | nindent 10 }}
+          startupProbe:
+            tcpSocket:
+              port: mongo
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: mongo
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: mongo
+            periodSeconds: 20
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.mongo.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+            - name: configdb
+              mountPath: /data/configdb
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: configdb
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          {{- include "news-bot.selectorLabels" (dict "root" $ "component" "mongo") | nindent 10 }}
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with .Values.mongo.storage.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.mongo.storage.size }}
+{{- end }}

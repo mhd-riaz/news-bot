@@ -1,0 +1,220 @@
+# Default settings for the news-bot chart.
+#
+# values-home.yaml (the home server) and values-local.yaml (a test on Rancher
+# Desktop) change only what is different. Pick one with -f, for example:
+#   helm install news-bot deployment/helm/news-bot -n news-bot -f deployment/helm/news-bot/values-home.yaml
+#
+# Never put a password, key or token in a values file. The chart reads every secret
+# from one existing Kubernetes Secret (secret.name), made from an environment file.
+
+# The existing Secret with every password and key. Make it from your filled-in copy
+# of deployment/env/home.env.example:
+#   kubectl -n news-bot create secret generic news-bot-env --from-env-file=deployment/env/home.env
+secret:
+  name: news-bot-env
+
+# NEWS_APP_ENVIRONMENT for every service: development, staging or production.
+# production refuses unsafe settings, for example sign-in turned off.
+environment: production
+
+logging:
+  # debug, info, warn or error
+  level: info
+  # json (for log tools) or text (easier to read)
+  format: json
+
+# Where the four app images come from. A service's own image.tag wins over tag.
+images:
+  # For example ghcr.io/mhd-riaz. Empty means images that are already on the node.
+  registry: ""
+  tag: latest
+  # IfNotPresent, Always (fetch the tag again at every start) or Never (local only).
+  pullPolicy: IfNotPresent
+  # Names of docker-registry Secrets, if the registry needs a login.
+  pullSecrets: []
+
+# Put every pod on matching nodes, or allow nodes with these taints.
+nodeSelector: {}
+tolerations: []
+
+mongo:
+  # true: run MongoDB inside the cluster, with its own disk.
+  # false: use a MongoDB outside the cluster (see external below).
+  enabled: true
+  # The same version as production (roadmap C15). Also used by the users job and
+  # by the small "wait for the database" step in front of the app pods.
+  image: mongo:7.0.48
+  # The database name.
+  database: news
+  # MongoDB's memory cache in GB. Roadmap C15: 2 GB inside a 3 GB limit.
+  wiredTigerCacheSizeGB: 2
+  storage:
+    size: 20Gi
+    # Empty uses the cluster's default storage class (local-path on k3s).
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 250m
+      memory: 1Gi
+    limits:
+      memory: 3Gi
+  # Only when enabled is false.
+  external:
+    # host:port of your MongoDB; separate several with commas.
+    hosts: ""
+    # Extra connection options, for example "tls=true". The chart adds authSource.
+    options: ""
+  # A job that runs deployment/mongo/mongo-users.js after every install and upgrade.
+  # It logs in as root (NEWS_MONGO_ROOT_USERNAME and NEWS_MONGO_ROOT_PASSWORD) and
+  # makes one login per part of the app, each with only the rights it needs
+  # (roadmap C14). Turn it off for an outside MongoDB whose logins you manage.
+  users:
+    enabled: true
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 512Mi
+
+# The collector reads the news feeds and saves articles.
+collector:
+  image:
+    repository: news-bot
+    tag: ""
+  scheduler:
+    # false starts the collector without collecting.
+    enabled: true
+    # How often it looks for feeds that are due.
+    interval: 60s
+  # The feed list it loads on every start: a path inside the image, or an https URL,
+  # for example the raw GitHub address of collector/configs/sources.yaml.
+  sourcesPath: configs/sources.yaml
+  # The header that carries a key for the collector's own API.
+  apiKeyHeader: X-API-Key
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    # Roadmap C15: 0.5 GB.
+    limits:
+      memory: 512Mi
+  # More environment variables, for example:
+  #   - name: NEWS_SCRAPER_ENABLED
+  #     value: "false"
+  extraEnv: []
+
+# The classifier sorts each article into a topic.
+classifier:
+  image:
+    repository: news-collector-classifier
+    tag: ""
+  # The model to use. All three values come from ml/models.toml.
+  model:
+    # The [[model]] name.
+    name: classifier-v4-ai-072b01a9ceaf
+    # Its unpack_to folder.
+    folder: models/classifier/v4-ai-072b01a9ceaf
+    # The SHA-256 of bundle.joblib. The classifier refuses to start with any other file.
+    bundleSha256: 61cbaa89016d1acd88473cad2cf59cec69e74177aabe123bafa0a9c9f6c22fde
+  # The disk that keeps the downloaded model.
+  storage:
+    size: 1Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 250m
+      memory: 768Mi
+    # The production limit (roadmap section 8, 27 Nov). Measured on 27 Nov: 0.75-1.0 GB in use.
+    limits:
+      memory: 1536Mi
+
+# The ranker picks stories for each reader from a snapshot.
+ranker:
+  image:
+    repository: news-recommender
+    tag: ""
+  # Empty serves the snapshot named in LATEST_DEMO on the snapshot disk. Set a
+  # snapshot name to keep serving that one.
+  snapshotId: ""
+  # The disk that keeps the snapshots. Copy one with deployment/helm/copy-snapshot.sh.
+  storage:
+    size: 5Gi
+    storageClass: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    # Roadmap C15: 1.5 GB.
+    limits:
+      memory: 1536Mi
+
+# The reader's web app (React pages, their API and Google sign-in).
+web:
+  image:
+    repository: news-bot-server
+    tag: ""
+  # The address readers open, for example https://news.example.com. Needed with
+  # sign-in on. Google sends readers back to <publicUrl>/auth/callback.
+  publicUrl: ""
+  # Google sign-in. false is allowed only with environment: development and with
+  # no ingress and no tunnel, because then anyone who reaches the app is "Local reader".
+  signIn: true
+  # A session ends after this long without use, or this long in total.
+  sessionIdleTimeout: 168h
+  sessionAbsoluteTimeout: 720h
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    # Roadmap C15: 0.25 GB for the reader.
+    limits:
+      memory: 256Mi
+  extraEnv: []
+
+# The read-only MCP program for AI agents (it uses the web app's image).
+mcp:
+  enabled: false
+  # Requests a minute for each agent key.
+  rateLimit: 60
+  # The public host name agents use, for example mcp.example.com. Used by the
+  # ingress and by the list of Host names the program answers to.
+  publicHost: ""
+  # More Host names it should answer to, as host:port or host:* (any port).
+  # The names inside the cluster are always included.
+  allowedHosts: []
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    # Roadmap C15: 0.25 GB for MCP.
+    limits:
+      memory: 256Mi
+
+# Cloudflare Tunnel: publishes the app without opening a port on your router.
+# Needs NEWS_CLOUDFLARE_TUNNEL_TOKEN in the Secret.
+cloudflared:
+  enabled: false
+  image: cloudflare/cloudflared:2026.11.2
+  replicas: 1
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      memory: 128Mi
+
+# An optional Ingress (k3s ships the Traefik ingress controller). Its host name
+# comes from web.publicUrl, and from mcp.publicHost for the MCP program.
+ingress:
+  enabled: false
+  # For example traefik. Empty uses the cluster's default.
+  className: ""
+  annotations: {}
+  # A Secret with the TLS certificate, for https. Empty for none.
+  tlsSecretName: ""
+
+# Network rules: only the collector may call the classifier, only the web app and
+# the MCP program may call the ranker, and only the app's pods may open MongoDB.
+networkPolicy:
+  enabled: true

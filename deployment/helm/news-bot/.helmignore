@@ -1,0 +1,12 @@
+# Files that `helm package` leaves out of the chart.
+.DS_Store
+*.swp
+*.bak
+*.tmp
+*~
+.git/
+.vscode/
+.idea/
+# Environment files hold secrets; they never belong in a chart.
+*.env
+.env*

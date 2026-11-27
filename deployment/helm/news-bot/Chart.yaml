@@ -1,0 +1,17 @@
+apiVersion: v2
+name: news-bot
+description: >-
+  The whole news-bot app on Kubernetes (for example k3s at home): MongoDB, the news
+  collector, the topic classifier, the ranker, the reader's web app, the MCP program
+  for AI agents, and an optional Cloudflare Tunnel.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.29.0-0"
+home: https://github.com/mhd-riaz/news-bot
+sources:
+  - https://github.com/mhd-riaz/news-bot
+keywords:
+  - news
+  - recommender
+  - k3s

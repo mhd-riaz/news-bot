@@ -1,0 +1,116 @@
+{{- $fullname := include "news-bot.fullname" . }}
+# The collector: reads the news feeds, saves articles and asks the classifier for
+# topics. It migrates the database and loads its source list on every start.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-collector
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "collector") | nindent 4 }}
+spec:
+  selector:
+    {{- include "news-bot.selectorLabels" (dict "root" $ "component" "collector") | nindent 4 }}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-collector
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "collector") | nindent 4 }}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  # Start the new pod before stopping the old one, so collection never stops
+  # (hard rule 1). Source leases stop two pods from collecting the same feed.
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "news-bot.selectorLabels" (dict "root" $ "component" "collector") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "news-bot.labels" (dict "root" $ "component" "collector") | nindent 8 }}
+    spec:
+      {{- include "news-bot.podBasics" . | nindent 6 }}
+      {{- include "news-bot.podSecurity" (dict) | nindent 6 }}
+      terminationGracePeriodSeconds: 30
+      initContainers:
+        {{- include "news-bot.waitForMongo" (dict "root" $ "user" "collector") | nindent 8 }}
+      containers:
+        - name: collector
+          image: {{ include "news-bot.image" (dict "root" $ "image" .Values.collector.image) }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          env:
+            {{- include "news-bot.mongoLoginEnv" (dict "root" $ "user" "collector" "uriVar" "NEWS_MONGO_URI") | nindent 12 }}
+            - name: NEWS_MONGO_DATABASE
+              value: {{ .Values.mongo.database | quote }}
+            - name: NEWS_APP_ENVIRONMENT
+              value: {{ .Values.environment | quote }}
+            - name: NEWS_SERVER_HOST
+              value: "0.0.0.0"
+            - name: NEWS_SERVER_PORT
+              value: "8080"
+            - name: NEWS_LOGGING_LEVEL
+              value: {{ .Values.logging.level | quote }}
+            - name: NEWS_LOGGING_FORMAT
+              value: {{ .Values.logging.format | quote }}
+            - name: NEWS_AUTH_ENABLED
+              value: "true"
+            - name: NEWS_AUTH_API_KEY_HEADER
+              value: {{ .Values.collector.apiKeyHeader | quote }}
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "NEWS_AUTH_API_KEYS" "optional" true) | nindent 12 }}
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "NEWS_AUTH_BASIC_USERNAME" "optional" true) | nindent 12 }}
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "NEWS_AUTH_BASIC_PASSWORD" "optional" true) | nindent 12 }}
+            - name: NEWS_SCHEDULER_ENABLED
+              value: {{ .Values.collector.scheduler.enabled | toString | quote }}
+            - name: NEWS_SCHEDULER_INTERVAL
+              value: {{ .Values.collector.scheduler.interval | quote }}
+            - name: NEWS_BOOTSTRAP_SOURCES_PATH
+              value: {{ .Values.collector.sourcesPath | quote }}
+            - name: NEWS_CLASSIFIER_ENABLED
+              value: "true"
+            - name: NEWS_CLASSIFIER_ENDPOINT
+              value: "http://{{ $fullname }}-classifier:8000"
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "NEWS_CLASSIFIER_API_KEY") | nindent 12 }}
+            {{- with .Values.collector.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 8080
+          {{- include "news-bot.containerSecurity" . | nindent 10 }}
+          # The first start migrates the database, which can take minutes on a big one.
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            periodSeconds: 15
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.collector.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

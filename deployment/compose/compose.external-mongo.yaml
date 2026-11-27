@@ -1,0 +1,40 @@
+# Use a MongoDB that is NOT started by compose.yaml, for example the one you
+# installed with Homebrew on your Mac. Add this file after compose.yaml:
+#
+#   docker compose -f deployment/compose/compose.yaml \
+#     -f deployment/compose/compose.external-mongo.yaml \
+#     --env-file deployment/env/local.env up -d
+#
+# run.sh adds this file by itself when NEWS_MONGO_URI is set in local.env, and
+# works out NEWS_EXTERNAL_MONGO_URI for you.
+#
+# NEWS_EXTERNAL_MONGO_URI is the address as the containers see it. Inside a
+# container, 127.0.0.1 is the container itself, so "this computer" is
+# host.docker.internal instead. That name works on Docker Desktop and Rancher
+# Desktop for macOS and Windows. On Linux, make MongoDB also listen on the Docker
+# bridge address (bindIp: 127.0.0.1,172.17.0.1) and set
+# NEWS_EXTERNAL_MONGO_URI=mongodb://172.17.0.1:27017/ in local.env.
+#
+# Careful: the collector writes new articles into this database (named by
+# NEWS_MONGO_DATABASE). To try things out without touching your real data, use a
+# new database name, for example NEWS_MONGO_DATABASE=news_test.
+
+services:
+  # Keep the Compose MongoDB switched off: it gets a profile that nobody turns on.
+  mongo:
+    profiles: [compose-mongo]
+
+  collector:
+    depends_on: !reset {}
+    environment:
+      NEWS_MONGO_URI: ${NEWS_EXTERNAL_MONGO_URI:-mongodb://host.docker.internal:27017/}
+
+  web:
+    depends_on: !reset {}
+    environment:
+      NEWS_MONGO_URI: ${NEWS_EXTERNAL_MONGO_URI:-mongodb://host.docker.internal:27017/}
+
+  mcp:
+    depends_on: !reset {}
+    environment:
+      NEWS_MCP_MONGO_URI: ${NEWS_EXTERNAL_MONGO_URI:-mongodb://host.docker.internal:27017/}

@@ -1,9 +1,14 @@
 # Coolify deployment stack for the homelab.
 #
+# This is what production runs today. The Helm chart in deployment/helm/news-bot
+# deploys the whole app on k3s and will replace this file after the owner switches
+# (roadmap R6); until then, change this file only together with the owner.
+#
 # Create a "Docker Compose" resource in Coolify and paste this file, or point it
-# at this path in the repository. The image is built and pushed by GitHub
-# Actions (.github/workflows/news-collector.yml) only when DEPLOY_ENABLED is true
-# on main. This stack pulls application images; it does not build them. It does
+# at this path in the repository. GitHub Actions (.github/workflows/ci.yml)
+# builds the images; on main it publishes sha-<commit> tags, and its release job
+# moves the `latest` tags and asks Coolify to redeploy only when DEPLOY_ENABLED is
+# true. This stack pulls application images; it does not build them. It does
 # not yet deploy the AFTERLINE reader, ranker, batch pipeline or MCP server.
 #
 # Coolify fills SERVICE_* itself and keeps the generated values stable across
