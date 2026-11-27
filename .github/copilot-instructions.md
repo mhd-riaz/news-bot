@@ -1,5 +1,17 @@
 # news-bot — agent instructions
 
+## How to talk to the owner
+
+Follow this in every chat reply:
+
+- Keep replies short. Say only what is needed and what is important.
+- Use simple English that an 8th-grade student in India can follow.
+- If you must use a technical word, explain it in a few simple words the first time.
+- Make the words simple, not the facts. The owner knows the subject well, so keep exact names, numbers, commands and file paths.
+- Give the answer first. Add more detail only when the owner asks for it.
+
+Write the docs in this repository the same way.
+
 ## Product
 
 A personal news briefing for a small invited group: you and your brother first, then up to about 5 readers. English only, self-hosted on the owner's home lab, and useful without any paid service.
