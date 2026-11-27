@@ -24,3 +24,18 @@ func NewDerivedFieldBackfillService(
 		BatchSize: cfg.Classifier.BatchSize, BatchDelay: batchDelay,
 	}), nil
 }
+
+// NewReclassificationService wires the resumable relabelling job to MongoDB and
+// the configured internal classifier.
+func NewReclassificationService(
+	cfg *config.Config, db *driver.Database, batchDelay time.Duration,
+) (*service.ReclassificationService, error) {
+	classifier, err := NewClassifierClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return service.NewReclassificationService(service.ReclassificationDeps{
+		Articles: mongorepo.NewArticleRepository(db), Classifier: classifier,
+		BatchSize: cfg.Classifier.BatchSize, BatchDelay: batchDelay,
+	}), nil
+}

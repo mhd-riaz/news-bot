@@ -1,6 +1,11 @@
 // Command backfill fills C1 fields on legacy articles without changing their
 // existing topics or raw article text. Re-running it safely resumes at the
 // first article that still lacks required C1 fields.
+//
+// With -reclassify it instead relabels classified and unsorted articles with the
+// classifier's current model, writing only topic, confidence, model version,
+// status and classification time. Re-running it resumes at the first article
+// still on an older model version.
 package main
 
 import (
@@ -30,9 +35,11 @@ func main() {
 func run() error {
 	configPath := flag.String("config", defaultConfigPath(), "path to the YAML configuration file")
 	envPath := flag.String("env", config.EnvFilePath(), "path to the dotenv file holding secrets")
-	limit := flag.Int("limit", 1000, "maximum number of legacy articles to backfill")
+	limit := flag.Int("limit", 1000, "maximum number of articles to process")
 	delay := flag.Duration("delay", time.Second, "pause between classifier batches")
 	timeout := flag.Duration("timeout", 10*time.Minute, "overall time budget for the run")
+	reclassify := flag.Bool("reclassify", false,
+		"relabel classified and unsorted articles with the classifier's current model instead of filling C1 fields")
 	flag.Parse()
 
 	if err := config.LoadEnvFile(*envPath); err != nil {
@@ -78,6 +85,25 @@ func run() error {
 
 	if err := client.Ping(ctx); err != nil {
 		return fmt.Errorf("mongodb is not reachable at %s: %w", cfg.Mongo.RedactedURI(), err)
+	}
+	if *reclassify {
+		job, err := app.NewReclassificationService(cfg, client.Database(), *delay)
+		if err != nil {
+			return err
+		}
+		result, err := job.Run(ctx, *limit)
+		if err != nil {
+			return fmt.Errorf("run reclassification: %w", err)
+		}
+		logger.Info("reclassification complete",
+			"batches", result.Batches,
+			"scanned", result.Scanned,
+			"updated", result.Updated,
+			"skipped", result.Skipped,
+			"classified", result.Classified,
+			"unsorted", result.Unsorted,
+		)
+		return nil
 	}
 	backfill, err := app.NewDerivedFieldBackfillService(cfg, client.Database(), *delay)
 	if err != nil {

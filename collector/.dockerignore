@@ -11,10 +11,12 @@ backfill
 **/*.ipynb
 docs/
 fixtures/
-ml/
+ml/*
+!ml/src
 ml-v2/artifacts/
 ml-v2/data/
 ml-v2/notebooks/
 ml-v2/reports/
 ml-v2/tests/
+ml-v4/data/
 submission/

@@ -50,7 +50,7 @@ It's also a good way to learn how a real data project fits together: Go programs
 ## 2. What you get
 
 | Part | What it does | Works today? |
-|---|---|---|
+| --- | --- | --- |
 | News collector | Polls 124 configured RSS and Atom feeds, with duplicate checks and collection history | ✅ Yes; configured feeds are not a guarantee that every publisher is reachable |
 | Full-text fetcher | Tries to extract readable text when a feed sends only a teaser; follows robots rules and retry limits | ✅ Yes; paywalls and blocked pages can remain short |
 | News pages and API | Shows the newest stories in your browser, and lets programs ask for feeds, stories and history | ✅ Yes |
@@ -58,8 +58,8 @@ It's also a good way to learn how a real data project fits together: Go programs
 | Fresh, Yesterday and Archive | Verified dates up to 30 days old, a short India-time daily selection, and older/unverified stories | ✅ Local demo; manually refreshed snapshots, not a live index or stored daily edition |
 | Reader controls | Professional-source filter, saved stories with notes, and a system-aware light/dark switch | ✅ In one browser; saved stories/notes and settings survive snapshot changes |
 | Article information | Publication-date provenance, revision/write timestamps, sidecar cleaning/language results and resumable backfill | ✅ Implemented and tested; production backfill/deployment verification remains open |
-| Topic classifier | Files articles under 1 of 13 topics, or "unsorted" when confidence is low | ⚠️ Requires a private trained bundle; bundles are not distributed by cloning this repo |
-| Training tools | Legacy classifier studies, a separate local V4 candidate, and TF-IDF/SVD/neural recommendation comparisons | ✅ Available; AI-labelled classifier scores are not human validation |
+| Topic classifier | Files articles under 1 of 13 topics, or "unsorted" when confidence is low | ⚠️ Serves the V4 model (owner-approved, D19) from a private bundle that is not distributed by cloning this repo; deployment is not confirmed until the bundle is on the production volume |
+| Training tools | Legacy classifier studies, the V4 classifier trainer, and TF-IDF/SVD/neural recommendation comparisons | ✅ Available; Human-labelled classifier scores are human validation |
 
 **Still needed for the full private service:**
 
@@ -129,7 +129,7 @@ flowchart TB
 **Colours:** purple is the outside world and you, blue is the collector, green is AFTERLINE, and dashed orange is optional. Dotted arrows lead to or from an optional part. The picture's source is [`docs/assets/system-overview.mmd`](docs/assets/system-overview.mmd).
 
 | # | Part | What it does |
-|---|---|---|
+| --- | --- | --- |
 | ① | News websites | Many news sites publish a **feed**: a list of their newest stories that computers can read (RSS or Atom). The 124 feeds are listed in [`collector/configs/sources.yaml`](collector/configs/sources.yaml). |
 | ② | Collector app | The main Go program. When it starts, it prepares the database and loads the feed list. Then it runs the jobs inside this box, side by side, until you stop it. |
 | ③ | Feed checker | Every minute it looks for feeds that are due. Each feed has its own timer, from every 10 minutes to every 2 hours. |
@@ -151,7 +151,7 @@ Type these commands into a terminal on macOS or Linux.
 ### What you need
 
 | Tool | Why | Version |
-|---|---|---|
+| --- | --- | --- |
 | [Git](https://git-scm.com/) | Downloads the code | any recent |
 | [Go](https://go.dev/dl/) | Runs the collector and the AFTERLINE reader | 1.27 or newer |
 | [Docker](https://docs.docker.com/get-started/get-docker/) | Runs the MongoDB database for you | any recent, with `docker compose` |
@@ -265,6 +265,13 @@ Asia/Kolkata calendar days and becomes available at 06:00; before then it uses t
 previous available edition day. Professional focus filters **source tags**, not a new
 prediction of each story's topic. The theme follows the computer until you save a choice.
 
+On macOS, `./run.sh` from the repository root does Parts A and B's serving steps in one go:
+it starts MongoDB if needed, then opens the collector (`make run`), the ranker
+(`make demo-serve`) and the reader (`make reader`) in separate Terminal windows. It skips
+anything already running. Name services to start only some of them (`./run.sh ranker reader`),
+or set `RUN_TERMINAL=iterm` to use iTerm. It does not run `make demo-refresh`. The first run
+asks macOS to let your shell control Terminal.
+
 ### Stop, restart and clean up
 
 - Press **Ctrl+C** in the terminal you used to start `make run`, `make demo-serve` / `make rec-serve` or `make reader`. Do not stop a process another user started.
@@ -285,7 +292,7 @@ prediction of each story's topic. The theme follows the computer until you save 
 <summary><b>Something went wrong?</b></summary>
 
 | You see... | What to do |
-|---|---|
+| --- | --- |
 | `auth.enabled is true but no credentials are configured` | Put the two settings from step 3 in front of the command. |
 | An error saying a port "is already allocated" or "already in use" | Another program is using that port (27017, 8080, 8001 or 8090). Stop it, or move the collector with `NEWS_SERVER_PORT=9090`. |
 | `at least 100 are needed` | Let the local collector run longer, then rebuild with `make demo-refresh` or a new manual snapshot ID. |
@@ -353,7 +360,7 @@ sequenceDiagram
 <summary><b>Deep dive: timers, limits and safety rules</b></summary>
 
 | What | Default | Setting |
-|---|---|---|
+| --- | --- | --- |
 | Look for feeds that are due | every 60 seconds | `scheduler.interval` |
 | Feeds per round, and at the same time | 50 per round, 4 at once | `scheduler.batch_size`, `scheduler.max_concurrent` |
 | Each feed's own timer | 15 minutes, unless the feed list sets one (10 minutes to 2 hours) | `fetch_interval_seconds` in `sources.yaml` |
@@ -388,8 +395,9 @@ The topic classifier is a small Python web service in [`collector/ml-v2/app/`](c
 The 13 topics are listed in [`collector/ml-v2/taxonomy.yaml`](collector/ml-v2/taxonomy.yaml): politics, crime and justice, business and economy, technology, science and space, entertainment and arts, society and lifestyle, health, education, environment and climate, disaster and accident, conflict and war, and sport.
 
 > **Note:** the sidecar needs a compatible trained bundle. Git does not distribute those
-> private bundles. The local V4 candidate is not automatically loaded by the current
-> sidecar or used by the recommender. See the [classifier guide](collector/ml/README.md)
+> private bundles. The sidecar loads the bundle named by `NEWSML_MODEL_DIR`; production is
+> configured for the V4 model (D19), and the recommender does not use it. See the
+> [classifier guide](collector/ml/README.md)
 > and [V4 guide](collector/ml-v4/README.md) before choosing a training or serving path.
 
 ### 5.3 How AFTERLINE picks stories for you
@@ -400,7 +408,7 @@ the summary or headline when needed. Stories about similar things end up with si
 vectors. There are three ways to make them, selectable in the reader:
 
 | Method | The idea in plain words | Size of each vector |
-|---|---|---|
+| --- | --- | --- |
 | **TF-IDF** (the default) | Counts the important words and two-word phrases. Rare words count more than common ones. | up to 25,000 numbers, mostly zeros |
 | **SVD** | Squeezes the TF-IDF numbers into a short summary that keeps the main themes. | up to 256 numbers |
 | **Neural** | A small neural network learns to squeeze the SVD features into 64 numbers. It practises by rebuilding them from a slightly noisy copy. | 64 numbers |
@@ -446,7 +454,7 @@ removes them. Likes affect ranking immediately when requested, not the already-t
 
 A topic model learns from **labelled examples**: stories paired with a proposed topic.
 All existing classifier labels are AI-generated, not verified human answers. The repository
-contains closed classifier studies and a separate V4 candidate workflow; they do not all
+contains closed classifier studies and the V4 classifier workflow; they do not all
 use the same input, split or confidence rule.
 
 ```mermaid
@@ -471,10 +479,10 @@ flowchart LR
 The repo has three generations of these tools:
 
 | Folder | What's inside |
-|---|---|
+| --- | --- |
 | [`collector/ml/`](collector/ml) | The first topic model, the example data it learned from, and a notebook that walks through it. If you want to try training, start with its own guide. |
 | [`collector/ml-v2/`](collector/ml-v2) | Closed body-aware classifier study, the current classifier sidecar, shared cleaning tools and the separate AFTERLINE recommender. |
-| [`collector/ml-v4/`](collector/ml-v4) | Candidate sampling, verification, AI-label pooling and V4 model comparison/training. The local candidate reads headline and summary; it has not been promoted to production. |
+| [`collector/ml-v4/`](collector/ml-v4) | Candidate sampling, verification, AI-label pooling and V4 model comparison/training. The model reads headline and summary; the owner approved it for production on 27 Nov (D19) and the sidecar serves it. |
 
 > **Honest note:** roadmap D16 corrects earlier claims of human-generated classifier
 > labels: all old and new classifier label datasets were AI-generated. The pooled V4
@@ -490,7 +498,7 @@ Private snapshots/models live on disk, and the local reader's choices and notes 
 in the browser, not in these collections.
 
 | Collection | What it holds |
-|---|---|
+| --- | --- |
 | `sources` | The feed list, with each feed's timer and latest status |
 | `articles` | Every saved story |
 | `collection_runs` | One entry for every feed check: what was found, saved or skipped |
@@ -503,7 +511,7 @@ Only the collector writes to the database. The AFTERLINE reader and the training
 ## 6. Project map
 
 | Path | What's inside |
-|---|---|
+| --- | --- |
 | [`collector/cmd/`](collector/cmd) | The programs you can run. `api` is the collector app and `reader` is AFTERLINE. `collector`, `scrape`, `seed`, `migrate` and `backfill` each do one job by hand. |
 | [`collector/internal/`](collector/internal) | The Go building blocks: reading feeds, spotting copies, extracting text, the database code and the web pages. |
 | [`collector/configs/`](collector/configs) | Settings and the feed list. |
@@ -522,7 +530,7 @@ Only the collector writes to the database. The AFTERLINE reader and the training
 Run these from the `collector` folder. `make help` lists command descriptions; the ML2/ML4 targets are also documented in their guides.
 
 | Command | What it does |
-|---|---|
+| --- | --- |
 | `make mongo-up` | Start the database in Docker |
 | `make run` | Start the collector app: migrate the configured database, sync sources, collect, and serve pages/API on port 8080; this is a writer |
 | `make collect` | Check every feed that is due, once, then stop |
@@ -536,7 +544,8 @@ Run these from the `collector` folder. `make help` lists command descriptions; t
 | `make rec-serve REC_ID=<existing-id>` | Start the ranker for an existing saved archive on port 8001 |
 | `make reader` | Start the AFTERLINE reader on port 8090 |
 | `make ml-setup`, `make ml-test` | Install and test the first-generation topic-model tools |
-| `make ml4-train DATASET=<AI-pool>` | Train a separate local V4 candidate from a prepared, truthfully attributed pool; not production promotion |
+| `make ml4-train DATASET=<AI-pool>` | Train a V4 classifier from a prepared, truthfully attributed pool; a new model needs its own owner approval before production |
+| `make backfill-reclassify` | Relabel existing articles with the sidecar's current model, in bounded resumable batches; writes the configured database |
 | `make backfill` | Write missing C1 derived metadata in bounded batches; only against an explicitly approved target |
 | `make down` | ⚠️ Stop the Docker services and **delete their data** |
 
@@ -552,7 +561,7 @@ Thank you for helping! Here's the usual flow:
 4. **Run the checks** for what you changed:
 
    | You changed... | Run |
-   |---|---|
+   | --- | --- |
    | Go code | `make check` (format check, `go vet` and unit tests) and `make test-race` |
    | Database code | also `make test-integration`, with `make mongo-up` running |
    | Python classifier, cleaning or recommender code | `make ml2-test`, `make classifier-test` and `make rec-test` |
@@ -591,7 +600,7 @@ These keep the project safe, honest and easy to run:
 ## 10. Words you'll see
 
 | Word | What it means |
-|---|---|
+| --- | --- |
 | Feed (RSS or Atom) | A list of a website's newest stories, written so computers can read it |
 | API | A way for one program to ask another program for data |
 | Database, collection | A database stores data in an organised way. MongoDB keeps similar records together in collections, like drawers in a cabinet. |

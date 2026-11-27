@@ -96,6 +96,10 @@ scrape-limit: ## Run one enrichment batch of a given size: make scrape-limit LIM
 backfill: ## Fill missing C1 article fields in bounded, resumable batches
 	go run ./cmd/backfill -config $(CONFIG) -limit $(BACKFILL_LIMIT) -delay $(BACKFILL_DELAY)
 
+.PHONY: backfill-reclassify
+backfill-reclassify: ## Relabel articles that carry another model's topic with the sidecar's current model (writes the configured database)
+	go run ./cmd/backfill -config $(CONFIG) -reclassify -limit $(BACKFILL_LIMIT) -delay $(BACKFILL_DELAY)
+
 .PHONY: up
 up: ## Build and start the configured Compose services; the collector writes to its database
 	$(COMPOSE) up --build -d
@@ -182,8 +186,8 @@ ml4-labels-export: ## Export fresh, balanced classifier candidates: make ml4-lab
 
 .PHONY: ml4-test
 ml4-test: ## Test the V4 sampler (ml/ environment) and trainer (ml-v2 environment; run make rec-setup once)
-	cd ml && PYTHONPATH=../ml-v4/src uv run pytest -q ../ml-v4/tests --ignore=../ml-v4/tests/test_train.py --ignore=../ml-v4/tests/test_pool.py
-	cd ml-v2 && PYTHONPATH=../ml-v4/src:../ml/src uv run --no-sync pytest -q ../ml-v4/tests/test_train.py ../ml-v4/tests/test_pool.py
+	cd ml && PYTHONPATH=../ml-v4/src uv run pytest -q ../ml-v4/tests --ignore=../ml-v4/tests/test_train.py --ignore=../ml-v4/tests/test_pool.py --ignore=../ml-v4/tests/test_serving.py
+	cd ml-v2 && PYTHONPATH=../ml-v4/src:../ml/src uv run --no-sync pytest -q ../ml-v4/tests/test_train.py ../ml-v4/tests/test_pool.py ../ml-v4/tests/test_serving.py
 
 .PHONY: ml4-pool
 ml4-pool: ## Build a truthful pooled AI-label corpus from old labels and private MCP exports (roadmap D16)

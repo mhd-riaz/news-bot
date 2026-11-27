@@ -76,7 +76,16 @@ func (c *HTTPClient) Classify(ctx context.Context, items []Item) ([]Result, erro
 
 	results := make([]Result, len(items))
 	seen := make(map[string]struct{}, len(items))
+	var declined []string
 	for index, result := range response.Items {
+		if result.Error != "" && result.ID == items[index].ID {
+			if _, duplicate := seen[result.ID]; duplicate {
+				return nil, fmt.Errorf("%w: duplicate result id %q", ErrBadResponse, result.ID)
+			}
+			seen[result.ID] = struct{}{}
+			declined = append(declined, result.ID)
+			continue
+		}
 		if result.Error != "" || result.ID != items[index].ID ||
 			strings.TrimSpace(result.Topic) == "" ||
 			result.Confidence < 0 || result.Confidence > 1 ||
@@ -99,6 +108,9 @@ func (c *HTTPClient) Classify(ctx context.Context, items []Item) ([]Result, erro
 			CleanTitle: *result.CleanTitle, CleanSummary: *result.CleanSummary, CleanBody: *result.CleanBody,
 			DetectedLanguage: *result.Language, LanguageConfidence: *result.LanguageConfidence,
 		}
+	}
+	if len(declined) > 0 {
+		return nil, &ItemError{IDs: declined}
 	}
 	return results, nil
 }

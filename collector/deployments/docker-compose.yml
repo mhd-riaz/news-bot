@@ -30,18 +30,18 @@ services:
       - path: ../.env
         required: false
     environment:
-      NEWSML_MODEL_DIR: /models/v2-001
+      NEWSML_MODEL_DIR: /models/v4-ai-072b01a9ceaf
       NEWSML_API_KEY: ${NEWS_CLASSIFIER_API_KEY:-}
     expose:
       - "8000"
     volumes:
-      - ../ml-v2/artifacts/models/v2-001:/models/v2-001:ro
+      - ../ml-v4/data/models/v4-ai-072b01a9ceaf:/models/v4-ai-072b01a9ceaf:ro
     healthcheck:
       test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health/ready')"]
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 120s
 
   # The API migrates the database and applies configs/sources.yaml itself, on
   # every start. `make migrate` and `make seed` still exist for applying either

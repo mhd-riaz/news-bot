@@ -102,6 +102,33 @@ def test_source_rules_clean_the_returned_fields_and_classifier_input(classifier)
     assert 0 <= item["language_confidence"] <= 1
 
 
+def test_model_with_its_own_input_is_warmed_up_and_fed_that_input(classifier):
+    calls = []
+
+    class TitleLedeModel(type(classifier)):
+        metadata = {"model_version": "v4-test"}
+
+        def warm_up(self):
+            calls.append("warm-up")
+
+        def input_text(self, title, summary, body):
+            return f"{title}|{summary or body}"
+
+    model = TitleLedeModel()
+    app = create_app(classifier=model, topics=[])
+    assert calls == ["warm-up"]
+
+    response = app.test_client().post(
+        "/v1/classify",
+        json={"items": [{"id": "one", "title": "Match result", "body": "Full match report."}]},
+    )
+
+    assert response.json["model_version"] == "v4-test"
+    assert model.texts == ["Match result|Full match report."]
+    assert response.json["items"][0]["clean_body"] == "Full match report."
+    assert response.json["items"][0]["language"]
+
+
 def test_classify_returns_per_item_error_without_skipping_other_articles(client, classifier):
     response = client.post(
         "/v1/classify",

@@ -949,8 +949,8 @@ def per_class_at_cut(
 class V4Classifier:
     """Cross-fitted calibrated folds, averaged, plus the cut below which it answers `unsorted`.
 
-    It reads `text_for(title, summary)`. The production sidecar sends title and body,
-    so serving this model there needs its own input path first.
+    It reads `text_for(title, lede)`; `serving.SidecarModel` rebuilds that input from
+    a sidecar request, so this model can serve there (roadmap D19).
     """
 
     folds: tuple[CalibratedClassifierCV, ...]
@@ -1335,8 +1335,8 @@ def _model_card(m: dict[str, Any]) -> str:
         f"Reads an article's title and summary and files it under one of {len(m['classes'])} "
         f"topics, or answers `unsorted` when its calibrated confidence is below "
         f"{_fmt(cut['value'])}. It was trained on the title and summary the reviewers labelled, "
-        "not on the body. The production sidecar sends title and body, so this model needs its "
-        "own input path before it can serve there.",
+        "not on the body. The sidecar serves it through `newsmlv4.serving`, which rebuilds "
+        "that input from each article.",
         "",
         "## Data",
         "",

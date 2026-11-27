@@ -7,7 +7,8 @@
 > the body-aware `newsmlv2.serve` bundle is now used by the classifier sidecar
 > (`app/api.py`, configured through `NEWSML_MODEL_DIR`), while `newsrec` serves the
 > separate AFTERLINE recommender. See the [reader guide](../../docs/recommender.md)
-> and [local V4 candidate guide](../../ml-v4/README.md); V4 is not production-promoted.
+> and [V4 guide](../../ml-v4/README.md); the sidecar can serve either bundle, and the
+> owner approved V4 for production on 27 Nov (D19).
 >
 > **Provenance correction — D16, 22 Nov:** the owner confirms that all old and new
 > classifier labels are AI-generated, including those called “human” or “gold” here.

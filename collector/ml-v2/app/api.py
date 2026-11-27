@@ -26,7 +26,11 @@ def create_app(
     max_batch: int | None = None,
     max_request_bytes: int | None = None,
 ) -> Flask:
-    classifier = classifier or serve.load(_model_directory())
+    classifier = classifier or _load_classifier(_model_directory())
+    warm_up = getattr(classifier, "warm_up", None)
+    if warm_up is not None:
+        warm_up()
+    input_text = getattr(classifier, "input_text", None)
     model_version = model_version or _model_version(classifier)
     topics = topics if topics is not None else _topics(_taxonomy_path(), classifier.classes)
     boilerplate_rules = (
@@ -92,7 +96,7 @@ def create_app(
                     "error": "title, summary and body are all empty",
                 }
                 continue
-            texts.append(text)
+            texts.append(input_text(title, summary, body) if input_text else text)
             valid_positions.append(position)
             detected_language, language_confidence = language.detect_language(text)
             response_items[position] = {
@@ -148,10 +152,20 @@ def _model_directory() -> Path:
     return directory
 
 
-def _model_version(classifier: serve.Classifier) -> str:
-    value = classifier.metadata.get("snapshot_id")
+def _load_classifier(directory: Path) -> Any:
+    """The shipped v2 recipe, or a V4 bundle wrapped to answer the same way (roadmap D19)."""
+    loaded = serve.load(directory)
+    if isinstance(loaded, serve.Classifier):
+        return loaded
+    from newsmlv4.serving import SidecarModel  # only a V4 bundle needs the V4 package
+
+    return SidecarModel(loaded)
+
+
+def _model_version(classifier: Any) -> str:
+    value = classifier.metadata.get("snapshot_id") or classifier.metadata.get("model_version")
     if not isinstance(value, str) or not value:
-        raise RuntimeError("model metadata is missing snapshot_id")
+        raise RuntimeError("model metadata is missing snapshot_id or model_version")
     return value
 
 

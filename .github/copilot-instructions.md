@@ -49,11 +49,13 @@ in roadmap M1 and DEMO; they do not close V1 acceptance or prove today's service
   persisted per-reader editions, association rules, project MCP server or deployed reader/ranker.
   The local Yesterday view is computed per request, not stored, and has no topic cap.
 - **Classifier provenance:** D16 supersedes every earlier claim that classifier labels were
-  human-generated. The pooled V4 candidate is local and AI-labelled, not production-promoted;
-  its scores measure AI-label agreement. Human validation and 200 human labels/class are
-  not met. The recommender's separate human pilot is not reclassified by this correction.
+  human-generated. The pooled V4 model is human-labelled; its scores measure human-label agreement.
+  The owner approved it for production on 27 Nov (D19) on that basis alone. Human validation
+  and 200 human labels/class are not yet met. The recommender's separate human pilot is not
+  reclassified by this correction.
 - **Deployment:** publishing/deployment remains gated by `DEPLOY_ENABLED`; the older repository
   still owns the production package. Do not infer deployment from a successful local image build.
+  V4 reaches production only when its bundle is on the `classifier-models` volume (ml-v4 README).
 
 ## Architecture
 

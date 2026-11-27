@@ -1,6 +1,10 @@
 # Classifier V4: local AI-label candidate and future human-review workflow
 
-**Status, 25 Nov 2026:** the pooled AI-label model below is a local candidate only.
+**Status, 27 Nov 2026:** the owner approved the pooled AI-label model below
+(`v4-ai-072b01a9ceaf-hybrid_svc`) for production on 27 Nov (roadmap D19). The sidecar
+serves it through [`serving.py`](src/newsmlv4/serving.py). Production is switched
+only once its bundle is on the `classifier-models` volume and the image is
+redeployed: see [Deploy the V4 classifier](#deploy-the-v4-classifier-d19).
 For future genuine human review, start with the
 [reviewer instructions](reviewer-instructions.md) before editing a new candidate CSV.
 
@@ -11,17 +15,17 @@ artifacts remain private and unchanged; a separate provenance correction records
 their actual origin. Existing classifier scores measure agreement with AI labels,
 not human-validated accuracy.
 
-The owner approved a larger local V4 candidate using usable old and new labels,
+The owner approved a larger V4 model using usable old and new labels,
 including the existing AI-sampled proposal effort. No AI judgement becomes human
-gold. Human validation and the 200 human labels/class target are **not met**, and
-this task does not promote a model to production.
+gold. Human validation and the 200 human labels/class target are **not met**; D19
+promotes the model on AI-label agreement alone, and that limit stays on record.
 
 Private exports, label files, model cards and bundles linked below are local,
-ignored artifacts; they need not exist on a fresh checkout. The production
-sidecar loads the body-aware `newsmlv2` bundle from `NEWSML_MODEL_DIR`
-(`/models/v2-001` in the Coolify compose file), not this V4 candidate.
-V4 uses title+summary and a different response/metadata contract; changing that
-environment variable alone is not a supported promotion.
+ignored artifacts; they need not exist on a fresh checkout. The sidecar loads
+whichever bundle `NEWSML_MODEL_DIR` names: the body-aware `newsmlv2` bundle
+(`/models/v2-001`) or a V4 bundle, which it wraps in `newsmlv4.serving`. V4 reads
+the title and a 400-character lede, so the adapter rebuilds that input from the raw
+article; the `/v1/classify` response contract is unchanged.
 
 ## Pooled AI-label candidate (D16)
 
@@ -75,7 +79,7 @@ machine. The saved bundle was reloaded in a fresh process with the Hub offline,
 and three fictional inference probes passed; this checks operation, not human
 validation. `make ml4-test` passed 75 sampler/verifier tests and 26 trainer/pool
 tests. The model, manifest, split IDs and training log stay private under
-`data/models/v4-ai-072b01a9ceaf/`; production promotion is not approved.
+`data/models/v4-ai-072b01a9ceaf/`; production promotion was approved on 27 Nov (D19).
 
 `ACCEPT_SHORTFALL=1` records any remaining AI-label class deficits as not met; it
 is an owner-approved exception, not the default build path. It does not change
@@ -84,6 +88,38 @@ and manifest explicitly report **AI-label agreement only**. Its calibration and
 confidence cut are provisional on AI labels, not a demonstrated probability of
 being correct against human judgement. The new model saves its development/test
 IDs, and cannot reopen the same corpus's test split.
+
+## Deploy the V4 classifier (D19)
+
+The repository is prepared; the production steps are the owner's. The model is
+`data/models/v4-ai-072b01a9ceaf/bundle.joblib` (44.5 MB, SHA-256
+`61cbaa89016d1acd88473cad2cf59cec69e74177aabe123bafa0a9c9f6c22fde`).
+
+1. Copy that file to `/models/v4-ai-072b01a9ceaf/bundle.joblib` on the external
+   `classifier-models` volume and set `NEWS_CLASSIFIER_MODEL_SHA256` to the hash
+   above. The container refuses any other file.
+2. Publish the classifier image and redeploy; publishing stays gated by
+   `DEPLOY_ENABLED`. The image now carries CPU torch, sentence-transformers and the
+   MiniLM encoder (revision pinned by the trainer), fetched at build time and used
+   offline. The compose file allows 1.5 GB of memory and a 120 s start-up.
+3. Confirm `GET /v1/meta` (with the classifier key) reports
+   `model_version` `v4-ai-072b01a9ceaf-hybrid_svc` and 14 topics.
+4. Relabel existing articles: `make backfill-reclassify BACKFILL_LIMIT=<n>`, repeated
+   until `updated` is 0. It relabels whatever the sidecar's model differs from, in
+   bounded batches that can be rerun. It writes only `topic`, `confidence`,
+   `model_version`, `classification_status` and `classified_at`, never article text.
+   A topic-only change does not move `updated_at` or `content_rev`, so anything that
+   waits on those, such as a future incremental indexer, does not see relabelled
+   articles.
+5. To roll back, point `NEWSML_MODEL_DIR` and the hash at `v2-001` on the same volume
+   and rerun step 4. The sidecar serves either bundle.
+
+Measured locally on 27 Nov (macOS arm64, Python 3.13, the image's pinned
+requirements, offline encoder cache): start-up with model load and encoder warm-up
+6.6 s (about 20 s on a cold first run); a 50-article batch of long bodies 0.83 s;
+worker memory 702 MB after warm-up and 893 MB at peak. **Not measured:** the Linux
+image build and size, and its memory and latency with the single CPU thread the
+image sets, against the Go collector's 10 s classifier timeout.
 
 ## Candidate sampler
 
@@ -278,9 +314,8 @@ on the primary corpus's out-of-fold labels, with at least 50 retained examples.
 For the pooled path, all those labels are AI-generated; meeting the AI-label
 count or precision target does not meet the human target.
 
-The model reads title and summary. The production sidecar uses title and body
-(summary only as a fallback), so serving V4 needs a separate, owner-approved
-input and API-contract promotion task. Preserve every existing held-out split
+The model reads title and summary; the sidecar's V4 adapter rebuilds that input
+from each article (D19). Preserve every existing held-out split
 and its recorded opening; do not tune on it, re-open it for another selection,
 or describe model predictions as gold. Existing classifier held-out labels
 are AI-generated under D16, not human acceptance cases.

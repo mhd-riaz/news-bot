@@ -16,8 +16,8 @@ human-validated accuracy. Human validation and 200 human labels per class are
 **not met**. This correction does not change the separate recommender human pilot.
 
 For current work, use the [roadmap](../docs/roadmap.md). The body-aware serving
-implementation is in [`ml-v2`](../ml-v2/src/newsmlv2/serve.py), the unpromoted
-pooled AI-label candidate is documented in [`ml-v4`](../ml-v4/README.md), and
+implementation is in [`ml-v2`](../ml-v2/src/newsmlv2/serve.py), the pooled AI-label
+V4 model (approved for production on 27 Nov, D19) is documented in [`ml-v4`](../ml-v4/README.md), and
 reader/demo commands are in the [recommender guide](../docs/recommender.md).
 
 ## 1. The five-minute mental model
@@ -180,9 +180,9 @@ modelled, and scored.
   matters, not accuracy — with 13 imbalanced classes, accuracy rewards
   ignoring the small ones.
 - **Reproducing the legacy bundle?** `newsml train`, not the notebook. It
-  also picks per-class confidence thresholds. Current body-aware serving uses
-  `newsmlv2`; the separate V4 candidate uses `make ml4-train` and has no
-  production promotion. Calibration against AI labels is not human validation.
+  also picks per-class confidence thresholds. Body-aware serving uses
+  `newsmlv2`; the V4 model the sidecar is approved to serve (D19) is trained with
+  `make ml4-train`. Calibration against AI labels is not human validation.
 
 ## 6. Where to read more
 
