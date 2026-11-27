@@ -149,7 +149,8 @@ In the Linux arm64 image, 27 Nov 2026 (Python 3.12, one CPU, roadmap RS2): the i
 is 2.11 GB (491 MB compressed). It was ready about 10 s after start. Memory was
 582 MiB after warm-up and 626 MiB after six 50-story batches. A batch of 50 short
 made-up stories took 2.19–2.68 s (median 2.25 s over five runs). That is inside the
-collector's 10-second limit.
+collector's 10-second limit. With the whole app running on 27 Nov (Docker Compose and
+k3s, roadmap RS6/RS7), the classifier used 0.75–0.98 GB, under its 1.5 GB limit.
 
 **Not measured:** the amd64 image that CI builds.
 

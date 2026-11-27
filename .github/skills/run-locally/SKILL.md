@@ -36,4 +36,4 @@ Every port listens on 127.0.0.1 only.
 - Settings come from `deployment/env/local.env`. Never print, paste or commit its values.
 - The collector writes to the database it is given. Only run it against a database on this computer.
 - If a service is unhealthy, read its log with `./run.sh logs <service>` before changing code. Find the real error first.
-- The classifier needs its model file. `run.sh` downloads it with `python3 ml/scripts/download_models.py`, which needs `gh auth login` or a `GITHUB_TOKEN` with read access to the private `mhd-riaz/news-bot-archive` repository.
+- The classifier needs its model file. `run.sh` downloads it (by hand: `make -C ml models`, which uses uv's Python 3.12), and that needs `gh auth login` or a `GITHUB_TOKEN` with read access to the private `mhd-riaz/news-bot-archive` repository.

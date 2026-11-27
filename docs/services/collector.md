@@ -31,8 +31,8 @@ Many collector commands **write** to the database they are pointed at. Never run
 against the production database by mistake.
 
 These Make commands write: `make run`, `make migrate`, `make seed`, `make collect`,
-`make collect-source`, `make scrape`, `make scrape-limit`, `make backfill`,
-`make backfill-reclassify` and `make up`.
+`make collect-source`, `make scrape`, `make scrape-limit`, `make backfill` and
+`make backfill-reclassify`.
 
 How a command finds its settings file:
 
@@ -124,10 +124,7 @@ Run these from `collector/`. `make help` lists them all.
 | `make scrape-limit LIMIT=10` | One full-text batch of the size you give | Yes |
 | `make backfill` | Fills missing C1 fields, in batches. Change the size with `BACKFILL_LIMIT` and `BACKFILL_DELAY` | Yes |
 | `make backfill-reclassify` | Relabels articles that carry another model's topic | Yes |
-| `make up` | Runs `docker compose up --build -d` on the laptop file [`deployment/compose/compose.yaml`](../../deployment/compose/compose.yaml), without your settings file. The collector then gets no API key and refuses to start, unless the key is set in your shell. Use `./run.sh` instead | Yes |
-| `make logs` | Follows the Compose service `api`. The laptop Compose file now calls it `collector`, so this fails; use `./run.sh logs collector` | No |
 | `make mongo-up` | Starts only MongoDB in Compose | No |
-| `make down` | Stops Compose **and deletes its database volume**. That is the same laptop database `./run.sh` uses | Deletes the laptop database |
 | `make clean` | Deletes `bin/` and coverage files | No |
 
 ## Settings

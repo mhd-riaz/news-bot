@@ -104,18 +104,6 @@ backfill: ## Fill missing C1 article fields in bounded, resumable batches
 backfill-reclassify: ## Relabel articles that carry another model's topic with the sidecar's current model (writes the configured database)
 	$(RUN_ENV) go run ./cmd/backfill -config $(CONFIG) -reclassify -limit $(BACKFILL_LIMIT) -delay $(BACKFILL_DELAY)
 
-.PHONY: up
-up: ## Build and start the configured Compose services; the collector writes to its database
-	$(COMPOSE) up --build -d
-
-.PHONY: down
-down: ## Stop the stack and remove its volumes
-	$(COMPOSE) down -v
-
-.PHONY: logs
-logs: ## Follow the API logs
-	$(COMPOSE) logs -f api
-
 .PHONY: mongo-up
 mongo-up: ## Start only MongoDB, for local test runs
 	$(COMPOSE) up -d mongo

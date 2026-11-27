@@ -118,20 +118,22 @@ jobs:
       - name: Helm chart
         run: |
           helm version --short
-          for values in values-home.yaml values-local.yaml; do
+          for values in values.yaml values-home.yaml values-local.yaml; do
             helm lint deployment/helm/news-bot -f "deployment/helm/news-bot/$values"
             helm template news-bot deployment/helm/news-bot -f "deployment/helm/news-bot/$values" > /dev/null
           done
       - name: Compose files
         run: |
           docker compose -f deployment/compose/compose.yaml config --quiet
+          docker compose -f deployment/compose/compose.yaml --profile mcp config --quiet
+          docker compose -f deployment/compose/compose.yaml -f deployment/compose/compose.external-mongo.yaml config --quiet
           # The production file needs its required values; dummy ones only prove it parses.
           NEWS_CLASSIFIER_API_KEY=x NEWS_CLASSIFIER_MODEL_SHA256=x NEWS_MONGO_COLLECTOR_PASSWORD=x \
           NEWS_AUTH_API_KEYS=x NEWS_AUTH_BASIC_USERNAME=x NEWS_AUTH_BASIC_PASSWORD=x \
           SERVICE_USER_MONGO=x SERVICE_PASSWORD_64_MONGO=x \
             docker compose -f deployment/compose/coolify.compose.yml config --quiet
-      - name: run.sh syntax
-        run: bash -n run.sh
+      - name: Shell script syntax
+        run: for script in run.sh deployment/helm/copy-snapshot.sh; do bash -n "$script"; done
       - name: Database user script test
         run: node --test deployment/mongo/mongo-users.test.mjs
 

@@ -69,8 +69,7 @@ token that can.
    It downloads the classifier model, builds the parts and starts them in Docker,
    with a database on your own computer. Add `--mcp` to also start the MCP program.
    `./run.sh status`, `./run.sh logs <service>` and `./run.sh stop` do what their
-   names say. `run.sh` is still being finished (roadmap task RS7). If this page and
-   `./run.sh help` disagree, trust `./run.sh help`.
+   names say. If this page and `./run.sh help` ever disagree, trust `./run.sh help`.
 
 5. **Open the reader** at <http://127.0.0.1:8090/>.
 
