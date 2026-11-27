@@ -1,0 +1,2 @@
+{{- /* Stops `helm install`, `upgrade` and `template` when settings are unsafe together. */ -}}
+{{- include "news-bot.checks" . -}}

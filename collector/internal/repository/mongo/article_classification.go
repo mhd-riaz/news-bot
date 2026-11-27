@@ -10,8 +10,8 @@ import (
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/repository"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/repository"
 )
 
 // ClaimForClassification atomically takes the oldest pending article.

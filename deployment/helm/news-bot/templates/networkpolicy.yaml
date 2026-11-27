@@ -1,0 +1,97 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $fullname := include "news-bot.fullname" . }}
+# Network rules (k3s enforces them). Traffic from the node itself, such as health
+# probes and `kubectl port-forward`, is always allowed.
+#
+# Only the collector may call the classifier.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullname }}-classifier
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "classifier") | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "news-bot.selectorLabels" (dict "root" $ "component" "classifier") | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "news-bot.selectorLabels" (dict "root" $ "component" "collector") | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+# Only the web app and the MCP program may call the ranker.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullname }}-ranker
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "ranker") | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "news-bot.selectorLabels" (dict "root" $ "component" "ranker") | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "news-bot.name" . }}
+              app.kubernetes.io/instance: {{ .Release.Name }}
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: [web, mcp]
+      ports:
+        - protocol: TCP
+          port: 8001
+{{- if .Values.mongo.enabled }}
+---
+# Only this app's own pods may open the database.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullname }}-mongo
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "mongo") | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "news-bot.selectorLabels" (dict "root" $ "component" "mongo") | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "news-bot.name" . }}
+              app.kubernetes.io/instance: {{ .Release.Name }}
+            matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values: [collector, web, mcp, mongo-users]
+      ports:
+        - protocol: TCP
+          port: 27017
+{{- end }}
+{{- if not .Values.web.signIn }}
+---
+# Sign-in is off (a test on your own computer): no other pod may reach the web
+# app. Only `kubectl port-forward`, which runs on the node, gets through.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $fullname }}-web
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "web") | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "news-bot.selectorLabels" (dict "root" $ "component" "web") | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress: []
+{{- end }}
+{{- end }}

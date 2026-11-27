@@ -1,0 +1,41 @@
+{
+	"name": "afterline-frontend",
+	"version": "0.1.0",
+	"private": true,
+	"description": "AFTERLINE reader: the React app that replaces the Go reader's Stories page.",
+	"license": "MIT",
+	"type": "module",
+	"engines": {
+		"node": "^22.22.2 || ^24.15.0 || >=26.0.0"
+	},
+	"scripts": {
+		"dev": "vite",
+		"dev:mock": "vite --mode mock",
+		"build": "vite build",
+		"preview": "vite preview",
+		"preview:mock": "vite preview --mode mock",
+		"check": "biome check --error-on-warnings",
+		"lint": "biome lint --error-on-warnings",
+		"format": "biome format --write",
+		"typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.node.json",
+		"test": "vitest run",
+		"ci": "biome ci --error-on-warnings && npm run typecheck && npm test && npm run build"
+	},
+	"dependencies": {
+		"react": "19.3.1",
+		"react-dom": "19.3.1"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.6.9",
+		"@testing-library/dom": "10.4.2",
+		"@testing-library/react": "16.3.3",
+		"@testing-library/user-event": "14.6.13",
+		"@types/node": "26.6.11",
+		"@types/react": "19.3.3",
+		"@types/react-dom": "19.3.0",
+		"jsdom": "31.0.1",
+		"typescript": "7.0.2",
+		"vite": "8.4.0",
+		"vitest": "5.1.2"
+	}
+}

@@ -4,6 +4,7 @@ package classifier
 import (
 	"context"
 	"errors"
+	"fmt"
 )
 
 var (
@@ -24,6 +25,19 @@ type Client interface {
 	// caller with more items than that can split them into several calls.
 	BatchSize() int
 }
+
+// ItemError lists the items the service declined to classify, for example because
+// every text field was empty. Classify returns it instead of results, so a caller
+// can drop these items and resubmit the rest; it matches ErrBadResponse.
+type ItemError struct {
+	IDs []string
+}
+
+func (e *ItemError) Error() string {
+	return fmt.Sprintf("%v: %d items could not be classified", ErrBadResponse, len(e.IDs))
+}
+
+func (*ItemError) Is(target error) bool { return target == ErrBadResponse }
 
 // Item is the article data accepted by the classifier API.
 type Item struct {

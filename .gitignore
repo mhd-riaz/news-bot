@@ -20,7 +20,11 @@ __pycache__/
 
 # ml stuff
 **/*.joblib
-/collector/ml-v4/data/
+# Downloaded model files (ml/models.toml), locally built outputs, and the local
+# working data of the closed classifier studies (article text and private labels).
+/ml/models/
+/ml/artifacts/
+/ml/data/
 
 # backup files
 **/*.bak
@@ -29,7 +33,7 @@ __pycache__/
 **/*.csv
 **/*.xml
 **/*.gz
-!collector/fixtures/*.xml
+!collector/testdata/*.xml
 **/*.zip
 **/*.pptx
 **/*.ppt
@@ -266,3 +270,14 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# run.sh's own working files: logs, a lock, and test copies.
+/.run/
+
+# One env file per environment lives in deployment/env/. Only the .example
+# templates and the README are committed; the filled-in files hold passwords
+# and keys. This block stays last so it overrides the env/ and ENV/ rules above.
+!/deployment/env/
+/deployment/env/*
+!/deployment/env/*.env.example
+!/deployment/env/README.md

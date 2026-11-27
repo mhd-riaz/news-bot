@@ -35,10 +35,10 @@ func TestCollectionsAreUnique(t *testing.T) {
 		seen[name] = struct{}{}
 	}
 
-	if len(seen) != 6 {
-		t.Errorf("expected 6 collections, got %d", len(seen))
+	if len(seen) != 8 {
+		t.Errorf("expected 8 collections, got %d", len(seen))
 	}
-	for _, want := range []string{"sources", "articles", "collection_runs", "feed_cache_metadata", "application_locks", "read_events"} {
+	for _, want := range []string{"sources", "articles", "collection_runs", "feed_cache_metadata", "application_locks", "read_events", "readers", "reader_sessions"} {
 		if _, ok := seen[want]; !ok {
 			t.Errorf("missing required collection %q", want)
 		}
@@ -269,6 +269,66 @@ func TestLockCollectionHasTTLIndex(t *testing.T) {
 		}
 	}
 	t.Fatal("application_locks needs a TTL index so abandoned leases expire")
+}
+
+// Sign-in looks invites up by email and binds one Google account per reader;
+// sessions expire by TTL and are ended per reader on revoke (roadmap C8, C10).
+func TestReaderCollectionsEnforceInvitesAndExpireSessions(t *testing.T) {
+	type spec struct {
+		keys    bson.D
+		unique  bool
+		partial bool
+		ttl     *int32
+	}
+	zero := int32(0)
+	want := map[string]map[string]spec{
+		CollectionReaders: {
+			"uq_email":      {keys: bson.D{{Key: "email", Value: 1}}, unique: true},
+			"uq_google_sub": {keys: bson.D{{Key: "google_sub", Value: 1}}, unique: true, partial: true},
+		},
+		CollectionReaderSessions: {
+			"ttl_expires_at": {keys: bson.D{{Key: "expires_at", Value: 1}}, ttl: &zero},
+			"ix_reader":      {keys: bson.D{{Key: "reader_id", Value: 1}}},
+		},
+	}
+	for _, ci := range IndexPlan() {
+		expected, ok := want[ci.Collection]
+		if !ok {
+			continue
+		}
+		for _, m := range ci.Models {
+			opts := resolveOptions(t, m)
+			if opts.Name == nil {
+				continue
+			}
+			exp, ok := expected[*opts.Name]
+			if !ok {
+				t.Errorf("%s: unexpected index %q", ci.Collection, *opts.Name)
+				continue
+			}
+			delete(expected, *opts.Name)
+			if got, wantKeys := fmt.Sprint(m.Keys), fmt.Sprint(exp.keys); got != wantKeys {
+				t.Errorf("%s.%s keys = %s, want %s", ci.Collection, *opts.Name, got, wantKeys)
+			}
+			if unique := opts.Unique != nil && *opts.Unique; unique != exp.unique {
+				t.Errorf("%s.%s unique = %v, want %v", ci.Collection, *opts.Name, unique, exp.unique)
+			}
+			if partial := opts.PartialFilterExpression != nil; partial != exp.partial {
+				t.Errorf("%s.%s partial = %v, want %v", ci.Collection, *opts.Name, partial, exp.partial)
+			}
+			if (opts.ExpireAfterSeconds == nil) != (exp.ttl == nil) ||
+				(exp.ttl != nil && *opts.ExpireAfterSeconds != *exp.ttl) {
+				t.Errorf("%s.%s TTL = %v, want %v", ci.Collection, *opts.Name, opts.ExpireAfterSeconds, exp.ttl)
+			}
+		}
+		for name := range expected {
+			t.Errorf("%s is missing index %q", ci.Collection, name)
+		}
+		delete(want, ci.Collection)
+	}
+	for collection := range want {
+		t.Errorf("index plan has no entry for %s", collection)
+	}
 }
 
 func TestConnectRejectsIncompleteSettings(t *testing.T) {

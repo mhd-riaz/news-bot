@@ -1,0 +1,52 @@
+{{- if .Values.ingress.enabled }}
+{{- $fullname := include "news-bot.fullname" . }}
+{{- $webHost := (urlParse (required "web.publicUrl is required when ingress.enabled is true" .Values.web.publicUrl)).host }}
+# An optional Ingress, for clusters that publish web sites through an ingress
+# controller (k3s ships Traefik). Not needed with the Cloudflare Tunnel.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullname }}
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "ingress") | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- if .Values.ingress.tlsSecretName }}
+  tls:
+    - secretName: {{ .Values.ingress.tlsSecretName }}
+      hosts:
+        - {{ $webHost | quote }}
+        {{- if and .Values.mcp.enabled .Values.mcp.publicHost }}
+        - {{ .Values.mcp.publicHost | quote }}
+        {{- end }}
+  {{- end }}
+  rules:
+    - host: {{ $webHost | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullname }}-web
+                port:
+                  name: http
+    {{- if and .Values.mcp.enabled .Values.mcp.publicHost }}
+    - host: {{ .Values.mcp.publicHost | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $fullname }}-mcp
+                port:
+                  name: http
+    {{- end }}
+{{- end }}

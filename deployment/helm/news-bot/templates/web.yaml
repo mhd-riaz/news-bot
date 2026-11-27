@@ -1,0 +1,105 @@
+{{- $fullname := include "news-bot.fullname" . }}
+# The web app: the reader's React pages, their API and Google sign-in.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-web
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "web") | nindent 4 }}
+spec:
+  selector:
+    {{- include "news-bot.selectorLabels" (dict "root" $ "component" "web") | nindent 4 }}
+  ports:
+    - name: http
+      port: 8090
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-web
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "web") | nindent 4 }}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      {{- include "news-bot.selectorLabels" (dict "root" $ "component" "web") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "news-bot.labels" (dict "root" $ "component" "web") | nindent 8 }}
+    spec:
+      {{- include "news-bot.podBasics" . | nindent 6 }}
+      {{- include "news-bot.podSecurity" (dict) | nindent 6 }}
+      initContainers:
+        {{- include "news-bot.waitForMongo" (dict "root" $ "user" "reader") | nindent 8 }}
+      containers:
+        - name: web
+          image: {{ include "news-bot.image" (dict "root" $ "image" .Values.web.image) }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          env:
+            {{- include "news-bot.mongoLoginEnv" (dict "root" $ "user" "reader" "uriVar" "NEWS_MONGO_URI") | nindent 12 }}
+            - name: NEWS_MONGO_DATABASE
+              value: {{ .Values.mongo.database | quote }}
+            - name: NEWS_APP_ENVIRONMENT
+              value: {{ .Values.environment | quote }}
+            - name: NEWS_SERVER_HOST
+              value: "0.0.0.0"
+            - name: NEWS_SERVER_PORT
+              value: "8090"
+            {{- with .Values.web.publicUrl }}
+            - name: NEWS_PUBLIC_URL
+              value: {{ . | quote }}
+            {{- end }}
+            - name: NEWS_AUTH_ENABLED
+              value: {{ .Values.web.signIn | toString | quote }}
+            {{- if not .Values.web.signIn }}
+            # Allowed only in development (checked by the chart and the app). The
+            # Service is reachable only inside the cluster, and the network policy
+            # lets no other pod in, so only `kubectl port-forward` reaches it.
+            - name: NEWS_AUTH_TRUST_PUBLISHED_LOOPBACK
+              value: "true"
+            {{- end }}
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "NEWS_GOOGLE_CLIENT_ID" "optional" true) | nindent 12 }}
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "NEWS_GOOGLE_CLIENT_SECRET" "optional" true) | nindent 12 }}
+            - name: NEWS_SESSION_IDLE_TIMEOUT
+              value: {{ .Values.web.sessionIdleTimeout | quote }}
+            - name: NEWS_SESSION_ABSOLUTE_TIMEOUT
+              value: {{ .Values.web.sessionAbsoluteTimeout | quote }}
+            - name: NEWS_RECOMMENDER_ENDPOINT
+              value: "http://{{ $fullname }}-ranker:8001"
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "NEWS_RECOMMENDER_API_KEY") | nindent 12 }}
+            - name: NEWS_LOGGING_LEVEL
+              value: {{ .Values.logging.level | quote }}
+            - name: NEWS_LOGGING_FORMAT
+              value: {{ .Values.logging.format | quote }}
+            {{- with .Values.web.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 8090
+          {{- include "news-bot.containerSecurity" . | nindent 10 }}
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+          # Ready means MongoDB and the ranker both answer.
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

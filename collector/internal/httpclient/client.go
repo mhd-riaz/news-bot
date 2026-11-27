@@ -49,7 +49,7 @@ const (
 	DefaultTimeout          = 20 * time.Second
 	DefaultMaxResponseBytes = 10 << 20 // 10 MiB
 	DefaultMaxRedirects     = 5
-	DefaultUserAgent        = "news-collector/1.0 (+https://github.com/riaz/newscollector)"
+	DefaultUserAgent        = "news-collector/1.0 (+https://github.com/mhd-riaz/news-bot)"
 
 	dialTimeout           = 5 * time.Second
 	tlsHandshakeTimeout   = 10 * time.Second

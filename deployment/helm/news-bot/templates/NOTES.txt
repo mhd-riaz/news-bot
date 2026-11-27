@@ -1,0 +1,53 @@
+{{- $fullname := include "news-bot.fullname" . -}}
+{{- $ns := .Release.Namespace -}}
+news-bot is installed as "{{ .Release.Name }}" in the namespace "{{ $ns }}".
+
+1. Watch the pods start (Ctrl+C to stop watching):
+
+     kubectl -n {{ $ns }} get pods -w
+
+   The first start takes a few minutes: MongoDB starts{{ if .Values.mongo.users.enabled }}, the users job makes the
+   database logins{{ end }}, and the classifier downloads its model (it needs GITHUB_TOKEN in
+   the Secret "{{ .Values.secret.name }}" the first time).
+
+2. Give the ranker a snapshot. It waits, and is not ready, until it has one.
+   Build a snapshot on a computer that can read this database (for example with
+   ./run.sh refresh, or make -C ml demo-refresh), then copy it in:
+
+     deployment/helm/copy-snapshot.sh ml/artifacts/recommender/<snapshot> {{ $ns }} {{ .Release.Name }}
+
+3. Open the reader app.
+{{- if .Values.web.signIn }}
+{{- if .Values.web.publicUrl }}
+   Readers open {{ .Values.web.publicUrl }} and sign in with Google.
+{{- else }}
+   WARNING: web.publicUrl is empty, so the web app will refuse to start with
+   sign-in on. Set it to the address readers open, then run helm upgrade again.
+{{- end }}
+   Only invited readers can sign in. Invite one (see the chart README, "Invite readers"):
+
+     kubectl -n {{ $ns }} port-forward svc/{{ $fullname }}-mongo 27018:27017
+     cd server && NEWS_ENV_FILE=../deployment/env/home.env uv run newsbot-server readers invite someone@example.com
+{{- else }}
+   Sign-in is OFF (a test only). Reach the app from this computer with:
+
+     kubectl -n {{ $ns }} port-forward svc/{{ $fullname }}-web 18090:8090
+
+   and open http://127.0.0.1:18090/
+{{- end }}
+{{- if .Values.cloudflared.enabled }}
+
+4. Cloudflare Tunnel. In the Cloudflare Zero Trust dashboard, give the tunnel these
+   public host names (Networks > Tunnels > your tunnel > Public hostnames):
+     web app:     {{ if .Values.web.publicUrl }}{{ (urlParse .Values.web.publicUrl).host }}{{ else }}<your web host>{{ end }}  ->  http://{{ $fullname }}-web.{{ $ns }}.svc.cluster.local:8090
+{{- if .Values.mcp.enabled }}
+     MCP program: {{ .Values.mcp.publicHost | default "<your MCP host>" }}  ->  http://{{ $fullname }}-mcp.{{ $ns }}.svc.cluster.local:8091
+{{- end }}
+{{- end }}
+
+Health checks from this computer, one at a time:
+
+  kubectl -n {{ $ns }} port-forward svc/{{ $fullname }}-collector 18080:8080   # then curl http://127.0.0.1:18080/health/ready
+
+Uninstalling keeps the database disk (data-{{ $fullname }}-mongo-0). Delete it on
+purpose only:  kubectl -n {{ $ns }} delete pvc data-{{ $fullname }}-mongo-0

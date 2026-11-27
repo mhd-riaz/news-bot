@@ -11,13 +11,13 @@ import (
 	"github.com/google/uuid"
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
 
-	"github.com/riaz/newscollector/internal/classifier"
-	"github.com/riaz/newscollector/internal/collector/rss"
-	"github.com/riaz/newscollector/internal/config"
-	"github.com/riaz/newscollector/internal/httpclient"
-	"github.com/riaz/newscollector/internal/processor"
-	mongorepo "github.com/riaz/newscollector/internal/repository/mongo"
-	"github.com/riaz/newscollector/internal/service"
+	"github.com/mhd-riaz/news-bot/collector/internal/classifier"
+	"github.com/mhd-riaz/news-bot/collector/internal/collector/rss"
+	"github.com/mhd-riaz/news-bot/collector/internal/config"
+	"github.com/mhd-riaz/news-bot/collector/internal/httpclient"
+	"github.com/mhd-riaz/news-bot/collector/internal/processor"
+	mongorepo "github.com/mhd-riaz/news-bot/collector/internal/repository/mongo"
+	"github.com/mhd-riaz/news-bot/collector/internal/service"
 )
 
 // NewCollectionService wires a collection service against db.

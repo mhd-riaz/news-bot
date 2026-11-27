@@ -20,8 +20,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"gopkg.in/yaml.v3"
 
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/mongodb"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/mongodb"
 )
 
 // maxSourcesFileBytes caps the seed file. It is operator-supplied, but a runaway

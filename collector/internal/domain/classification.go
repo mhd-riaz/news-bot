@@ -47,6 +47,16 @@ type ClassificationResult struct {
 	ClaimedAt          time.Time
 }
 
+// Reclassification is the narrow topic outcome written when a newer model
+// relabels an article that is already classified or unsorted.
+type Reclassification struct {
+	Status       ClassificationStatus
+	Topic        string
+	Confidence   float64
+	ModelVersion string
+	At           time.Time
+}
+
 // ClassificationClaim selects the next pending article and stamps its claim.
 type ClassificationClaim struct {
 	Now            time.Time

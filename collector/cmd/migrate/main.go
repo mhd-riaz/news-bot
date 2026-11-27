@@ -10,10 +10,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/riaz/newscollector/internal/bootstrap"
-	"github.com/riaz/newscollector/internal/config"
-	"github.com/riaz/newscollector/internal/mongodb"
-	"github.com/riaz/newscollector/internal/observability"
+	"github.com/mhd-riaz/news-bot/collector/internal/bootstrap"
+	"github.com/mhd-riaz/news-bot/collector/internal/config"
+	"github.com/mhd-riaz/news-bot/collector/internal/mongodb"
+	"github.com/mhd-riaz/news-bot/collector/internal/observability"
 )
 
 func main() {

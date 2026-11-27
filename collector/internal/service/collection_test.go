@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/riaz/newscollector/internal/collector/rss"
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/httpclient"
-	"github.com/riaz/newscollector/internal/processor"
-	"github.com/riaz/newscollector/internal/repository"
+	"github.com/mhd-riaz/news-bot/collector/internal/collector/rss"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/httpclient"
+	"github.com/mhd-riaz/news-bot/collector/internal/processor"
+	"github.com/mhd-riaz/news-bot/collector/internal/repository"
 )
 
 // fakeRunRepo records the runs the service writes.

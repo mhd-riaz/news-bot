@@ -6,15 +6,7 @@ backfill
 **/.pytest_cache
 **/bin
 **/coverage.out
-**/*.joblib
-**/*.keras
-**/*.ipynb
-docs/
-fixtures/
-ml/
-ml-v2/artifacts/
-ml-v2/data/
-ml-v2/notebooks/
-ml-v2/reports/
-ml-v2/tests/
-submission/
+testdata/
+# Env files hold secrets and never belong in a build context.
+**/.env*
+**/*.env

@@ -1,0 +1,99 @@
+{{- if .Values.mcp.enabled }}
+{{- $fullname := include "news-bot.fullname" . }}
+{{- $service := printf "%s-mcp" $fullname }}
+{{- $hosts := list (printf "%s:8091" $service) (printf "%s.%s:8091" $service .Release.Namespace) (printf "%s.%s.svc:8091" $service .Release.Namespace) (printf "%s.%s.svc.cluster.local:8091" $service .Release.Namespace) }}
+{{- with .Values.mcp.publicHost }}
+{{- $hosts = concat $hosts (list . (printf "%s:*" .)) }}
+{{- end }}
+{{- $hosts = concat $hosts .Values.mcp.allowedHosts }}
+# The MCP program: read-only tools for AI agents at /mcp. Every call needs an
+# agent key (NEWS_MCP_API_KEYS). It logs in to MongoDB as "mcp", which may only
+# read articles, and it refuses to start if that login could write.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $service }}
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "mcp") | nindent 4 }}
+spec:
+  selector:
+    {{- include "news-bot.selectorLabels" (dict "root" $ "component" "mcp") | nindent 4 }}
+  ports:
+    - name: http
+      port: 8091
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $service }}
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "mcp") | nindent 4 }}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      {{- include "news-bot.selectorLabels" (dict "root" $ "component" "mcp") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "news-bot.labels" (dict "root" $ "component" "mcp") | nindent 8 }}
+    spec:
+      {{- include "news-bot.podBasics" . | nindent 6 }}
+      {{- include "news-bot.podSecurity" (dict) | nindent 6 }}
+      initContainers:
+        {{- include "news-bot.waitForMongo" (dict "root" $ "user" "mcp") | nindent 8 }}
+      containers:
+        - name: mcp
+          image: {{ include "news-bot.image" (dict "root" $ "image" .Values.web.image) }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command: ["newsbot-mcp"]
+          env:
+            {{- include "news-bot.mongoLoginEnv" (dict "root" $ "user" "mcp" "uriVar" "NEWS_MCP_MONGO_URI") | nindent 12 }}
+            - name: NEWS_MONGO_DATABASE
+              value: {{ .Values.mongo.database | quote }}
+            - name: NEWS_APP_ENVIRONMENT
+              value: {{ .Values.environment | quote }}
+            - name: NEWS_MCP_HOST
+              value: "0.0.0.0"
+            - name: NEWS_MCP_PORT
+              value: "8091"
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "NEWS_MCP_API_KEYS") | nindent 12 }}
+            - name: NEWS_MCP_RATE_LIMIT
+              value: {{ .Values.mcp.rateLimit | toString | quote }}
+            # The Host names the program answers to (protection against DNS rebinding).
+            - name: NEWS_MCP_ALLOWED_HOSTS
+              value: {{ join "," $hosts | quote }}
+            - name: NEWS_RECOMMENDER_ENDPOINT
+              value: "http://{{ $fullname }}-ranker:8001"
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "NEWS_RECOMMENDER_API_KEY") | nindent 12 }}
+            - name: NEWS_LOGGING_LEVEL
+              value: {{ .Values.logging.level | quote }}
+            - name: NEWS_LOGGING_FORMAT
+              value: {{ .Values.logging.format | quote }}
+          ports:
+            - name: http
+              containerPort: 8091
+          {{- include "news-bot.containerSecurity" . | nindent 10 }}
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.mcp.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+{{- end }}

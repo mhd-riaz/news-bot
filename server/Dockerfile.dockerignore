@@ -1,0 +1,16 @@
+# Used by `docker build -f server/Dockerfile .` (context = repository root).
+# Send only what the image needs. Env files, keys and local data never go in.
+*
+!frontend
+frontend/node_modules
+frontend/dist
+frontend/coverage
+!server/pyproject.toml
+!server/uv.lock
+!server/README.md
+!server/src
+**/__pycache__
+**/.env*
+**/*.env
+**/*.pem
+**/*.key

@@ -4,13 +4,13 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/riaz/newscollector/internal/observability"
+	"github.com/mhd-riaz/news-bot/collector/internal/observability"
 )
 
 // NewRouter wires every route the API serves. A nil auth leaves the API
-// unguarded, which the configuration layer permits only outside production. A
-// nil pages leaves the process a pure API with no reader-facing site.
-func NewRouter(health *Health, sources *Source, runs *CollectionRun, articles *Article, pages http.Handler, auth *Authenticator, logger *slog.Logger) http.Handler {
+// unguarded, which the configuration layer permits only outside production.
+// The process is a pure API; the reader site is the separate Python server.
+func NewRouter(health *Health, sources *Source, runs *CollectionRun, articles *Article, auth *Authenticator, logger *slog.Logger) http.Handler {
 	// The guarded routes live on their own mux, so what auth covers is decided by
 	// which handlers are registered here rather than by matching the request path
 	// twice — once in the middleware and once in the router.
@@ -48,14 +48,7 @@ func NewRouter(health *Health, sources *Source, runs *CollectionRun, articles *A
 
 	mux.Handle("/api/v1/", auth.Require(api))
 
-	// The reader-facing site sits behind the same credentials as the API, so
-	// there is no second authentication path to get wrong. It takes everything
-	// the API did not claim, including its own 404 page.
-	if pages != nil {
-		mux.Handle("/", auth.Require(pages))
-	} else {
-		mux.HandleFunc("/", notFound)
-	}
+	mux.HandleFunc("/", notFound)
 
 	return observability.Chain(mux,
 		observability.RequestID,

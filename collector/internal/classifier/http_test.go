@@ -114,6 +114,23 @@ func TestClassifyRejectsInvalidLanguageConfidence(t *testing.T) {
 	}
 }
 
+func TestClassifyReportsDeclinedItemsWithoutDroppingTheContract(t *testing.T) {
+	client := newTestClient(t, func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"model_version":"v2-001","items":[` +
+			`{"id":"a","clean_title":"t","clean_summary":"s","clean_body":"b","language":"en","language_confidence":0.9,"topic":"politics","confidence":0.9,"filed":true},` +
+			`{"id":"b","error":"title, summary and body are all empty"}]}`))
+	})
+	_, err := client.Classify(t.Context(), []Item{{ID: "a"}, {ID: "b"}})
+	var declined *ItemError
+	if !errors.As(err, &declined) || len(declined.IDs) != 1 || declined.IDs[0] != "b" {
+		t.Fatalf("error = %v, want ItemError for b", err)
+	}
+	if !errors.Is(err, ErrBadResponse) {
+		t.Errorf("ItemError must still match ErrBadResponse for existing callers: %v", err)
+	}
+}
+
 func TestClassifyMapsHTTPAndContentTypeFailures(t *testing.T) {
 	client := newTestClient(t, func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusServiceUnavailable)

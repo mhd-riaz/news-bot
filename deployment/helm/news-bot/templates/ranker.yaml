@@ -1,0 +1,121 @@
+{{- $fullname := include "news-bot.fullname" . }}
+# The ranker: picks stories for each reader from a snapshot (a frozen copy of
+# recent stories, built with `./run.sh refresh` or `make -C ml demo-refresh`).
+# Only the web app and the MCP program may call it (see networkpolicy.yaml).
+#
+# The snapshot disk starts empty. Copy a snapshot onto it with
+#   deployment/helm/copy-snapshot.sh <snapshot folder> <namespace> <release>
+# Until then the ranker waits and is not ready.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $fullname }}-ranker-snapshots
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "ranker") | nindent 4 }}
+spec:
+  accessModes: [ReadWriteOnce]
+  {{- with .Values.ranker.storage.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.ranker.storage.size }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}-ranker
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "ranker") | nindent 4 }}
+spec:
+  selector:
+    {{- include "news-bot.selectorLabels" (dict "root" $ "component" "ranker") | nindent 4 }}
+  ports:
+    - name: http
+      port: 8001
+      targetPort: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullname }}-ranker
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "ranker") | nindent 4 }}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "news-bot.selectorLabels" (dict "root" $ "component" "ranker") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "news-bot.labels" (dict "root" $ "component" "ranker") | nindent 8 }}
+    spec:
+      {{- include "news-bot.podBasics" . | nindent 6 }}
+      {{- include "news-bot.podSecurity" (dict) | nindent 6 }}
+      containers:
+        - name: ranker
+          image: {{ include "news-bot.image" (dict "root" $ "image" .Values.ranker.image) }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              id="${NEWS_RANKER_SNAPSHOT:-}"
+              while [ -z "$id" ] || [ ! -f "/snapshots/$id/manifest.json" ]; do
+                if [ -z "${NEWS_RANKER_SNAPSHOT:-}" ] && [ -f /snapshots/LATEST_DEMO ]; then
+                  id="$(cat /snapshots/LATEST_DEMO)"
+                  [ -f "/snapshots/$id/manifest.json" ] && break
+                fi
+                echo "No ranker snapshot yet. Copy one with deployment/helm/copy-snapshot.sh"
+                sleep 30
+              done
+              export NEWSREC_MODEL_DIR="/snapshots/$id"
+              echo "Serving ranker snapshot $id"
+              exec gunicorn --bind=0.0.0.0:8001 --workers=1 --threads=4 --timeout=120 'newsrec.api:create_app()'
+          env:
+            - name: HOME
+              value: /tmp
+            - name: NEWS_RANKER_SNAPSHOT
+              value: {{ .Values.ranker.snapshotId | quote }}
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "NEWS_RECOMMENDER_API_KEY") | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8001
+          {{- include "news-bot.containerSecurity" . | nindent 10 }}
+          # Waiting for a snapshot counts as starting: up to an hour, then it starts again.
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 10
+            failureThreshold: 360
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.ranker.resources | nindent 12 }}
+          volumeMounts:
+            - name: snapshots
+              mountPath: /snapshots
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: snapshots
+          persistentVolumeClaim:
+            claimName: {{ $fullname }}-ranker-snapshots
+        - name: tmp
+          emptyDir: {}

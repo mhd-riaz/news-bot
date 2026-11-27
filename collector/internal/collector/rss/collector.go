@@ -15,8 +15,8 @@ import (
 
 	"github.com/mmcdole/gofeed"
 
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/httpclient"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/httpclient"
 )
 
 // ErrParse means the body was fetched but is not a feed this collector

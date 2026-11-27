@@ -1,0 +1,292 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Every main run publishes each image under its sha-<commit> tag; pull
+  # requests and other branches only build. Moving `latest` and deploying
+  # belong to the release job alone. See deployment/README.md.
+  PUBLISH: ${{ github.ref == 'refs/heads/main' }}
+  # Commit-prefix length of the sha- tags. The metadata action reads it when
+  # tagging and the release job when promoting, so both name the same tag.
+  DOCKER_METADATA_SHORT_SHA_LENGTH: 7
+
+jobs:
+  # One job per part of the app. ci-passed below waits for all of them.
+  collector:
+    name: collector (Go)
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ping: 1}).ok'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: collector/go.mod
+          cache: true
+          cache-dependency-path: collector/go.sum
+      - name: Format, vet, race and integration tests
+        working-directory: collector
+        run: make fmt-check vet test-race test-integration
+
+  ml:
+    name: ml (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        run: python -m pip install --disable-pip-version-check "uv==0.13.2"
+      - name: Install the ML environment
+        working-directory: ml
+        run: uv sync --frozen --group dev --group recommend --group serve
+      - name: ML, classifier and ranker tests
+        working-directory: ml
+        run: make test
+
+  server:
+    name: server (Python)
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ping: 1}).ok'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install uv
+        run: python -m pip install --disable-pip-version-check "uv==0.13.2"
+      - name: Install the server environment
+        working-directory: server
+        run: uv sync --frozen
+      - name: Server and MCP tests
+        working-directory: server
+        run: uv run --frozen pytest
+
+  frontend:
+    name: frontend (React)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "26"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+      - name: Biome, type check, tests and build
+        working-directory: frontend
+        run: npm run ci
+
+  deployment:
+    name: deployment (Helm, Compose, run.sh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Helm chart
+        run: |
+          helm version --short
+          for values in values.yaml values-home.yaml values-local.yaml; do
+            helm lint deployment/helm/news-bot -f "deployment/helm/news-bot/$values"
+            helm template news-bot deployment/helm/news-bot -f "deployment/helm/news-bot/$values" > /dev/null
+          done
+      - name: Compose files
+        run: |
+          docker compose -f deployment/compose/compose.yaml config --quiet
+          docker compose -f deployment/compose/compose.yaml --profile mcp config --quiet
+          docker compose -f deployment/compose/compose.yaml -f deployment/compose/compose.external-mongo.yaml config --quiet
+          # The production file needs its required values; dummy ones only prove it parses.
+          NEWS_CLASSIFIER_API_KEY=x NEWS_CLASSIFIER_MODEL_SHA256=x NEWS_MONGO_COLLECTOR_PASSWORD=x \
+          NEWS_AUTH_API_KEYS=x NEWS_AUTH_BASIC_USERNAME=x NEWS_AUTH_BASIC_PASSWORD=x \
+          SERVICE_USER_MONGO=x SERVICE_PASSWORD_64_MONGO=x \
+            docker compose -f deployment/compose/coolify.compose.yml config --quiet
+      - name: Shell script syntax
+        run: for script in run.sh deployment/helm/copy-snapshot.sh; do bash -n "$script"; done
+      - name: Database user script test
+        run: node --test deployment/mongo/mongo-users.test.mjs
+
+  build-images:
+    name: build (${{ matrix.image }})
+    needs: [collector, ml, server, frontend, deployment]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        # Each name must be a package this repository's workflow created: its
+        # GITHUB_TOKEN cannot push to a package another repository published.
+        # Keep the release job's IMAGES in step with this list.
+        include:
+          - image: news-bot
+            context: collector
+            dockerfile: collector/Dockerfile
+            version: true
+          - image: news-collector-classifier
+            context: ml
+            dockerfile: ml/classifier/Dockerfile
+            version: false
+          - image: news-recommender
+            context: ml
+            dockerfile: ml/recommender/Dockerfile
+            version: false
+          - image: news-bot-server
+            context: .
+            dockerfile: server/Dockerfile
+            version: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image metadata
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          tags: |
+            type=sha,prefix=sha-
+      - name: Build and publish
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: ${{ env.PUBLISH == 'true' }}
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max
+          build-args: ${{ matrix.version && format('VERSION={0}', github.sha) || '' }}
+
+  # The one status check to require on main. The matrix reports a check per
+  # image, and a job skipped because a dependency failed counts as passing, so
+  # this job always runs and fails unless every needed job succeeded.
+  ci-passed:
+    if: always()
+    needs: [collector, ml, server, frontend, deployment, build-images]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every needed job to succeed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            if [ "$result" != success ]; then
+              echo "::error::Needed jobs finished as: $RESULTS"
+              exit 1
+            fi
+          done
+
+  # Releases a main commit once all four images are published: moves every
+  # image's `latest` to this commit's sha- tag together, so production always
+  # pulls one compatible set, then asks Coolify to redeploy. Armed by the
+  # repository variable DEPLOY_ENABLED; the production environment admits only
+  # main. It is not a ci-passed dependency, because pull requests skip it.
+  release:
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    needs: [collector, ml, server, frontend, deployment, build-images]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: coolify-production
+      cancel-in-progress: false
+    steps:
+      # Checked first, so a release that cannot deploy leaves `latest` alone.
+      - name: Check the deploy secrets
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          if [ -z "$COOLIFY_WEBHOOK" ] || [ -z "$COOLIFY_TOKEN" ]; then
+            echo "::error::Configure COOLIFY_WEBHOOK and COOLIFY_TOKEN to enable main-branch deployment."
+            exit 1
+          fi
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Promote this commit to latest
+        env:
+          REGISTRY: ghcr.io/${{ github.repository_owner }}
+          IMAGES: news-bot news-collector-classifier news-recommender news-bot-server
+        run: |
+          tag="sha-${GITHUB_SHA:0:$DOCKER_METADATA_SHORT_SHA_LENGTH}"
+          # Resolve every image before moving any tag, so a missing one stops
+          # the release with each `latest` still on the previous release.
+          for image in $IMAGES; do
+            docker buildx imagetools inspect "$REGISTRY/$image:$tag" > /dev/null
+          done
+          for image in $IMAGES; do
+            docker buildx imagetools create --tag "$REGISTRY/$image:latest" "$REGISTRY/$image:$tag"
+          done
+          echo "::notice title=Released::$tag is now latest for $IMAGES"
+      - name: Trigger Coolify deployment
+        env:
+          COOLIFY_WEBHOOK: ${{ secrets.COOLIFY_WEBHOOK }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          headers=(--header "Authorization: Bearer $COOLIFY_TOKEN")
+          if [ -n "$CF_ACCESS_CLIENT_ID" ] && [ -n "$CF_ACCESS_CLIENT_SECRET" ]; then
+            headers+=(--header "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID"
+                      --header "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
+          else
+            echo "::warning::CF_ACCESS_CLIENT_ID or CF_ACCESS_CLIENT_SECRET is not set; Cloudflare Access, if it protects Coolify, will reject the request."
+          fi
+          # Cloudflare Access answers a rejected request with a 302 to its login
+          # page, which `curl --fail` would count as success, so require a 2xx
+          # from Coolify itself. Print only Coolify's messages: the body also
+          # carries resource identifiers, and this repository's logs are public.
+          status=$(curl --silent --show-error --max-time 30 --output response.json \
+            --write-out '%{http_code}' --request POST "$COOLIFY_WEBHOOK" "${headers[@]}")
+          jq -r '.. | .message? // empty' response.json 2>/dev/null || true
+          case "$status" in
+            2??) echo "Coolify accepted the deploy request (HTTP $status)." ;;
+            *) echo "::error::Coolify deploy request returned HTTP $status."; exit 1 ;;
+          esac

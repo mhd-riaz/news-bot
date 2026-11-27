@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/extract"
-	"github.com/riaz/newscollector/internal/httpclient"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/extract"
+	"github.com/mhd-riaz/news-bot/collector/internal/httpclient"
 )
 
 // TestProcessBacklogKeepsMetadataFromShortPages preserves metadata without persisting unusable body text.

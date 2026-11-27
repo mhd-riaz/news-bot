@@ -8,15 +8,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/httpclient"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/httpclient"
 )
 
 // fixture reads an offline feed. Tests never contact a network service, so the
 // fixtures are the only feeds this package is ever exercised against.
 func fixture(t *testing.T, name string) []byte {
 	t.Helper()
-	body, err := os.ReadFile(filepath.Join("..", "..", "..", "fixtures", name))
+	body, err := os.ReadFile(filepath.Join("..", "..", "..", "testdata", name))
 	if err != nil {
 		t.Fatalf("read fixture %s: %v", name, err)
 	}

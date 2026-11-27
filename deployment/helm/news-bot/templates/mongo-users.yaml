@@ -1,0 +1,90 @@
+{{- if .Values.mongo.users.enabled }}
+{{- $fullname := include "news-bot.fullname" . }}
+{{- $script := .Files.Get "files/mongo-users.js" }}
+{{- if not $script }}
+{{- fail "files/mongo-users.js is missing: it is a link to deployment/mongo/mongo-users.js, so install the chart from a full checkout of the repository" }}
+{{- end }}
+# The script that makes one MongoDB login per part of the app (roadmap C14).
+# files/mongo-users.js is a link to deployment/mongo/mongo-users.js.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullname }}-mongo-users
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "mongo-users") | nindent 4 }}
+data:
+  mongo-users.js: |-
+    {{- $script | nindent 4 }}
+---
+# Runs the script after every install and upgrade. It is safe to run again: it
+# updates logins and roles that already exist.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $fullname }}-mongo-users
+  labels:
+    {{- include "news-bot.labels" (dict "root" $ "component" "mongo-users") | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 4
+  activeDeadlineSeconds: 900
+  template:
+    metadata:
+      labels:
+        {{- include "news-bot.labels" (dict "root" $ "component" "mongo-users") | nindent 8 }}
+      annotations:
+        checksum/script: {{ $script | sha256sum }}
+    spec:
+      restartPolicy: Never
+      {{- include "news-bot.podBasics" . | nindent 6 }}
+      {{- include "news-bot.podSecurity" (dict "uid" 999) | nindent 6 }}
+      containers:
+        - name: mongo-users
+          image: {{ .Values.mongo.image }}
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              address="mongodb://{{ include "news-bot.mongoHosts" . }}/admin?authSource=admin{{ if and (not .Values.mongo.enabled) .Values.mongo.external.options }}&{{ .Values.mongo.external.options }}{{ end }}"
+              tries=0
+              until mongosh "$address" --username "$ROOT_USERNAME" --password "$ROOT_PASSWORD" --quiet --norc \
+                  --eval 'db.adminCommand({ ping: 1 }).ok' > /dev/null 2>&1; do
+                tries=$((tries + 1))
+                if [ "$tries" -ge 120 ]; then
+                  echo "MongoDB did not accept the root login after 10 minutes." >&2
+                  exit 1
+                fi
+                echo "Waiting for MongoDB to accept the root login. Try $tries."
+                sleep 5
+              done
+              exec mongosh "$address" --username "$ROOT_USERNAME" --password "$ROOT_PASSWORD" --quiet --norc /scripts/mongo-users.js
+          env:
+            - name: HOME
+              value: /tmp
+            - name: NEWS_MONGO_DATABASE
+              value: {{ .Values.mongo.database | quote }}
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "ROOT_USERNAME" "key" "NEWS_MONGO_ROOT_USERNAME") | nindent 12 }}
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" "ROOT_PASSWORD" "key" "NEWS_MONGO_ROOT_PASSWORD") | nindent 12 }}
+            {{- range list "collector" "batch" "ranker" "reader" "owner" "mcp" }}
+            {{- include "news-bot.secretEnv" (dict "root" $ "name" (printf "NEWS_MONGO_%s_PASSWORD" (upper .))) | nindent 12 }}
+            {{- end }}
+          {{- include "news-bot.containerSecurity" . | nindent 10 }}
+          resources:
+            {{- toYaml .Values.mongo.users.resources | nindent 12 }}
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: script
+          configMap:
+            name: {{ $fullname }}-mongo-users
+        - name: tmp
+          emptyDir: {}
+{{- end }}

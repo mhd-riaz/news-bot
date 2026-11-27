@@ -1,0 +1,36 @@
+# The home server: k3s on the home-lab laptop (12 GB of memory), published
+# through a Cloudflare Tunnel. Install or upgrade with:
+#
+#   helm upgrade --install news-bot deployment/helm/news-bot -n news-bot \
+#     -f deployment/helm/news-bot/values-home.yaml --timeout 10m
+#
+# Read deployment/helm/news-bot/README.md first: it lists the steps before and after.
+
+environment: production
+
+images:
+  # Published by GitHub Actions (.github/workflows/ci.yml). If the packages are
+  # private, add a docker-registry Secret and list it in pullSecrets.
+  registry: ghcr.io/mhd-riaz
+  # "latest" moves only when the release job publishes a tested set of all four
+  # images. To stay on one version, use a main commit's tag instead, for example
+  # sha-cfb8214, and change it on purpose.
+  tag: latest
+  # Fetch the tag again whenever a pod starts, so a restart picks up a new "latest".
+  pullPolicy: Always
+  pullSecrets: []
+
+web:
+  # CHANGE THIS to the address your readers open, for example
+  # https://news.example.com (the public host name of the Cloudflare Tunnel).
+  # With sign-in on, the web app refuses to start until it is set.
+  publicUrl: ""
+
+mcp:
+  enabled: true
+  # The public host name for AI agents, if you publish the MCP program too,
+  # for example mcp.example.com.
+  publicHost: ""
+
+cloudflared:
+  enabled: true

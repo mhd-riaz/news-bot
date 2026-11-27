@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/service"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/service"
 )
 
 // fakeSourceManager stands in for the service so handler tests exercise HTTP
@@ -91,7 +91,6 @@ func newSourceServer(t *testing.T, mgr SourceManager) http.Handler {
 		NewSource(mgr, logger),
 		NewCollectionRun(&fakeRunReader{}, logger),
 		NewArticle(&fakeArticleReader{}, logger),
-		nil,
 		nil,
 		logger,
 	)

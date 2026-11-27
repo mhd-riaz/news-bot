@@ -1,0 +1,8 @@
+# Test fixture with made-up values only.
+NEWS_MONGO_DATABASE=from_file
+export NEWS_SERVER_PORT=9090
+NEWS_LOGGING_LEVEL="debug"
+NEWS_PUBLIC_URL='https://quoted.example.test'
+NEWS_RECOMMENDER_ENDPOINT=http://ranker.example.test:8001 # an inline comment
+BROKEN_LINE_WITHOUT_EQUALS
+NEWS_SERVER_HOST=from-file.example.test

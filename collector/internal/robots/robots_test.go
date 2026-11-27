@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/httpclient"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/httpclient"
 )
 
 // fakeFetcher serves canned robots.txt files and counts requests, so a test can

@@ -18,12 +18,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/riaz/newscollector/internal/app"
-	"github.com/riaz/newscollector/internal/config"
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/mongodb"
-	"github.com/riaz/newscollector/internal/observability"
-	"github.com/riaz/newscollector/internal/service"
+	"github.com/mhd-riaz/news-bot/collector/internal/app"
+	"github.com/mhd-riaz/news-bot/collector/internal/config"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/mongodb"
+	"github.com/mhd-riaz/news-bot/collector/internal/observability"
+	"github.com/mhd-riaz/news-bot/collector/internal/service"
 )
 
 // version is overridden at build time with -ldflags "-X main.version=...".

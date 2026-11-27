@@ -20,8 +20,8 @@ import (
 	"github.com/temoto/robotstxt"
 	"golang.org/x/sync/singleflight"
 
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/httpclient"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/httpclient"
 )
 
 // ErrUnreadable means the publisher's rules could not be retrieved, so nothing

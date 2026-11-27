@@ -1,0 +1,88 @@
+# A test on your own computer with Rancher Desktop (k3s) or another small cluster.
+# It uses images that you built yourself, so nothing is downloaded from a registry:
+#
+#   docker compose -f deployment/compose/compose.yaml build
+#
+# Rancher Desktop with the "dockerd (moby)" container engine shares those images
+# with its k3s. Then:
+#
+#   kubectl create namespace news-bot-test
+#   kubectl -n news-bot-test create secret generic news-bot-env --from-env-file=<your test env file>
+#   helm install news-bot deployment/helm/news-bot -n news-bot-test -f deployment/helm/news-bot/values-local.yaml
+#
+# Sign-in is off: reach the app only with kubectl port-forward.
+
+environment: development
+
+logging:
+  format: text
+
+images:
+  registry: ""
+  tag: local
+  # Never download: use the images built on this computer.
+  pullPolicy: Never
+
+mongo:
+  wiredTigerCacheSizeGB: 0.25
+  storage:
+    size: 2Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 768Mi
+
+collector:
+  # Do not collect news during a test; the collector still starts and migrates.
+  scheduler:
+    enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 256Mi
+
+classifier:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    # The model itself needs about 0.7-0.9 GB, so this cannot be much smaller.
+    limits:
+      memory: 1536Mi
+
+ranker:
+  storage:
+    size: 1Gi
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+web:
+  # Allowed only because environment is development and nothing publishes the app.
+  signIn: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      memory: 256Mi
+
+mcp:
+  enabled: true
+  # kubectl port-forward sends Host: 127.0.0.1:<local port>.
+  allowedHosts:
+    - "127.0.0.1:*"
+    - "localhost:*"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 96Mi
+    limits:
+      memory: 256Mi

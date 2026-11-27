@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/service"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/service"
 )
 
 // fakeRunReader stands in for the collection service so these tests exercise
@@ -62,7 +62,6 @@ func newRunServer(t *testing.T, runs CollectionRunReader) http.Handler {
 		NewSource(&fakeSourceManager{}, logger),
 		NewCollectionRun(runs, logger),
 		NewArticle(&fakeArticleReader{}, logger),
-		nil,
 		nil,
 		logger,
 	)

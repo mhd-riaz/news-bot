@@ -1,4 +1,4 @@
-module github.com/riaz/newscollector
+module github.com/mhd-riaz/news-bot/collector
 
 go 1.27
 

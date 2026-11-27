@@ -5,7 +5,7 @@ package mongo
 import (
 	"testing"
 
-	"github.com/riaz/newscollector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
 )
 
 func TestDerivedFieldBackfillIsResumableAndLeavesTopicsAlone(t *testing.T) {

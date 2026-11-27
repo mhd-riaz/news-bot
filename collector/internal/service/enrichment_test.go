@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/extract"
-	"github.com/riaz/newscollector/internal/httpclient"
-	"github.com/riaz/newscollector/internal/ratelimit"
-	"github.com/riaz/newscollector/internal/repository"
-	"github.com/riaz/newscollector/internal/robots"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/extract"
+	"github.com/mhd-riaz/news-bot/collector/internal/httpclient"
+	"github.com/mhd-riaz/news-bot/collector/internal/ratelimit"
+	"github.com/mhd-riaz/news-bot/collector/internal/repository"
+	"github.com/mhd-riaz/news-bot/collector/internal/robots"
 )
 
 // --- fakes -------------------------------------------------------------

@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/riaz/newscollector/internal/service"
+	"github.com/mhd-riaz/news-bot/collector/internal/service"
 )
 
 // ClassificationBacklog is the classification service behavior the scheduler needs.

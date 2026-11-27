@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/repository"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/repository"
 )
 
 // ArticleService reads collected articles and expires old ones. Articles are

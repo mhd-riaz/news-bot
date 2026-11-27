@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/observability"
-	"github.com/riaz/newscollector/internal/service"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/observability"
+	"github.com/mhd-riaz/news-bot/collector/internal/service"
 )
 
 // SourceManager is the slice of source management this handler needs. It is

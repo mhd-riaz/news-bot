@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/riaz/newscollector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
 )
 
 // loadFixture reads one of the real article pages saved from the publishers.
@@ -18,7 +18,7 @@ import (
 func loadFixture(t *testing.T, name string) []byte {
 	t.Helper()
 
-	f, err := os.Open(filepath.Join("..", "..", "fixtures", "articles", name+".html.gz"))
+	f, err := os.Open(filepath.Join("..", "..", "testdata", "articles", name+".html.gz"))
 	if errors.Is(err, os.ErrNotExist) {
 		t.Skipf("private publisher capture %q is not committed; synthetic extraction tests run without it", name)
 	}
