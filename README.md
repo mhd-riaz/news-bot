@@ -26,9 +26,8 @@ runs on your own laptop or home server, with no paid service.
   Rancher Desktop, or Docker Engine on Linux. Give it at least 6 GB of memory.
 - **[uv](https://docs.astral.sh/uv/)**, which installs Python and its packages for you.
 - **python3** (any recent version).
-- **Access to the topic model.** It is in the private GitHub repository
-  `mhd-riaz/news-bot-archive`. Sign in once with the [GitHub CLI](https://cli.github.com/)
-  (`gh auth login`), or set `GITHUB_TOKEN` to a token that can read it.
+- **Internet, the first time.** `./run.sh` downloads the topic model (about 45 MB) from
+  the project's public Google Drive folder. No sign-in is needed.
 - About 15 GB of free disk space, and Linux or macOS.
 
 ## Start it

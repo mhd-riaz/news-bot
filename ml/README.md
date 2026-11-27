@@ -48,11 +48,10 @@ make setup     # once: makes .venv (a private Python environment) with every pac
 make models    # downloads the classifier model into models/ and checks it
 ```
 
-`make models` reads `models.toml`. The model is in the **private** GitHub repository
-`mhd-riaz/news-bot-archive`, so you need permission to read it. Sign in once with
-`gh auth login` (the GitHub command-line tool), or put a token that can read that
-repository in `GITHUB_TOKEN`. A file that is already there and matches its fingerprint
-is not downloaded again. `make models-check` only checks, and downloads nothing.
+`make models` reads `models.toml`. The model is in the project's public Google Drive
+folder, so no sign-in is needed. A file that is already there and matches its
+fingerprint is not downloaded again. `make models-check` only checks, and downloads
+nothing.
 
 ## Test
 
@@ -114,4 +113,4 @@ GitHub Actions from `classifier/Dockerfile` and `recommender/Dockerfile`.
 | Recommender | `NEWS_RECOMMENDER_API_KEY` | If set, every request except `/health/...` must send it in the `X-Recommender-Key` header. |
 | Tools | `NEWS_ENV_FILE` | Which settings file to read instead of `../deployment/env/local.env`. |
 | Tools | `NEWS_MONGO_URI`, `NEWS_MONGO_DATABASE`, `NEWSMLV2_MONGO_URI`, `NEWS_ML_MONGO_URI` | Which database the tools read. Never print these. |
-| `make models` | `GITHUB_TOKEN` | Used only when the GitHub command-line tool is not signed in. |
+| `make models` | `GITHUB_TOKEN` | Only for a model kept in a private GitHub release, when the GitHub command-line tool is not signed in. Today's model needs no sign-in. |

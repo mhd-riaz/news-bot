@@ -11,8 +11,9 @@ A model whose files already match their SHA-256 is skipped. Each archive is firs
 written to a temporary file and checked; then every file inside it is checked and
 renamed into place, so a failed or partial download never replaces a good file.
 
-A private GitHub release is fetched with the GitHub CLI when it is installed and signed
-in, otherwise with the REST API and the token in GITHUB_TOKEN.
+A plain https url, such as a public Google Drive link, is downloaded directly with no
+sign-in. A private GitHub release is fetched with the GitHub CLI when it is installed and
+signed in, otherwise with the REST API and the token in GITHUB_TOKEN.
 """
 
 from __future__ import annotations

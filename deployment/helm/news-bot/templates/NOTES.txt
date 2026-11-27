@@ -7,8 +7,8 @@ news-bot is installed as "{{ .Release.Name }}" in the namespace "{{ $ns }}".
      kubectl -n {{ $ns }} get pods -w
 
    The first start takes a few minutes: MongoDB starts{{ if .Values.mongo.users.enabled }}, the users job makes the
-   database logins{{ end }}, and the classifier downloads its model (it needs GITHUB_TOKEN in
-   the Secret "{{ .Values.secret.name }}" the first time).
+   database logins{{ end }}, and the classifier downloads its model from Google Drive the
+   first time.
 
 2. Give the ranker a snapshot. It waits, and is not ready, until it has one.
    Build a snapshot on a computer that can read this database (for example with

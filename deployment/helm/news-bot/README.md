@@ -156,7 +156,7 @@ helm template news-bot deployment/helm/news-bot -n news-bot -f deployment/helm/n
 | --- | --- |
 | A pod stays in `Init: wait-for-database` | The users job has not made its login yet: `kubectl -n news-bot logs job/news-bot-mongo-users` |
 | `CreateContainerConfigError` | A key is missing from the Secret: `kubectl -n news-bot describe pod <pod>` names it |
-| The classifier stays in `Init: get-model` | It cannot download the model: check `GITHUB_TOKEN` with `kubectl -n news-bot logs <pod> -c get-model` |
+| The classifier stays in `Init: get-model` | It cannot download the model from Google Drive. Its log says why: `kubectl -n news-bot logs <pod> -c get-model` |
 | The ranker is running but not ready | It has no snapshot yet (step 6) |
 | The web app is running but not ready | MongoDB or the ranker does not answer; `/health/ready` says which |
 | `helm install` stops with a message | A safety check, for example sign-in off outside development |

@@ -69,17 +69,15 @@ Model files are big, so they are **not in git**. [`ml/models.toml`](../../ml/mod
 lists each model: where to download it, and the SHA-256 fingerprint of every file. A
 fingerprint changes if even one byte of the file changes.
 
-The production model is stored as the release `classifier-v4-ai-072b01a9ceaf` in
-the **private** GitHub repository `mhd-riaz/news-bot-archive`. To download it:
+The production model is the file `classifier-v4-ai-072b01a9ceaf.tar.gz` in the
+project's **public** Google Drive folder (its link is in `ml/models.toml`). Anyone can
+download it; no sign-in is needed. A backup copy is the release of the same name in the
+private repository `mhd-riaz/news-bot-archive`. From the repository root, run:
 
-1. Make sure you can read that repository. Sign in once with `gh auth login` (the
-   GitHub command-line tool), or put a token that can read it in `GITHUB_TOKEN`.
-2. From the repository root, run:
-
-   ```bash
-   make -C ml models         # downloads into ml/models/ and checks every fingerprint
-   make -C ml models-check   # only checks; downloads nothing
-   ```
+```bash
+make -C ml models         # downloads into ml/models/ and checks every fingerprint
+make -C ml models-check   # only checks; downloads nothing
+```
 
 The model lands in `ml/models/classifier/v4-ai-072b01a9ceaf/`, with three files:
 `bundle.joblib`, `manifest.json` and `model-card.md`. A file that is already there

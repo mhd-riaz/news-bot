@@ -67,8 +67,8 @@ Options
   --delete-data             With stop: also delete the Docker database (all news).
   -f, --follow              With logs: keep showing new lines (Ctrl+C to stop).
 
-What you need: Docker with Compose v2, uv, python3, and the GitHub CLI signed in
-(gh auth login) or GITHUB_TOKEN, to download the topic model the first time.
+What you need: Docker with Compose v2, uv and python3. The first run downloads the
+topic model (about 45 MB) from a public Google Drive folder; no sign-in is needed.
 
 Settings: deployment/env/local.env (made from local.env.example on the first run).
   LOCAL_PORT_WEB=18090      use another port when one is already taken
@@ -453,15 +453,9 @@ download_models() {
     good "The topic model is here and matches its SHA-256 fingerprint."
     return
   fi
-  if ! { command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; } && [[ -z "${GITHUB_TOKEN:-}" ]]; then
-    die "The topic model is missing, and it is in a private GitHub repository (mhd-riaz/news-bot-archive)." \
-      "To download it, either sign in with the GitHub CLI:   gh auth login" \
-      "or set a token that can read that repository:        export GITHUB_TOKEN=<token>" \
-      "Then run ./run.sh again."
-  fi
   say "Downloading the topic model (about 45 MB) and checking its SHA-256 fingerprints..."
   stdlib_python "$MODELS_SCRIPT" ||
-    die "The model download failed (see the message above). Check your internet connection and GitHub access, then run ./run.sh again."
+    die "The model download failed (see the message above). Check your internet connection, then run ./run.sh again."
 }
 
 ensure_ml_tools() {

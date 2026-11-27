@@ -31,10 +31,9 @@ Hard words are explained in the [glossary](../glossary.md).
 | Node.js and npm | The reader app | Node 22 (22.22.2 or later), 24 (24.15.0 or later), or 26 and newer |
 | make | Short commands in each folder | any |
 
-**The model download needs permission.** The classifier model is in the private
-repository `mhd-riaz/news-bot-archive`. Sign in once with `gh auth login` (the GitHub
-command-line tool) using an account that can read it, or set `GITHUB_TOKEN` to a
-token that can.
+**The model download needs no sign-in.** The first `./run.sh` downloads the classifier
+model (about 45 MB) from the project's public Google Drive folder and checks its SHA-256
+fingerprint (a code that changes if even one byte of the file changes).
 
 ## Start the app
 
@@ -44,9 +43,6 @@ token that can.
    git clone https://github.com/mhd-riaz/news-bot.git
    cd news-bot
    ```
-
-   The new folder layout is on the `v4` branch until it is merged into `main`
-   (`git checkout v4`).
 
    On a Mac, keep the folder inside your home folder (for example
    `~/repos/news-bot`). Docker on a Mac can only see shared folders, and your home

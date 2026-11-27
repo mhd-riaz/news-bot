@@ -134,9 +134,10 @@ recorded.
 
 - Model files are not in git. [`ml/models.toml`](../../ml/models.toml) lists them with
   their SHA-256 checksums.
-- They are stored as releases in the private repository `mhd-riaz/news-bot-archive`.
-  `make -C ml models` downloads them into `ml/models/` and checks them. It needs
-  `gh auth login` or a `GITHUB_TOKEN` that can read that repository.
+- They are in the project's public Google Drive folder (the link is in `ml/models.toml`).
+  `make -C ml models` downloads them into `ml/models/` and checks them, with no sign-in.
+  A backup copy of each one is a release in the private repository
+  `mhd-riaz/news-bot-archive`.
 - Production does not download models. The owner copies the bundle onto the
   `classifier-models` volume by hand. The steps and the checksum are in
   [Deploy the V4 classifier](../services/classifier.md#deploy-the-v4-classifier-d19).
@@ -165,10 +166,12 @@ are not database backups.
 
 ## What the owner still has to do by hand
 
-**First, before draft [PR #11](https://github.com/mhd-riaz/news-bot/pull/11) is merged
-into `main`:** if Coolify reads its compose file from this repository, change that
+**First, in Coolify:** if it reads its compose file from this repository, change the
 path from `collector/deployments/coolify.compose.yml` to
-`deployment/compose/coolify.compose.yml`. The file moved; only its comments changed.
+`deployment/compose/coolify.compose.yml` (Base Directory `/deployment/compose`, Docker
+Compose Location `/coolify.compose.yml`). The file moved when
+[PR #11](https://github.com/mhd-riaz/news-bot/pull/11) was merged into `main`. It also
+switches the classifier to the V4 model, so finish step 4 below before the next deploy.
 
 Each item links to its roadmap task.
 
