@@ -1,5 +1,8 @@
 # AFTERLINE: plain-English progress checklist
 
+**For the current status, read the [status page](status.md).** This checklist was
+written on 25 November 2026, before the repository was reorganised on 27 November.
+
 **Project-record review date:** 25 November 2026
 
 **Audience:** readers with basic computer knowledge; no machine-learning background needed
@@ -642,17 +645,21 @@ Small human judgement coverage, AI-assessment bias, English-language and publish
 
 ## 21. Supporting evidence and code entry points
 
+The Go reader was removed on 27 Nov 2026 (roadmap RS5). Its links below open its last
+version, at git tag `before-restructure`. The Python `server/` and the React
+`frontend/` do its work now.
+
 - [Measured results and verification caveats](recommender-results.md)
 - [Setup, training, evaluation and API instructions](../services/recommender.md)
-- [Read-only Go entry point](../../collector/cmd/reader/main.go)
-- [Go recommendation orchestration](../../collector/internal/recommendation/recommendation.go)
-- [Public recommendation handlers](../../collector/internal/handler/recommendation.go)
+- [Read-only Go entry point](https://github.com/mhd-riaz/news-bot/blob/before-restructure/collector/cmd/reader/main.go)
+- [Go recommendation orchestration](https://github.com/mhd-riaz/news-bot/blob/before-restructure/collector/internal/recommendation/recommendation.go)
+- [Public recommendation handlers](https://github.com/mhd-riaz/news-bot/blob/before-restructure/collector/internal/handler/recommendation.go)
 - [Dataset preparation](../../ml/src/newsrec/data.py)
 - [Baseline and neural training](../../ml/src/newsrec/model.py)
 - [Ranking and exclusions](../../ml/src/newsrec/index.py)
 - [Private model API](../../ml/src/newsrec/api.py)
 - [Evaluation and provenance enforcement](../../ml/src/newsrec/evaluate.py)
-- [Story markup](../../collector/internal/web/templates/stories.html), [styling](../../collector/internal/web/static/stories.css) and [browser behavior](../../collector/internal/web/static/stories.js)
-- [JavaScript regression checks](../../collector/internal/web/stories.test.mjs)
+- [Story markup](https://github.com/mhd-riaz/news-bot/blob/before-restructure/collector/internal/web/templates/stories.html), [styling](https://github.com/mhd-riaz/news-bot/blob/before-restructure/collector/internal/web/static/stories.css) and [browser behavior](https://github.com/mhd-riaz/news-bot/blob/before-restructure/collector/internal/web/static/stories.js)
+- [JavaScript regression checks](https://github.com/mhd-riaz/news-bot/blob/before-restructure/collector/scripts/stories.test.mjs)
 
 </details>

@@ -27,7 +27,7 @@ are not a new check of running services; the original milestone windows below ha
 | DOC.2 Product documentation and comment refresh | Copilot | 25 Nov | —; documentation only | task done: 61 files refreshed and statically checked; historical evidence preserved; no release acceptance |
 | ML4 Classifier V4 candidate labels (separate from V1/M8) | Copilot | on demand | owner approval | ML4.6 complete: local `v4-ai-072b01a9ceaf-hybrid_svc` from 8,594 truthful AI labels, including 2,582 extra AI-sampled articles; held-out AI-label macro-F1 0.8246. Earlier human-provenance claims are withdrawn. Human validation and 200 human labels/class remain not met. D19 (27 Nov): the owner approved this model for production; ML4.7 prepared the sidecar, image and relabel job, and deployment is not confirmed |
 | [DEMO Bare-minimum client demo](#demo--bare-minimum-client-demo-separate-from-release-acceptance) (D18) | Copilot | 24–25 Nov | D18 | DEMO.1–DEMO.5 done locally with evidence; DEMO.6 morning refresh and rehearsal open. No V1 requirement or release gate is closed by the demo |
-| [RS Repository restructure](#rs--repository-restructure-d21) (D21) | Copilot | from 27 Nov | D21 | RS0–RS3 done with evidence. RS4 is blocked only on the owner's Google OAuth client (D10) for the end-to-end sign-in check. RS5 code is done; the browser check against the real server is pending. RS6, RS7 and RS9 are in progress; RS8 is todo. Eight open tasks moved into RS tasks (`[>]`). No V1 requirement or release gate changes |
+| [RS Repository restructure](#rs--repository-restructure-d21) (D21) | Copilot | from 27 Nov | D21 | RS0–RS3 done with evidence. RS4 is blocked only on the owner's Google OAuth client (D10) for the end-to-end sign-in check. RS5 code is done; the browser check against the real server is pending. RS8 done. RS6, RS7 and RS9 are in progress. Eight open tasks moved into RS tasks (`[>]`). No V1 requirement or release gate changes |
 
 Milestones overlap only through these handoffs. A dependent task starts when its handoff is marked done here.
 
@@ -171,7 +171,7 @@ New `articles` fields. Existing fields keep their meaning; backfill writes only 
   5. Compare-and-set from `B`. If that fails, redo catch-up from the new active generation.
 - Rollback is a compare-and-set to a retained generation. Keep the last 3 generations and the last 2 model versions. The retained watermark becomes the cursor, so later changes replay.
 - The ranker polls the pointer at least every 30 s, verifies hashes and model, then switches. It reports `index_generation`, `model_version` and `activated_at` on `/health/ready` and in every response.
-- Clients accept generation and model changes without resetting likes or viewed history. This replaces the snapshot rejection in [stories.js](../../collector/internal/web/static/stories.js).
+- Clients accept generation and model changes without resetting likes or viewed history. This replaces the snapshot rejection in [stories.js](https://github.com/mhd-riaz/news-bot/blob/before-restructure/collector/internal/web/static/stories.js) (the Go reader's script, removed in RS5).
 
 ### C5. Freshness SLA (R5)
 
@@ -332,7 +332,7 @@ R = read · W = insert/update · D = delete · — = none. Create one MongoDB us
 
 ### C15. Operations
 
-- Images (D11, D20): `news-bot` (Go; every `cmd/*` binary, each service choosing its command; `news-collector` until 22 Nov), the existing `news-collector-classifier` sidecar, and `news-recommender` (new `deployments/recommender.Dockerfile`: ml-v2 with the recommend and serve groups, for the ranker, batch jobs and `newsrec admin`). This repository's GitHub Actions workflow builds them and publishes per-commit `sha-` tags to GHCR from `main`; its `release` job moves all three `latest` tags to one commit and triggers Coolify, which pulls.
+- Images (D11, D20, D21): `news-bot` (Go, `collector/Dockerfile`; every `cmd/*` binary, each service choosing its command; `news-collector` until 22 Nov), `news-collector-classifier` (`ml/classifier/Dockerfile`), `news-recommender` (the ranker, `ml/recommender/Dockerfile`) and `news-bot-server` (the web server and the MCP program, `server/Dockerfile`). This repository's GitHub Actions workflow (`.github/workflows/ci.yml`) builds them and publishes per-commit `sha-` tags to GHCR from `main`; its `release` job moves all four `latest` tags to one commit and triggers Coolify, which pulls.
 - Add `reader`, `ranker`, `batch` and `mcp` to [coolify.compose.yml](../../deployment/compose/coolify.compose.yml). Schedule incremental runs every 30 min, reconciliation and rule mining nightly, and retraining weekly on Sunday 02:00–05:00 IST. Prefer Coolify scheduled tasks to a custom scheduler. Batch runs and retraining get low priority.
 - Give every service a health check and restart policy. Alerts (channel D3) fire on:
   - No new articles for 2 h.
@@ -349,7 +349,7 @@ Memory limits for the 12 GB laptop. These are targets: measure them, and record 
 | --- | --- |
 | MongoDB, with a 2 GB WiredTiger cache | 3 GB |
 | Collector API | 0.5 GB |
-| Classifier sidecar | 0.75 GB |
+| Classifier sidecar | 1.5 GB (0.75 GB until 27 Nov; §8) |
 | Ranker | 1.5 GB |
 | Reader and MCP | 0.25 GB |
 | Incremental batch | 1.5 GB |
@@ -358,6 +358,8 @@ Memory limits for the 12 GB laptop. These are targets: measure them, and record 
 That leaves about 1.5 GB for the OS, Docker, Coolify and Cloudflare Tunnel.
 
 ## 4. Milestones
+
+After D21 (27 Nov), open tasks that name the Go reader (`cmd/reader`, `internal/web`, `stories.js`) or a Go `cmd/mcp` apply to the Python `server/` and the React `frontend/` instead. Contracts C10, C11 and C14 are already reworded (§8). Done tasks and the logs keep the paths they had at the time.
 
 ### M0 — Baseline, guardrails and deploy path (26–27 Oct · Owner, A, B)
 
@@ -574,7 +576,7 @@ Owner decision D21 (27 Nov): split the repository into one top-level folder per 
 - [~] **RS5** (Copilot, 27 Nov) React `frontend/` (Vite, TypeScript, Biome) and removal of the Go reader. Evidence: commit `c0a9a2d`: `npm run ci` green (Biome 0 errors and 0 warnings on 34 files, type check, 60 Vitest tests including the 29 old browser-state cases, build 290 kB JS / 88 kB gzipped); every screen was checked in Chrome against a mock API; the app keeps the old browser-storage keys and sends no reading reports (requirement R6). Commit `cfb8214` removed `cmd/reader`, the legacy `/archive` and `/articles` pages, their read-event writer and the classifier topic cache; Go: 31 packages pass. The `read_events` data stays (retention is the owner's decision). Remaining: a browser check against the real server. M9.1's JavaScript coverage is **not met**: measuring it needs one more dependency.
 - [~] **RS6** (Copilot, 27 Nov; owner for the home lab) A Helm chart with settings for each environment, Docker Compose for laptops, and one `.env.example` per environment. k3s runs at home, the database is copied across, and CI switches from Coolify to Helm. Carries M0.5's release evidence, M1.5's production backfill run and ML4.7's production deployment and relabel; the owner may still do those through Coolify first. Exit: collection never stops during the switch, and article counts match before and after.
 - [~] **RS7** (Copilot, 27 Nov) `run.sh` works on Linux and macOS, downloads the models and starts everything against a local database by default; a short root `README.md`. Exit: a fresh clone on a clean machine runs with one command.
-- [ ] **RS8** (Copilot) Rewrite the documentation in `docs/` at an 8th-grade reading level, checking each claim against the code. Exit: every link and command in the docs works.
+- [x] **RS8** (Copilot, 27 Nov) Plain-English docs for the new layout: `docs/README.md` (index), `getting-started/`, `architecture/` (with a new Mermaid diagram in `docs/assets/system-overview.mmd`), `services/` (collector, classifier, recommender, server, frontend), `operations/`, `project/status.md`, `history/README.md` and `glossary.md`; `collector/README.md` cut from 67 KB to 3.9 KB. The reviewer instructions moved next to the labels (`data/labels/reviewer-instructions.md`), and the label-origin note now appears only in `data/labels/README.md`. Evidence: a link checker over all 47 tracked Markdown files found 323 relative links, anchors included, all resolving except 3 figures a history report links to that were never committed; 63 documented Make targets, npm scripts and CLI subcommands exist; the diagram passed the VS Code Mermaid validator (not rendered with mermaid-cli, which was not available offline); `git diff --check` is clean. Recorded numbers and evidence in `recommender-results.md` and `recommender-client-review.md` are unchanged; dead links to the removed Go reader point at tag `before-restructure`. Three roadmap evidence links point at private files that git ignores, so they open only on the owner's laptop.
 - [~] **RS9** (Copilot, 27 Nov) One CI workflow with one job per part (collector, ml, server, frontend, deployment), because `main` requires the single `ci-passed` check and a check can only wait on jobs in its own workflow; Copilot instructions for the new layout, path-specific instruction files, skills, and the shared MCP settings in `/.mcp.json` (tools do not read MCP settings from `.github/`). Exit: CI is green for every part, and the instructions name only paths that exist.
 
 **Exit:** RS0–RS9 are done with evidence, and the other agent has reviewed them (working protocol, step 7).
@@ -593,8 +595,8 @@ Owner decision D21 (27 Nov): split the repository into one top-level folder per 
 ## 5. Checks in every milestone
 
 - Go: run `make check` and `make test-race`, plus `make test-integration` for repository or migration changes.
-- Python: run `make rec-test`, plus `make ml2-test` when `newsmlv2` changes.
-- JavaScript: run `node --test scripts/stories.test.mjs`.
+- Python: run `make -C ml test` for ML changes and `uv run pytest` in `server/` for server or MCP changes.
+- JavaScript: run `npm run ci` in `frontend/` (Biome, type check, tests and build).
 - New collection or route: add its C14 row and security tests before first use.
 - After each build or retrain, record peak memory, CPU and collector throughput, and confirm collection is unaffected.
 - Verify the daily backup.
@@ -768,6 +770,7 @@ Append only. Add one line for each claim, handoff, block or finish.
 | 2026-11-27 | Owner | RS plan go-ahead; ranker | Asked to transform the repository and to be told about every inconsistency. Chose to keep the ranker as its own ML service and allowed Rancher Desktop for local Docker and Kubernetes checks. |
 | 2026-11-27 | Copilot | RS renamed; RS1–RS5 | Phases renamed RS0–RS9 (requirement IDs use R). Evidence on RS1–RS5. Commits `4dd8584`, `d29af25`, `53a3935`, `c0a9a2d`, `cfb8214` pushed to `v4`; tag `before-restructure` marks the last commit before the move. RS4 waits for the owner's OAuth client; RS5 waits for a browser check against the real server. |
 | 2026-11-27 | Copilot | RS6, RS7, RS9 claimed | Helm chart, Compose, env templates, `run.sh` and the root README with a helper agent; CI, instructions, skills and `.mcp.json` directly. |
+| 2026-11-27 | Copilot | RS8 done; D10 routes | Docs rewritten with a helper agent; evidence on RS8. Review found the sign-in routes did not match D10 (`/auth/google/...` came from the coordinator's brief), so the server and React app now use `/auth/login` and `/auth/callback` (commit `3740d72`). C15's classifier limit now shows the 1.5 GB already recorded in §8, and §5's checks name today's commands. |
 
 ## 10. V2 backlog (not designed)
 

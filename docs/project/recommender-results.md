@@ -1,5 +1,7 @@
 # AFTERLINE — verified delivery results
 
+> **Paths changed on 27 Nov 2026.** The commands below use the folders from before the restructure (`collector/ml-v2/`). Today the same code is in `ml/`; see [status.md](status.md). The recorded results are unchanged.
+
 **Historical baseline: `stories-002`, cut 22 Oct 2026; status note reviewed 25 Nov.**
 The measurements and suite counts below belong to that frozen delivery, not the
 current code or a new live-service check. Its private artifacts may be absent from a

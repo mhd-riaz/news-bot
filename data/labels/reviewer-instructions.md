@@ -1,10 +1,8 @@
 # Review the V4 label sheet
 
-**For future genuine human review only.** The owner confirmed on 22 Nov 2026
-that all existing classifier label datasets, including round 1 once called
-human gold, are AI-generated (roadmap D16). Preserve those historical sheets;
-these instructions do not turn them into human labels. Human validation and
-the 200 human labels/class target remain **not met**.
+**For future human review only.** How the existing labels in this folder were
+made is explained once in [README.md](README.md). Labels from a sheet reviewed by
+people go in their own file and are never mixed into `labels.jsonl`.
 
 ## Purpose
 
@@ -13,7 +11,7 @@ This sheet collects human topic labels for fresh articles so the V4 classifier c
 ## What to do
 
 1. Read the article's `title` and `summary`.
-2. Choose exactly one topic using the [V4 taxonomy guide](../../data/labels/labelling-guide.md). Enter its exact `id` in `label`. Use `unsorted` if no topic fits or the text does not support a confident choice.
+2. Choose exactly one topic using the [V4 taxonomy guide](labelling-guide.md). Enter its exact `id` in `label`. Use `unsorted` if no topic fits or the text does not support a confident choice.
 3. Use `notes` only to explain an uncertain or unusual decision, such as why you chose one topic over another. Keep notes brief.
 4. Save the reviewed CSV in its original run directory, as CSV with UTF-8 encoding.
 
@@ -27,4 +25,4 @@ the sheet and record it as human work.
 - The CSV filename or its run directory. Keep this sheet separate from the other review sheets.
 - The taxonomy or label spelling. Do not invent labels or copy provisional/model suggestions into `label`.
 
-Keep the sheet and its article text within the approved private review process. Do not commit it to Git or share it publicly. Only genuinely human-authored labels can become human gold after the project verification and import steps. Those checks establish text consistency and agreement, not authorship; a `gold.jsonl` filename is not proof. The full workflow is in the [V4 README](classifier.md).
+Keep the sheet and its article text within the approved private review process. Do not commit it to Git or share it publicly. Only genuinely human-authored labels can become human gold after the project verification and import steps. Those checks establish text consistency and agreement, not authorship; a `gold.jsonl` filename is not proof. The full workflow is in the [classifier guide](../../docs/services/classifier.md#label-more-articles).

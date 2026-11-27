@@ -13,6 +13,7 @@ These labels were made by AI models and checked by automatic rules, so a score a
 | `labels.jsonl` | The labels: one article per line, written as JSON. |
 | `manifest.json` | Counts, plus SHA-256 fingerprints of `labels.jsonl` and of the files it was built from. A fingerprint is a long code that changes if even one byte changes. |
 | `labelling-guide.md` | The guide for choosing a topic: the 13 topics, what each one covers, and the rules. |
+| `reviewer-instructions.md` | How a person labels a new sheet of articles by hand. |
 
 There is no article text here: no titles, summaries or links. The text belongs to the
 news publishers, so it stays in the private database.

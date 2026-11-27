@@ -1,4 +1,4 @@
-"""Private representation service. MongoDB hydration stays in the Go application."""
+"""Private ranking service. It returns ranked article IDs; the web server in server/ reads the articles from MongoDB."""
 
 from __future__ import annotations
 

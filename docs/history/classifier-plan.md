@@ -104,7 +104,7 @@ Where those conflict with breadth, breadth loses.
 ## Repository context
 
 **Stack.** Go 1.26+, MongoDB, Docker Compose, deployed to a Coolify homelab by
-[.github/workflows/news-collector.yml](../../.github/workflows/news-collector.yml).
+[.github/workflows/news-collector.yml](https://github.com/mhd-riaz/news-bot/blob/before-restructure/.github/workflows/news-collector.yml).
 `ml/` is offline Python on **uv**, never deployed.
 
 | Command                                                    | Purpose                                     |
