@@ -25,8 +25,9 @@ not the `/stories` AFTERLINE reader on port 8090.
 ## Historical classifier evidence
 
 The earlier *Beyond the Headline* classifier project is preserved under
-[ml/](ml/), [ml-v2/](ml-v2/) and [submission/](../docs/history/submission/). Its closed experiment
-logs are [docs/plan.md](../docs/history/classifier-plan.md) and [ml-v2/docs/plan.md](ml-v2/docs/plan.md).
+[docs/history/ml/](../docs/history/ml/v1/README.md) and [submission/](../docs/history/submission/); its
+code is in the top-level [ml/](../ml/README.md) project. Its closed experiment
+logs are [docs/history/classifier-plan.md](../docs/history/classifier-plan.md) and [docs/history/ml/v2/plan.md](../docs/history/ml/v2/plan.md).
 
 **Label provenance correction (roadmap D16, 22 Nov): all old and new classifier
 labels are AI-generated.** Earlier descriptions of hand labels, human annotators
@@ -76,7 +77,7 @@ can write to a database. The API migrates and synchronizes sources on startup,
 then starts its enabled workers. Do not run these commands against production as
 part of local setup or verification.
 
-Before a writer, explicitly select the intended target and use `make rec-inspect`
+Before a writer, explicitly select the intended target and use `make -C ../ml rec-inspect`
 to check it without displaying the connection URI. Use the same environment
 selection for inspection and the writer, and check any Compose overrides too.
 The [recommender guide](../docs/services/recommender.md) documents inspection setup.
@@ -104,9 +105,8 @@ openssl rand -hex 32          # paste into NEWS_AUTH_API_KEYS
 ```
 
 `make up` builds and starts MongoDB, the classifier and the API. The classifier
-mounts `ml-v2/artifacts/models/v2-001` read-only; its trained bundle must exist
-locally for classification to work. A container build does not train or supply
-that model. The API waits for MongoDB, **not** classifier readiness, migrates
+mounts `ml/models/classifier/v4-ai-072b01a9ceaf` read-only; download that model first
+with `make -C ../ml models`. A container build does not train or supply the model. The API waits for MongoDB, **not** classifier readiness, migrates
 the database and applies `configs/sources.yaml` before it serves:
 
 ```bash
@@ -924,27 +924,28 @@ legacy protections do not deliver V1 reader sessions or their CSRF contract.
 
 Data preparation and training are offline Python tools. They read the collection
 read-only and write derived artifacts; they do not own collector article writes.
-`ml/` is the closed headline-only baseline. `ml-v2/` contains the body-aware
-classifier, shared cleaning/admission code, recommender tools and serving code.
+They live in the top-level [ml/](../ml/README.md) project. `src/newsml` is the closed
+headline-only baseline. `src/newsmlv2` contains the body-aware classifier and shared
+cleaning/admission code, `src/newsrec` the recommender, and `classifier/` the serving code.
 It is **not all offline**: the classifier image is part of the collector stack,
 and the ranker has a separate image but is demonstrated locally rather than
-deployed by the shipped Coolify file. `ml-v4/` holds separate local classifier
-candidates, not an automatic production upgrade.
+deployed by the shipped Coolify file. `src/newsmlv4` holds the V4 classifier tools;
+a new V4 model is not an automatic production upgrade.
 
 The current reader/recommender commands are in
 [docs/recommender.md](../docs/services/recommender.md). Historical classifier phase logs
-remain in [docs/plan.md](../docs/history/classifier-plan.md) and
-[ml-v2/docs/plan.md](ml-v2/docs/plan.md); do not take current product tasks from them.
-The older `ml/` targets below are for reproducing that baseline, not updating
-the current AFTERLINE demo:
+remain in [docs/history/classifier-plan.md](../docs/history/classifier-plan.md) and
+[docs/history/ml/v2/plan.md](../docs/history/ml/v2/plan.md); do not take current product tasks from them.
+The older v1 targets below are for that baseline, not for updating the current
+AFTERLINE demo. Rebuilding its old snapshots needs the label rounds that R3 removed;
+they remain at git tag `before-restructure`.
 
 ```bash
-make ml-setup                      # create ml/.venv and install pinned dependencies
-make ml-test                       # the offline test suite
+cd ../ml
+make setup                         # create ml/.venv with every dependency group
+make ml-test                       # the v1 test suite
 make ml-profile                    # corpus profile report and figures -> ml/reports
 make ml-boilerplate                # discover per-source template lines for review
-make ml-snapshot ID=20260823-100   # freeze a dataset
-make ml-verify   ID=20260823-100   # rebuild it and confirm byte-identical digests
 ```
 
 The older `ml/` tools accept `NEWS_ML_MONGO_URI`. Do not assume that this legacy
@@ -953,7 +954,7 @@ follow the relevant tool's configuration and target-inspection instructions.
 
 A snapshot is the boundary between data preparation and training. Once one exists,
 training reads a directory rather than a database, and its contents are a pure function
-of `(git SHA, cleaning_version, seed, corpus)` — which `make ml-verify` checks by
+of `(git SHA, cleaning_version, seed, corpus)` — which `newsml verify` checks by
 rebuilding into a scratch directory and comparing SHA-256 digests.
 
 Snapshot payloads are gitignored. They contain third-party article text collected for
@@ -995,12 +996,6 @@ deployments/  Dockerfile, local Docker Compose, Coolify Compose stack
 scripts/      developer helper scripts
 .env.example  template for the gitignored .env holding secrets
 
-ml/src/newsml offline data preparation: profile, clean, admit, neardup, splits, snapshot
-ml/tests      the offline test suite
-ml/reports    corpus profile and figures
-ml/data       frozen dataset snapshots (payloads gitignored)
-ml-v2/        shared preparation, classifier, recommender and serving tools
-ml-v4/        local AI-labelled classifier candidates and their evidence
 docs/roadmap.md current product contracts, status, decisions and work log
 ```
 

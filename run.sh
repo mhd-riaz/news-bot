@@ -6,7 +6,7 @@
 #   RUN_TERMINAL=iterm ./run.sh
 #
 # A service whose port is already listening is skipped, so re-running is safe.
-# Services read collector/.env themselves; nothing secret passes through this script.
+# Services read deployment/env/local.env themselves; nothing secret passes through this script.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,7 +26,7 @@ port_of() {
 command_of() {
   case "$1" in
     api) echo "make run" ;; # the collector: migrates and writes to the configured database
-    ranker) echo "make demo-serve" ;;
+    ranker) echo "make -C ../ml demo-serve" ;;
     reader) echo "make reader" ;;
   esac
 }
@@ -112,8 +112,8 @@ start_service() {
     printf "%-7s already starting (skipped)\n" "$name"
     return
   fi
-  if [[ $name == ranker && ! -s "$COLLECTOR/ml-v2/artifacts/recommender/LATEST_DEMO" ]]; then
-    echo "ranker  no demo snapshot yet: run 'make demo-refresh' in collector/ first (skipped)" >&2
+  if [[ $name == ranker && ! -s "$ROOT/ml/artifacts/recommender/LATEST_DEMO" ]]; then
+    echo "ranker  no demo snapshot yet: run 'make demo-refresh' in ml/ first (skipped)" >&2
     return
   fi
   # The first run asks macOS for permission to control the terminal app; a slow answer

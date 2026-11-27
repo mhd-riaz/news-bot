@@ -93,7 +93,7 @@ flowchart TB
         end
         N5[("⑤ MongoDB database<br/>make mongo-up · port 27017")]
         N7["⑦ Topic classifier · Python<br/>optional · needs a trained model"]
-        N8["⑧ Topic-model training<br/>ml · ml-v2 · ml-v4"]
+        N8["⑧ Topic-model training<br/>ml/"]
         N10["⑩ Manual snapshot + training<br/>TF-IDF · SVD · neural"]
         N11["⑪ Ranker<br/>make demo-serve / rec-serve · port 8001"]
         N12["⑫ AFTERLINE reader<br/>make reader · port 8090"]
@@ -225,10 +225,10 @@ view of every collected article. Preparation needs at least 100 admitted English
 so let a new collector run for a few minutes first. The **Yesterday edition** is a short
 selection calculated from that snapshot; it is not a separately stored daily newspaper.
 
-Open a second terminal in the `collector` folder:
+Open a second terminal in the `ml` folder:
 
 ```bash
-make rec-setup     # once: installs the Python tools (a few GB)
+make setup         # once: installs the Python tools (a few GB)
 make rec-inspect   # confirm this is the intended local database; never prints its URI
 make demo-refresh  # freeze recent-first data and fit TF-IDF, SVD and the neural model
 make demo-serve    # serve that snapshot on loopback; leave this terminal running
@@ -385,20 +385,20 @@ Two safety rules matter most:
 
 ### 5.2 How a story gets a topic
 
-The topic classifier is a small Python web service in [`collector/ml-v2/app/`](collector/ml-v2/app). For each story it:
+The topic classifier is a small Python web service in [`ml/classifier/app/`](ml/classifier/app). For each story it:
 
 1. **Cleans the text.** It removes lines that a publisher repeats on every page.
 2. **Detects the language**, so non-English text can be spotted.
 3. **Reads the headline and the story**, and weighs its words and short letter patterns.
 4. **Picks one of 13 topics** and says how sure it is. If it isn't sure enough, it answers **"unsorted"** instead of guessing.
 
-The 13 topics are listed in [`collector/ml-v2/taxonomy.yaml`](collector/ml-v2/taxonomy.yaml): politics, crime and justice, business and economy, technology, science and space, entertainment and arts, society and lifestyle, health, education, environment and climate, disaster and accident, conflict and war, and sport.
+The 13 topics are listed in [`ml/taxonomy.yaml`](ml/taxonomy.yaml): politics, crime and justice, business and economy, technology, science and space, entertainment and arts, society and lifestyle, health, education, environment and climate, disaster and accident, conflict and war, and sport.
 
 > **Note:** the sidecar needs a compatible trained bundle. Git does not distribute those
 > private bundles. The sidecar loads the bundle named by `NEWSML_MODEL_DIR`; production is
 > configured for the V4 model (D19), and the recommender does not use it. See the
-> [classifier guide](collector/ml/README.md)
-> and [V4 guide](collector/ml-v4/README.md) before choosing a training or serving path.
+> [classifier guide](docs/history/ml/v1/README.md)
+> and [V4 guide](docs/services/classifier.md) before choosing a training or serving path.
 
 ### 5.3 How AFTERLINE picks stories for you
 
@@ -441,7 +441,7 @@ flowchart LR
 - **Variety:** one story per story group. At first, no more than a third of the list (and at least 2) comes from one publisher. That limit is relaxed only when there aren't enough stories.
 - **Yesterday** is one page of at most ten stories, not an endlessly refilled feed. Related reading can search outside the selected news window for older background.
 
-The code is in [`collector/ml-v2/src/newsrec/index.py`](collector/ml-v2/src/newsrec/index.py).
+The code is in [`ml/src/newsrec/index.py`](ml/src/newsrec/index.py).
 
 </details>
 
@@ -476,13 +476,13 @@ flowchart LR
 4. **Know when to decline.** A confidence cut controls which predictions are filed. Against AI labels, its agreement is not a proven probability of being correct for a person.
 5. **Open the final test once.** Save the result, split IDs and model card. Do not reopen it to tune a model or overwrite an earlier recorded model.
 
-The repo has three generations of these tools:
+The repo has three generations of these tools, all in one Python project, [`ml/`](ml/README.md):
 
 | Folder | What's inside |
 | --- | --- |
-| [`collector/ml/`](collector/ml) | The first topic model, the example data it learned from, and a notebook that walks through it. If you want to try training, start with its own guide. |
-| [`collector/ml-v2/`](collector/ml-v2) | Closed body-aware classifier study, the current classifier sidecar, shared cleaning tools and the separate AFTERLINE recommender. |
-| [`collector/ml-v4/`](collector/ml-v4) | Candidate sampling, verification, AI-label pooling and V4 model comparison/training. The model reads headline and summary; the owner approved it for production on 27 Nov (D19) and the sidecar serves it. |
+| [`ml/src/newsml/`](ml/src/newsml) | The first topic model (closed). Its old guide and results are in [`docs/history/ml/`](docs/history/ml/v1/README.md). |
+| [`ml/src/newsmlv2/`](ml/src/newsmlv2) | Closed body-aware classifier study and the shared cleaning tools. The classifier sidecar is in [`ml/classifier/`](ml/classifier). |
+| [`ml/src/newsmlv4/`](ml/src/newsmlv4) | Candidate sampling, verification, AI-label pooling and V4 model comparison/training. The model reads headline and summary; the owner approved it for production on 27 Nov (D19) and the sidecar serves it. Its labels are in [`data/labels/`](data/labels/README.md). |
 
 > **Honest note:** roadmap D16 corrects earlier claims of human-generated classifier
 > labels: all old and new classifier label datasets were AI-generated. The pooled V4
@@ -515,9 +515,8 @@ Only the collector writes to the database. The AFTERLINE reader and the training
 | [`collector/cmd/`](collector/cmd) | The programs you can run. `api` is the collector app and `reader` is AFTERLINE. `collector`, `scrape`, `seed`, `migrate` and `backfill` each do one job by hand. |
 | [`collector/internal/`](collector/internal) | The Go building blocks: reading feeds, spotting copies, extracting text, the database code and the web pages. |
 | [`collector/configs/`](collector/configs) | Settings and the feed list. |
-| [`collector/ml/`](collector/ml) | The first-generation topic model, example data and a notebook. |
-| [`collector/ml-v2/`](collector/ml-v2) | The topic classifier service (`app/`), shared text-cleaning tools (`src/newsmlv2/`) and AFTERLINE's recommender (`src/newsrec/`). |
-| [`collector/ml-v4/`](collector/ml-v4) | Candidate sampling, verification, label pooling and the separate V4 classifier trainer. |
+| [`ml/`](ml/README.md) | The Python ML project: the topic classifier service (`classifier/`), AFTERLINE's recommender (`src/newsrec/`), shared text-cleaning tools and the classifier studies (`src/newsml`, `src/newsmlv2`, `src/newsmlv4`). |
+| [`data/labels/`](data/labels/README.md) | The topic labels for the V4 classifier, without article text. |
 | [`collector/scripts/`](collector/scripts) | JavaScript tests, run with Node. |
 | [`collector/fixtures/`](collector/testdata) | Small sample feeds used by the tests. |
 | [`collector/deployments/docker-compose.yml`](deployment/compose/compose.yaml) | The Docker setup that `make mongo-up` uses. |
@@ -527,7 +526,7 @@ Only the collector writes to the database. The AFTERLINE reader and the training
 
 ## 7. Command cheat sheet
 
-Run these from the `collector` folder. `make help` lists command descriptions; the ML2/ML4 targets are also documented in their guides.
+Run these from the `collector` folder. `make help` lists command descriptions; the ML commands live in [`ml/Makefile`](ml/README.md), so they are run here with `make -C ../ml`.
 
 | Command | What it does |
 | --- | --- |
@@ -537,14 +536,14 @@ Run these from the `collector` folder. `make help` lists command descriptions; t
 | `make collect-source SOURCE=<id>` | Check one feed now (get the `<id>` from `/api/v1/sources`) |
 | `make scrape` | Run one round of the full-text fetcher |
 | `make seed-check` | Check the feed list for mistakes without changing anything |
-| `make rec-setup` | Install the Python tools for AFTERLINE (once) |
-| `make rec-inspect` | Check the configured database target and collection counts without printing its connection string |
-| `make demo-refresh`, `make demo-serve` | Build a new recent-first snapshot, then serve the latest successful demo on port 8001 |
-| `make rec-prepare`, `make rec-baseline`, `make rec-train` | Build a named frozen archive; use a new `REC_ID` and an explicit past `CUT` |
-| `make rec-serve REC_ID=<existing-id>` | Start the ranker for an existing saved archive on port 8001 |
+| `make -C ../ml setup` | Install the Python tools for AFTERLINE and the classifier (once) |
+| `make -C ../ml rec-inspect` | Check the configured database target and collection counts without printing its connection string |
+| `make -C ../ml demo-refresh`, `make -C ../ml demo-serve` | Build a new recent-first snapshot, then serve the latest successful demo on port 8001 |
+| `make -C ../ml rec-prepare`, `rec-baseline`, `rec-train` | Build a named frozen archive; use a new `REC_ID` and an explicit past `CUT` |
+| `make -C ../ml rec-serve REC_ID=<existing-id>` | Start the ranker for an existing saved archive on port 8001 |
 | `make reader` | Start the AFTERLINE reader on port 8090 |
-| `make ml-setup`, `make ml-test` | Install and test the first-generation topic-model tools |
-| `make ml4-train DATASET=<AI-pool>` | Train a V4 classifier from a prepared, truthfully attributed pool; a new model needs its own owner approval before production |
+| `make -C ../ml test` | Run every ML test |
+| `make -C ../ml ml4-train DATASET=<AI-pool>` | Train a V4 classifier from a prepared, truthfully attributed pool; a new model needs its own owner approval before production |
 | `make backfill-reclassify` | Relabel existing articles with the sidecar's current model, in bounded resumable batches; writes the configured database |
 | `make backfill` | Write missing C1 derived metadata in bounded batches; only against an explicitly approved target |
 | `make down` | ⚠️ Stop the Docker services and **delete their data** |
@@ -556,7 +555,7 @@ Run these from the `collector` folder. `make help` lists command descriptions; t
 Thank you for helping! Here's the usual flow:
 
 1. **Fork** the repo on GitHub and create a branch for your change.
-2. **Read and claim a task** in the [roadmap](docs/project/roadmap.md) without overlapping another agent's files. Set up with [Part A](#part-a--collect-the-news); for the Python parts, run `make rec-setup` once.
+2. **Read and claim a task** in the [roadmap](docs/project/roadmap.md) without overlapping another agent's files. Set up with [Part A](#part-a--collect-the-news); for the Python parts, run `make setup` in `ml/` once.
 3. **Make a small, focused change**, with a test that fails without it.
 4. **Run the checks** for what you changed:
 
@@ -564,10 +563,10 @@ Thank you for helping! Here's the usual flow:
    | --- | --- |
    | Go code | `make check` (format check, `go vet` and unit tests) and `make test-race` |
    | Database code | also `make test-integration`, with `make mongo-up` running |
-   | Python classifier, cleaning or recommender code | `make ml2-test`, `make classifier-test` and `make rec-test` |
+   | Python classifier, cleaning or recommender code | `make test` in `ml/` |
    | Reader web pages or browser code | `make rec-test` (it runs the Node tests too) |
-   | First-generation ML tools in `collector/ml/` | `make ml-setup` once, then `make ml-test` |
-   | Labelling tools in `collector/ml-v4/` | `make ml4-test` (after `make ml-setup`) |
+   | First-generation ML tools in `ml/src/newsml/` | `make ml-test` in `ml/` (after `make setup`) |
+   | Labelling tools in `ml/src/newsmlv4/` | `make ml4-test` in `ml/` (after `make setup`) |
 
 5. **Open a pull request.** Say what you changed, why, and how you tested it. GitHub runs the main checks again on every pull request.
 

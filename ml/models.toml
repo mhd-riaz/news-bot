@@ -1,0 +1,26 @@
+# Model files that are kept out of git. `make models` (scripts/download_models.py)
+# downloads each one into this ml/ folder and checks every file's SHA-256.
+#
+# Each [[model]] is one archive. `unpack_to` is relative to ml/. `sha256` and `size`
+# describe the archive; [model.files] lists the SHA-256 of every file inside it.
+# A source is either a GitHub release (github_repo, tag, asset) or a plain https `url`.
+# The releases below are in the private repository mhd-riaz/news-bot-archive, so you
+# need read access to it: sign in with `gh auth login`, or set GITHUB_TOKEN.
+
+[[model]]
+name = "classifier-v4-ai-072b01a9ceaf"
+about = "Production topic classifier v4-ai-072b01a9ceaf-hybrid_svc (roadmap D19)"
+unpack_to = "models/classifier/v4-ai-072b01a9ceaf"
+sha256 = "a761086d2d4fa8013613c5036a1dbfb18d8dfb903d7de8f4ba7e7ee0e036ac73"
+size = 44485486
+
+[model.source]
+github_repo = "mhd-riaz/news-bot-archive"
+tag = "classifier-v4-ai-072b01a9ceaf"
+asset = "classifier-v4-ai-072b01a9ceaf.tar.gz"
+
+[model.files]
+# bundle.joblib's hash is the value production checks as NEWSML_MODEL_SHA256.
+"bundle.joblib" = "61cbaa89016d1acd88473cad2cf59cec69e74177aabe123bafa0a9c9f6c22fde"
+"manifest.json" = "391eb9c06cee88f5fe8c616bf48fbbba025aecedacbb81c14b310d54d07eb6dd"
+"model-card.md" = "d2dc73021dacede138f05faa8b373009cdf0b5bde4cf2d2578cc4af5796e357f"

@@ -26,7 +26,7 @@ The client wants to keep up with their professional field, initially software de
   - A read-only MCP server for AI agents.
 - **V2 — audio and iPhone:** ask for the user's listening time, narrate a briefing sized to it from the daily edition, accept spoken commands, and ship an iPhone app. Android follows V2.
 
-**The plan, contracts and status live in [docs/project/roadmap.md](../docs/project/roadmap.md).** `docs/history/classifier-plan.md` and `collector/ml-v2/docs/plan.md` are closed classifier plans: use them as history only, never as a task source.
+**The plan, contracts and status live in [docs/project/roadmap.md](../docs/project/roadmap.md).** `docs/history/classifier-plan.md` and `docs/history/ml/v2/plan.md` are closed classifier plans: use them as history only, never as a task source.
 
 ## Delivered in phase 1 (baseline `c06fdf4`)
 
@@ -67,7 +67,7 @@ in roadmap M1 and DEMO; they do not close V1 acceptance or prove today's service
   reclassified by this correction.
 - **Deployment:** publishing/deployment remains gated by `DEPLOY_ENABLED`; the older repository
   still owns the production package. Do not infer deployment from a successful local image build.
-  V4 reaches production only when its bundle is on the `classifier-models` volume (ml-v4 README).
+  V4 reaches production only when its bundle is on the `classifier-models` volume ([docs/services/classifier.md](../docs/services/classifier.md)).
 
 ## Architecture
 
@@ -77,10 +77,12 @@ in roadmap M1 and DEMO; they do not close V1 acceptance or prove today's service
 | `cmd/reader` | AFTERLINE reader and API; read-only today |
 | `internal/mongodb` | The only schema owner: collection names and the index plan |
 | `internal/domain`, `internal/repository/mongo`, `internal/service`, `internal/handler`, `internal/web` | Domain model, persistence, services, HTTP handlers, templates and static UI |
-| `ml-v2/src/newsrec` | Recommender: `data.py` prepares data, `model.py` trains, `index.py` ranks, `api.py` serves the Flask ranker, plus `evaluate.py` and `cli.py` |
-| `ml-v2/src/newsmlv2` | Shared cleaning, admission, boilerplate and dedup |
-| `ml/` | Closed v1 classifier; `ml/src/newsml/neardup.py` holds the calibrated MinHash/LSH |
-| `ml-v4/src/newsmlv4` | Candidate sampling/verification, truthful AI-label pooling and the separate V4 classifier trainer; no production promotion |
+| `../ml/src/newsrec` | Recommender: `data.py` prepares data, `model.py` trains, `index.py` ranks, `api.py` serves the Flask ranker, plus `evaluate.py` and `cli.py` |
+| `../ml/src/newsmlv2` | Shared cleaning, admission, boilerplate and dedup |
+| `../ml/src/newsml` | Closed v1 classifier; `neardup.py` holds the calibrated MinHash/LSH |
+| `../ml/src/newsmlv4` | Candidate sampling/verification, truthful AI-label pooling and the separate V4 classifier trainer; no production promotion |
+| `../ml/classifier` | The classifier sidecar service (`app/api.py`) and its Dockerfile; models come from `../ml/models.toml` |
+| `../data/labels` | The one topic-label dataset: IDs, topics and train/test splits, no article text |
 | `../deployment/compose/coolify.compose.yml` | Production stack: MongoDB, classifier and API |
 | `configs/` | `config.yaml`, `reader.yaml` and `sources.yaml` |
 
@@ -92,7 +94,7 @@ Reuse existing code before writing new code:
 - JSON-LD extraction: `internal/extract`.
 - API-key auth: `handler.Authenticator`.
 - Cleaning, admission and dedup: `newsmlv2`.
-- Clean text and detected language for articles: the existing classifier-sidecar call (`internal/classifier`, `ml-v2/app/api.py`).
+- Clean text and detected language for articles: the existing classifier-sidecar call (`internal/classifier`, `ml/classifier/app/api.py`).
 
 ## Hard rules
 
@@ -101,7 +103,7 @@ Reuse existing code before writing new code:
 3. Evidence comes before claims: no metric, capability or `[x]` without a recorded measurement or demonstration. A fallback is not a pass; record unmet criteria as **not met**.
 4. Keep human and AI-assisted judgements in separate records. Never tune or train on sealed acceptance cases.
 5. Escalate owner decisions in roadmap §7; never take them. These include scope, deadlines, R3, thresholds, content rights and retention.
-6. Secrets live only in the environment or Coolify secrets — never in `configs/`, code, logs or archives. Never print the MongoDB URI; `make rec-inspect` checks the target safely.
+6. Secrets live only in the environment or Coolify secrets — never in `configs/`, code, logs or archives. Never print the MongoDB URI; `make rec-inspect` (in `ml/`) checks the target safely.
 7. Render third-party text only through `html/template` or `textContent`. State-changing browser requests need a session and CSRF protection.
 8. Declare every new collection or index in `internal/mongodb`, and add a roadmap C14 row before first use.
 9. Add no dependency or infrastructure without a one-line reason in roadmap §8. This includes vector databases, brokers, caches, LLMs or paid APIs, and JavaScript toolchains. Prefer the standard library, then an existing dependency, then a small package. The web reader has no JavaScript build step.
@@ -124,9 +126,10 @@ Reuse existing code before writing new code:
 ## Build and test (from `collector/`)
 
 - Go: run `make check` (format check, vet and unit tests) and `make test-race`. `make test-integration` needs MongoDB on `localhost:27017`.
-- Recommender: run `make rec-setup` once, then `make rec-test` for pytest, Go and `node --test`. Use `make ml2-test` for `newsmlv2`.
-- Local reader: `make rec-setup` once, inspect the intended local target with `make rec-inspect`,
-  then `make demo-refresh`, `make demo-serve` and `make reader` in separate serving terminals.
+- Python (from `ml/`): run `make setup` once, then `make test` for every ML test. `make rec-test` in `ml/`
+  runs the recommender's pytest; `make rec-test` in `collector/` runs its Go and `node --test` checks.
+- Local reader: in `ml/`, `make setup` once, inspect the intended local target with `make rec-inspect`,
+  then `make demo-refresh` and `make demo-serve`; run `make reader` in `collector/`, each in its own terminal.
   Open http://127.0.0.1:8090/stories. Rebuilds are manual; restart the ranker to select the
   new snapshot. `make rec-serve REC_ID=<existing-id>` still serves a specific saved archive;
   the private historical `stories-002` files are not guaranteed to be present.

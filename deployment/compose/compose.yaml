@@ -21,10 +21,11 @@ services:
       retries: 10
       start_period: 20s
 
+  # The model comes from `make -C ml models` (ml/models.toml); it is not in git.
   classifier:
     build:
-      context: ../../collector
-      dockerfile: deployments/classifier.Dockerfile
+      context: ../../ml
+      dockerfile: classifier/Dockerfile
     restart: unless-stopped
     env_file:
       - path: ../env/local.env
@@ -35,7 +36,7 @@ services:
     expose:
       - "8000"
     volumes:
-      - ../../collector/ml-v4/data/models/v4-ai-072b01a9ceaf:/models/v4-ai-072b01a9ceaf:ro
+      - ../../ml/models/classifier/v4-ai-072b01a9ceaf:/models/v4-ai-072b01a9ceaf:ro
     healthcheck:
       test: ["CMD", "python", "-c", "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health/ready')"]
       interval: 15s

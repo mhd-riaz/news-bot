@@ -1,0 +1,65 @@
+[project]
+name = "newsbot-ml"
+version = "0.1.0"
+description = "news-bot's machine learning: the topic classifier, the recommender and their offline tools."
+requires-python = ">=3.12"
+
+# Stdlib first, then a small focused package. Each entry needs a reason to be here.
+dependencies = [
+    "pymongo>=4.8",              # read the bronze corpus; the only way in
+    "scikit-learn>=1.5",         # vectorisers, linear models, calibration, CV splitters
+    "numpy>=2.0",
+    "scipy>=1.14",               # sparse matrices and the statistical tests
+    "pandas>=2.2",               # snapshot frames
+    "pyarrow>=17.0",             # Parquet + zstd; bodies make JSONL snapshots ~60MB
+    "PyYAML>=6.0",               # reviewable artifacts (taxonomy, experiment configs)
+    "matplotlib>=3.9",           # confusion matrices, reliability curves, profile figures
+    "spacy>=3.7",                # Phase D0: NER-aware scrubbing and lemmatisation
+    "xgboost>=2.1",              # Phase E2, on dense features only
+    "sentence-transformers>=3.0",# Phase E4 and V4, frozen embeddings
+    "torch",                     # sentence-transformers' backend; listed because uv applies [tool.uv.sources] only to direct dependencies
+    "langdetect>=1.0.9",         # language is measured, not taken from source metadata
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=6.0", # measure the recommendation logic and error-path coverage
+    "ipykernel>=6.29",  # interactive work in an editor; the logic stays in src/
+]
+recommend = [
+    "tensorflow>=2.20,<3", # small, locally trained article autoencoder
+]
+serve = [
+    "Flask>=3.1,<4",
+    "gunicorn>=23,<24",
+]
+
+[project.scripts]
+newsml = "newsml.cli:main"
+newsmlv2 = "newsmlv2.cli:main"
+newsrec = "newsrec.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/newsml", "src/newsmlv2", "src/newsrec", "src/newsmlv4"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# tests/newsml and tests/newsmlv2 share six file names; importlib mode lets both load.
+addopts = "-q --import-mode=importlib"
+# `app` is the classifier service in classifier/app/.
+pythonpath = ["src", "classifier"]
+
+# Linux gets PyTorch's CPU-only build: the CUDA build from PyPI pulls several GB of
+# NVIDIA libraries that nothing here uses. macOS keeps PyPI's build.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]

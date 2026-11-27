@@ -1,0 +1,12 @@
+# The images copy only what they need; keep private data, models and caches out.
+**/.venv
+**/__pycache__
+**/.pytest_cache
+models/
+artifacts/
+data/
+reports/
+tests/
+**/*.joblib
+**/.env*
+**/*.env

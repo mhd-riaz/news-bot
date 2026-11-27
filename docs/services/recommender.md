@@ -16,38 +16,38 @@ The reading default is **TF-IDF**, selected after the separate relevance compari
 
 Requirements: Go **1.27+**, Python **3.12**, `uv`, and access to the existing MongoDB `news` database. Node is needed only for the optional JavaScript unit checks, not for serving the UI.
 
-From `collector/`:
+From `ml/`:
 
 ```bash
-make rec-setup
-# Configure the intended existing database through the environment or ignored .env.
+make setup
+# Configure the intended existing database through the environment or the ignored deployment/env/local.env.
 # Do not print or commit credentials.
 make rec-inspect
 ```
 
-Check the count and collection dates before exporting. A local Mongo instance and an SSH-forwarded or remote instance may contain different copies of `news`; a successful connection is not proof that it is the correct corpus. Both Python and Go read `NEWS_MONGO_URI` and `NEWS_MONGO_DATABASE` from `collector/.env`, with process environment taking precedence. `NEWS_ENV_FILE` can select another dotenv file. These reader/recommender commands do not start collection; a snapshot cannot contain news missing from that database.
+Check the count and collection dates before exporting. A local Mongo instance and an SSH-forwarded or remote instance may contain different copies of `news`; a successful connection is not proof that it is the correct corpus. Both Python and Go read `NEWS_MONGO_URI` and `NEWS_MONGO_DATABASE` from `deployment/env/local.env`, with process environment taking precedence. `NEWS_ENV_FILE` can select another dotenv file. These reader/recommender commands do not start collection; a snapshot cannot contain news missing from that database.
 
-For the current demo, build a new recency-first snapshot, then serve it in the first terminal:
+For the current demo, build a new recency-first snapshot, then serve it in the first terminal (from `ml/`):
 
 ```bash
 make demo-refresh
 make demo-serve                    # http://127.0.0.1:8001, private ranking service
 ```
 
-In a second terminal:
+In a second terminal, from `collector/`:
 
 ```bash
 make reader                        # http://127.0.0.1:8090/stories
 ```
 
-`demo-refresh` uses a UTC cutoff two minutes before the build, prioritizes the last seven **collection** days, fits all three methods, and updates `ml-v2/artifacts/recommender/LATEST_DEMO` only after success. It does not restart an existing ranker: stop your own old ranker and run `make demo-serve` again after each refresh. Refreshes are manual, not scheduled.
+`demo-refresh` uses a UTC cutoff two minutes before the build, prioritizes the last seven **collection** days, fits all three methods, and updates `ml/artifacts/recommender/LATEST_DEMO` only after success. It does not restart an existing ranker: stop your own old ranker and run `make demo-serve` again after each refresh. Refreshes are manual, not scheduled.
 
 `stories-002` is the historical 22 Oct phase-1 edition, not a bundled starting dataset. Its private artifacts may be absent on a new checkout. `make rec-serve REC_ID=<built-id>` serves any complete local snapshot; always supply its ID because the legacy `REC_ID` make default is still `stories-002`.
 
 The development reader binds loopback and has authentication disabled in `configs/reader.yaml`. Do not expose it publicly in this configuration. The existing `NEWS_AUTH_*` API-key/Basic authentication is not Google sign-in or a reader account system; production configuration rejects disabled authentication. The Python ranking service is loopback-only when started with `newsrec serve`. For managed serving, use the existing Gunicorn dependency, one worker initially, and set `NEWSREC_MODEL_DIR` to a complete artifact directory. For example, after a successful demo refresh:
 
 ```bash
-cd ml-v2
+cd ml
 NEWSREC_MODEL_DIR="$PWD/artifacts/recommender/$(cat artifacts/recommender/LATEST_DEMO)" \
   uv run --no-sync gunicorn --bind 127.0.0.1:8001 --workers 1 --threads 4 \
   'newsrec.api:create_app()'
@@ -61,7 +61,7 @@ The reader caps idle Mongo data connections at **60 seconds**, retiring them bef
 
 ## Freeze and train a named snapshot
 
-Use a new ID; preparation refuses to overwrite a snapshot:
+Use a new ID; preparation refuses to overwrite a snapshot. From `ml/`:
 
 ```bash
 make rec-prepare REC_ID=archive-20261125 CUT=2026-11-25T00:00:00+00:00
@@ -99,7 +99,7 @@ Eight MiniBatchKMeans groups over latent representations provide keyword-labelle
 
 ## Artifacts and serving
 
-All edition outputs stay under the ignored `ml-v2/artifacts/recommender/<id>/`:
+All edition outputs stay under the ignored `ml/artifacts/recommender/<id>/`:
 
 | File | Purpose |
 | --- | --- |
@@ -193,10 +193,10 @@ Scraped values are escaped by Go templates or assigned with `textContent`, never
 ```bash
 make rec-benchmark REC_ID=archive-20261125
 # Independently grade every candidate in:
-# ml-v2/artifacts/recommender/archive-20261125/judgements.jsonl
+# ml/artifacts/recommender/archive-20261125/judgements.jsonl
 #
 # grade 0 = unrelated, 1 = loosely related, 2 = useful recommendation
-cd ml-v2
+cd ml
 uv run --no-sync newsrec score --id archive-20261125 \
   --judgements artifacts/recommender/archive-20261125/judgements.jsonl
 ```
@@ -210,7 +210,7 @@ For an explicitly limited manual pilot, repeat `--case <case-id>` when scoring. 
 The historical `stories-002` study also has an approved method-blinded AI assessment, separate from its human pilot. Replaying the following command requires those private historical artifacts. Its labels are **not human ground truth**, are not copied into `judgements.jsonl`, and carry `label_source: "ai-assisted"` in a separate sheet. Scoring requires the matching source explicitly:
 
 ```bash
-cd ml-v2
+cd ml
 uv run --no-sync newsrec score --id stories-002 \
   --judgements artifacts/recommender/stories-002/ai-judgements.jsonl \
   --label-source ai-assisted
@@ -225,7 +225,7 @@ Automated results include warm retrieval p50/p95 over at least 100 queries/metho
 With both services running, measure the real API on the same frozen cases:
 
 ```bash
-cd ml-v2
+cd ml
 uv run --no-sync newsrec measure --id archive-20261125
 ```
 
@@ -240,7 +240,7 @@ These are research candidates for a future recommender or classifier iteration, 
 1. **Validate content groups.** Compare the existing eight-group MiniBatchKMeans result with a small range of cluster counts using WCSS and silhouette score, then review representative articles and topic coherence. Keep distant articles unassigned. DBSCAN is an optional comparison if it can be evaluated on the same features and corpus; agglomerative clustering is a later option if hierarchical topics become a product need.
 2. **Add simple recommendation baselines.** Measure a popularity baseline and the existing TF-IDF content baseline on identical temporal splits and candidate exclusions. Keep collaborative signals such as co-likes as an additional feature, not the sole recommender: the invited-reader group is small and interaction history is sparse.
 3. **Evaluate association rules.** The roadmap already plans FP-Growth for article and reader baskets in M5.2. Report support, confidence and lift, and measure whether rule boosts improve held-out recommendation quality; do not treat rules as a replacement for the existing baselines.
-4. **Compare neural models fairly.** The planned two-tower model and current autoencoder already use neural-network methods. Any tuning of architecture, dropout, batch normalization, initialization or optimization must use development data only, compare against TF-IDF/SVD, and preserve the sealed human test cases. For the V4 classifier, the trainer in [`ml-v4`](../../collector/ml-v4/README.md) (`make ml4-train`, roadmap ML4.3/ML4.6) compares a small Keras MLP, LinearSVC and sentence-embedding models on identical stratified folds. The owner confirmed on 22 Nov that all old and new classifier labels are AI-generated (D16); the pooled local candidate reports AI-label agreement only, not human-validated accuracy. Historical evaluation articles remain excluded, human validation is not met, and the owner's production approval (D19, 27 Nov) rests on AI-label agreement alone.
+4. **Compare neural models fairly.** The planned two-tower model and current autoencoder already use neural-network methods. Any tuning of architecture, dropout, batch normalization, initialization or optimization must use development data only, compare against TF-IDF/SVD, and preserve the sealed human test cases. For the V4 classifier, the trainer in [`ml/src/newsmlv4`](classifier.md) (`make ml4-train`, roadmap ML4.3/ML4.6) compares a small Keras MLP, LinearSVC and sentence-embedding models on identical stratified folds. The owner confirmed on 22 Nov that all old and new classifier labels are AI-generated (D16); the pooled local candidate reports AI-label agreement only, not human-validated accuracy. Historical evaluation articles remain excluded, human validation is not met, and the owner's production approval (D19, 27 Nov) rests on AI-label agreement alone.
 
 ### Supporting and lower-priority topics
 
@@ -258,7 +258,7 @@ For every comparison, freeze the corpus and model inputs, use a chronological sp
 make rec-test
 go test ./...
 go vet ./cmd/reader ./internal/recommendation ./internal/handler ./internal/web
-cd ml-v2
+cd ml
 uv run --no-sync pytest --cov=newsrec --cov-branch
 ```
 

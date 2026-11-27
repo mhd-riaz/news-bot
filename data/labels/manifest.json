@@ -1,0 +1,96 @@
+{
+  "file": "labels.jsonl",
+  "sha256": "c4759756007c2a647bad4d6e60adfe475d5af75b729dfafbd8ebb0631e793860",
+  "rows": 8594,
+  "rows_with_aliases": 1295,
+  "taxonomy_version": 4,
+  "taxonomy_sha256": "37a758a2592916bcd4b8f0cf534e96d810bb011f8b00d7f3d10ed87571a5220f",
+  "splits": {
+    "train": 6875,
+    "test": 1719
+  },
+  "topics": {
+    "business_economy": {
+      "train": 540,
+      "test": 135,
+      "total": 675
+    },
+    "conflict_war": {
+      "train": 303,
+      "test": 76,
+      "total": 379
+    },
+    "crime_justice": {
+      "train": 673,
+      "test": 168,
+      "total": 841
+    },
+    "disaster_accident": {
+      "train": 382,
+      "test": 95,
+      "total": 477
+    },
+    "education": {
+      "train": 404,
+      "test": 101,
+      "total": 505
+    },
+    "entertainment_arts": {
+      "train": 548,
+      "test": 137,
+      "total": 685
+    },
+    "environment_climate": {
+      "train": 366,
+      "test": 92,
+      "total": 458
+    },
+    "health": {
+      "train": 429,
+      "test": 107,
+      "total": 536
+    },
+    "politics": {
+      "train": 1351,
+      "test": 338,
+      "total": 1689
+    },
+    "science_space": {
+      "train": 360,
+      "test": 90,
+      "total": 450
+    },
+    "society_lifestyle": {
+      "train": 377,
+      "test": 94,
+      "total": 471
+    },
+    "sport": {
+      "train": 456,
+      "test": 114,
+      "total": 570
+    },
+    "technology": {
+      "train": 686,
+      "test": 172,
+      "total": 858
+    }
+  },
+  "sources": {
+    "pool": {
+      "name": "v4-ai-pooled-20261122T000000Z",
+      "manifest_sha256": "5e093b22503999ef62e84c08cccd2ac14396c4c5c3ea58e4c35d3bf788b07f4e",
+      "labels_sha256": "072b01a9ceafbc751ee83c7b034dbfdc1be0801ad4d3e02b60f3a3588676a767"
+    },
+    "split": {
+      "model": "v4-ai-072b01a9ceaf-hybrid_svc",
+      "file": "split.jsonl",
+      "sha256": "2cf409ee034890786bd0e347f1ab7c38100d2cab02ff28f0e578d3a2646648d1",
+      "mapping": {
+        "development": "train",
+        "test": "test"
+      }
+    },
+    "protected_tests_sha256": "4da2838bb5bf8315787cd00ae9abaeeff97f026bf8826a32337a27e844e60852"
+  }
+}
