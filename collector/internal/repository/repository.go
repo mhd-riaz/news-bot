@@ -159,15 +159,3 @@ type LockRepository interface {
 	// must not assume its work was still exclusive.
 	Release(ctx context.Context, resource, owner string) error
 }
-
-// ReadEventRepository persists what a reader did with the feed.
-//
-// There is no read method: read events are consumed offline by the training
-// pipeline, which reads the collection directly, and an HTTP listing nobody
-// calls is a surface to defend for no gain.
-type ReadEventRepository interface {
-	// CreateMany stores a batch and reports how many were written. A batch is
-	// one flush from one page, so it is written unordered: a single rejected
-	// event must not discard the ones behind it.
-	CreateMany(ctx context.Context, events []domain.ReadEvent) (int64, error)
-}

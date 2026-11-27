@@ -43,7 +43,6 @@ build: ## Build every command into $(BIN_DIR)
 	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/collector ./cmd/collector
 	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/scrape ./cmd/scrape
 	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/backfill ./cmd/backfill
-	go build -trimpath -ldflags="$(LDFLAGS)" -o $(BIN_DIR)/reader ./cmd/reader
 
 .PHONY: test
 test: ## Run unit tests (no external dependencies)
@@ -124,12 +123,3 @@ mongo-up: ## Start only MongoDB, for local test runs
 .PHONY: clean
 clean: ## Remove build and coverage artefacts
 	rm -rf $(BIN_DIR) coverage.out coverage.html
-
-.PHONY: reader
-reader: ## Serve the read-only AFTERLINE reader at http://127.0.0.1:8090/stories
-	$(RUN_ENV) go run ./cmd/reader
-
-.PHONY: rec-test
-rec-test: ## Check the reader's Go and browser-state logic without a live DB (Python: make -C ../ml rec-test)
-	go test ./cmd/reader ./internal/recommendation ./internal/handler ./internal/web ./internal/config ./internal/mongodb
-	node --test internal/web/stories.test.mjs ../deployment/mongo/mongo-users.test.mjs

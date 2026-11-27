@@ -57,9 +57,8 @@ jobs:
       - name: ML, classifier and recommender tests
         working-directory: ml
         run: make test
-      - name: Reader Go and browser tests
-        working-directory: collector
-        run: make rec-test
+      - name: Database user script test
+        run: node --test deployment/mongo/mongo-users.test.mjs
 
   build-images:
     name: build (${{ matrix.image }})

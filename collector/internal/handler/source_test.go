@@ -92,7 +92,6 @@ func newSourceServer(t *testing.T, mgr SourceManager) http.Handler {
 		NewCollectionRun(&fakeRunReader{}, logger),
 		NewArticle(&fakeArticleReader{}, logger),
 		nil,
-		nil,
 		logger,
 	)
 }

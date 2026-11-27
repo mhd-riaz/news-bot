@@ -14,7 +14,6 @@ import (
 
 	"github.com/mhd-riaz/news-bot/collector/internal/app"
 	"github.com/mhd-riaz/news-bot/collector/internal/bootstrap"
-	"github.com/mhd-riaz/news-bot/collector/internal/classifier"
 	"github.com/mhd-riaz/news-bot/collector/internal/config"
 	"github.com/mhd-riaz/news-bot/collector/internal/handler"
 	"github.com/mhd-riaz/news-bot/collector/internal/mongodb"
@@ -22,7 +21,6 @@ import (
 	mongorepo "github.com/mhd-riaz/news-bot/collector/internal/repository/mongo"
 	"github.com/mhd-riaz/news-bot/collector/internal/scheduler"
 	"github.com/mhd-riaz/news-bot/collector/internal/service"
-	"github.com/mhd-riaz/news-bot/collector/internal/web"
 )
 
 // version is overridden at build time with -ldflags "-X main.version=...".
@@ -95,7 +93,6 @@ func run() error {
 
 	sourceService := service.NewSourceService(mongorepo.NewSourceRepository(mongoClient.Database()), time.Now)
 	articleService := service.NewArticleService(mongorepo.NewArticleRepository(mongoClient.Database()))
-	readEventService := service.NewReadEventService(mongorepo.NewReadEventRepository(mongoClient.Database()), time.Now)
 
 	// Reconciling here rather than in a one-shot container is what makes a
 	// redeploy actually pick up an edited source list: a container that has
@@ -121,18 +118,11 @@ func run() error {
 	}
 	enrichmentService := app.NewEnrichmentService(cfg, mongoClient.Database(), time.Now, logger)
 	var classificationService *service.ClassificationService
-	var topicCache *classifier.MetadataCache
-	var classifierClient classifier.Client
 	if cfg.Classifier.Enabled {
 		classificationService, err = app.NewClassificationService(cfg, mongoClient.Database(), time.Now, logger)
 		if err != nil {
 			return err
 		}
-		classifierClient, err = app.NewClassifierClient(cfg)
-		if err != nil {
-			return err
-		}
-		topicCache = classifier.NewMetadataCache()
 	}
 
 	var authenticator *handler.Authenticator
@@ -151,24 +141,6 @@ func run() error {
 		logger.Warn("api authentication is disabled; every endpoint is open to anyone who can reach the port")
 	}
 
-	// This is the legacy feed and its read_events telemetry, not the separate
-	// AFTERLINE reader or its recommendation signals (roadmap C14).
-	var pages http.Handler
-	if cfg.Web.Enabled {
-		// Passed only when non-nil: a nil *MetadataCache handed to a variadic
-		// interface parameter would still be a non-nil TopicSource.
-		var topicSources []classifier.TopicSource
-		if topicCache != nil {
-			topicSources = append(topicSources, topicCache)
-		}
-		site, err := web.New(articleService, readEventService, cfg.Web.PageSize, logger, topicSources...)
-		if err != nil {
-			return err
-		}
-		pages = site.Routes()
-		logger.Info("reader pages enabled", "page_size", cfg.Web.PageSize)
-	}
-
 	srv := &http.Server{
 		Addr: cfg.Server.Address(),
 		Handler: handler.NewRouter(
@@ -176,7 +148,6 @@ func run() error {
 			handler.NewSource(sourceService, logger),
 			handler.NewCollectionRun(collectionService, logger),
 			handler.NewArticle(articleService, logger),
-			pages,
 			authenticator,
 			logger,
 		),
@@ -244,16 +215,6 @@ func run() error {
 		close(classificationStopped)
 	}
 
-	metadataStopped := make(chan struct{})
-	if topicCache != nil {
-		go func() {
-			defer close(metadataStopped)
-			topicCache.Run(ctx, classifierClient, cfg.Classifier.MetadataRefreshInterval, logger)
-		}()
-	} else {
-		close(metadataStopped)
-	}
-
 	serverErr := make(chan error, 1)
 	go func() {
 		logger.Info("http server listening", "address", srv.Addr)
@@ -303,11 +264,6 @@ func run() error {
 	case <-classificationStopped:
 	case <-shutdownCtx.Done():
 		logger.Warn("classification scheduler did not stop within the shutdown timeout; any claim it still holds will be recovered")
-	}
-	select {
-	case <-metadataStopped:
-	case <-shutdownCtx.Done():
-		logger.Warn("classifier metadata refresh did not stop within the shutdown timeout")
 	}
 
 	if err := mongoClient.Close(shutdownCtx); err != nil {

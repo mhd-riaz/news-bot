@@ -32,7 +32,6 @@ type Config struct {
 	App        App        `yaml:"app"`
 	Server     Server     `yaml:"server"`
 	Auth       Auth       `yaml:"auth"`
-	Web        Web        `yaml:"web"`
 	Mongo      Mongo      `yaml:"mongo"`
 	Bootstrap  Bootstrap  `yaml:"bootstrap"`
 	Collector  Collector  `yaml:"collector"`
@@ -97,18 +96,6 @@ type Auth struct {
 
 	BasicUsername string `yaml:"-"`
 	BasicPassword string `yaml:"-"`
-}
-
-// Web holds the legacy collector-feed pages, not the separate AFTERLINE reader.
-// They share the API's port, process and credentials.
-type Web struct {
-	// Enabled serves the pages. Off leaves the process a pure API.
-	Enabled bool `yaml:"enabled"`
-
-	// PageSize is how many cards one feed page carries. It also sets how far
-	// apart consecutive pages' feed positions are, so changing it changes the
-	// meaning of position_in_feed in the telemetry from that moment on.
-	PageSize int `yaml:"page_size"`
 }
 
 // Mongo holds MongoDB connection settings.
@@ -235,14 +222,13 @@ type Scraper struct {
 
 // Classifier holds the settings for the internal model-classification service.
 type Classifier struct {
-	Enabled                 bool          `yaml:"enabled"`
-	Endpoint                string        `yaml:"endpoint"`
-	Timeout                 time.Duration `yaml:"timeout"`
-	BatchSize               int           `yaml:"batch_size"`
-	MaxAttempts             int           `yaml:"max_attempts"`
-	ClaimTTL                time.Duration `yaml:"claim_ttl"`
-	MetadataRefreshInterval time.Duration `yaml:"metadata_refresh_interval"`
-	APIKey                  string        `yaml:"-"`
+	Enabled     bool          `yaml:"enabled"`
+	Endpoint    string        `yaml:"endpoint"`
+	Timeout     time.Duration `yaml:"timeout"`
+	BatchSize   int           `yaml:"batch_size"`
+	MaxAttempts int           `yaml:"max_attempts"`
+	ClaimTTL    time.Duration `yaml:"claim_ttl"`
+	APIKey      string        `yaml:"-"`
 }
 
 // Address returns the host:port the HTTP server should listen on.
@@ -286,10 +272,6 @@ func Default() *Config {
 			// to leave it off. Development mode may still serve without auth.
 			Enabled:      false,
 			APIKeyHeader: DefaultAPIKeyHeader,
-		},
-		Web: Web{
-			Enabled:  true,
-			PageSize: 30,
 		},
 		Mongo: Mongo{
 			URI:                    "mongodb://localhost:27017",
@@ -339,13 +321,12 @@ func Default() *Config {
 			ClaimTTL:                10 * time.Minute,
 		},
 		Classifier: Classifier{
-			Enabled:                 false,
-			Endpoint:                "http://classifier:8000",
-			Timeout:                 10 * time.Second,
-			BatchSize:               50,
-			MaxAttempts:             3,
-			ClaimTTL:                5 * time.Minute,
-			MetadataRefreshInterval: time.Hour,
+			Enabled:     false,
+			Endpoint:    "http://classifier:8000",
+			Timeout:     10 * time.Second,
+			BatchSize:   50,
+			MaxAttempts: 3,
+			ClaimTTL:    5 * time.Minute,
 		},
 		Logging: Logging{
 			Level:  "info",
@@ -432,9 +413,6 @@ func (c *Config) applyEnv() error {
 	b.str("AUTH_BASIC_USERNAME", &c.Auth.BasicUsername)
 	b.str("AUTH_BASIC_PASSWORD", &c.Auth.BasicPassword)
 
-	b.boolean("WEB_ENABLED", &c.Web.Enabled)
-	b.integer("WEB_PAGE_SIZE", &c.Web.PageSize)
-
 	b.str("MONGO_URI", &c.Mongo.URI)
 	b.str("MONGO_DATABASE", &c.Mongo.Database)
 	b.duration("MONGO_CONNECT_TIMEOUT", &c.Mongo.ConnectTimeout)
@@ -484,7 +462,6 @@ func (c *Config) applyEnv() error {
 	b.integer("CLASSIFIER_BATCH_SIZE", &c.Classifier.BatchSize)
 	b.integer("CLASSIFIER_MAX_ATTEMPTS", &c.Classifier.MaxAttempts)
 	b.duration("CLASSIFIER_CLAIM_TTL", &c.Classifier.ClaimTTL)
-	b.duration("CLASSIFIER_METADATA_REFRESH_INTERVAL", &c.Classifier.MetadataRefreshInterval)
 	b.str("CLASSIFIER_API_KEY", &c.Classifier.APIKey)
 
 	b.str("LOGGING_LEVEL", &c.Logging.Level)
@@ -552,7 +529,6 @@ func (c *Config) Validate(opts ...Option) error {
 	errs = append(errs, c.Scheduler.validate(c.Collector.RequestTimeout, classifierTimeout)...)
 	errs = append(errs, c.Scraper.validate(c.App.Environment)...)
 	errs = append(errs, c.Classifier.validate(c.App.Environment)...)
-	errs = append(errs, c.Web.validate()...)
 
 	return errors.Join(errs...)
 }
@@ -726,7 +702,6 @@ func (c Classifier) validate(environment string) []error {
 	errs = append(errs,
 		positive("classifier.timeout", c.Timeout),
 		positive("classifier.claim_ttl", c.ClaimTTL),
-		positive("classifier.metadata_refresh_interval", c.MetadataRefreshInterval),
 	)
 	if c.BatchSize < 1 {
 		errs = append(errs, fmt.Errorf("classifier.batch_size must be greater than zero, got %d", c.BatchSize))
@@ -793,21 +768,6 @@ func (s Scraper) validate(environment string) []error {
 	}
 
 	return errs
-}
-
-// maxWebPageSize mirrors domain.MaxListLimit. It is restated rather than
-// imported because this package deliberately depends on nothing but the
-// standard library; the pair is held together by a test.
-const maxWebPageSize = 100
-
-func (w Web) validate() []error {
-	if !w.Enabled {
-		return nil
-	}
-	if w.PageSize < 1 || w.PageSize > maxWebPageSize {
-		return []error{fmt.Errorf("web.page_size must be between 1 and %d, got %d", maxWebPageSize, w.PageSize)}
-	}
-	return nil
 }
 
 func validateMongoURI(uri string) error {

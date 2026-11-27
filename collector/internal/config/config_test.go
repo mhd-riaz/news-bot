@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/mhd-riaz/news-bot/collector/internal/domain"
 )
 
 func writeConfig(t *testing.T, body string) string {
@@ -542,34 +540,5 @@ func TestDisabledSchedulerIsNotValidated(t *testing.T) {
 
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate: %v", err)
-	}
-}
-
-// The page size becomes a domain.ArticleFilter limit, whose bound this package
-// restates rather than imports. The two must not drift.
-func TestMaxWebPageSizeMatchesTheDomainListLimit(t *testing.T) {
-	if maxWebPageSize != domain.MaxListLimit {
-		t.Fatalf("maxWebPageSize = %d, but domain.MaxListLimit = %d", maxWebPageSize, domain.MaxListLimit)
-	}
-}
-
-// A disabled site is not configured at all, for the same reason.
-func TestDisabledWebIsNotValidated(t *testing.T) {
-	cfg := Default()
-	cfg.Web.Enabled = false
-	cfg.Web.PageSize = 0
-
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("Validate: %v", err)
-	}
-}
-
-func TestWebPageSizeIsBounded(t *testing.T) {
-	for _, size := range []int{0, -1, maxWebPageSize + 1} {
-		cfg := Default()
-		cfg.Web.PageSize = size
-		if err := cfg.Validate(); err == nil {
-			t.Errorf("page_size %d was accepted", size)
-		}
 	}
 }

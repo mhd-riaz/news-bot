@@ -45,7 +45,7 @@ classifier-test: ## Run the Flask classifier service tests
 	$(TEST_ENV) $(UV_RUN) pytest tests/newsmlv2/test_api.py
 
 .PHONY: rec-test
-rec-test: ## Run the recommender's Python tests (the Go and browser parts: make -C ../collector rec-test)
+rec-test: ## Run the recommender's Python tests
 	$(TEST_ENV) $(UV_RUN) pytest tests/newsmlv2/test_recommendations.py tests/newsmlv2/test_evaluation_provenance.py tests/newsmlv2/test_recommender_defaults.py
 
 .PHONY: models

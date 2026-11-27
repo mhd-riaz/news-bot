@@ -32,14 +32,6 @@ auth:
   enabled: true
   api_key_header: X-API-Key
 
-# The legacy feed pages, served on the same port and behind the same credentials
-# as the API. AFTERLINE uses cmd/reader and configs/reader.yaml separately.
-web:
-  enabled: true
-  # Also the spacing between consecutive pages' feed positions, so changing it
-  # changes what position_in_feed means in every read event recorded after.
-  page_size: 30
-
 mongo:
   uri: mongodb://localhost:27017
   database: news
@@ -131,7 +123,6 @@ classifier:
   batch_size: 50
   max_attempts: 3
   claim_ttl: 5m
-  metadata_refresh_interval: 1h
   # Environment-only: NEWS_CLASSIFIER_API_KEY
 
 logging:
