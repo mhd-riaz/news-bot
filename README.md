@@ -9,8 +9,8 @@
 **Status reviewed 25 November 2026:** the collector and a local AFTERLINE demo are implemented.
 The demo has Fresh, Yesterday and Archive views, professional-source filtering, saved
 stories with notes, and light/dark themes. It is not the finished, hosted private service.
-See the [progress checklist](collector/docs/recommender-client-review.md#project-progress-checklist)
-and [roadmap](collector/docs/roadmap.md) for recorded evidence and unfinished release work.
+See the [progress checklist](docs/project/recommender-client-review.md#project-progress-checklist)
+and [roadmap](docs/project/roadmap.md) for recorded evidence and unfinished release work.
 
 ## Contents
 
@@ -242,7 +242,7 @@ Newly collected articles do not appear until you rebuild and restart the ranker.
 
 For a named archive, use `make rec-prepare REC_ID=<new-id> CUT=<past-time-with-timezone>`,
 then `rec-baseline`, `rec-train` and `rec-serve` with that ID.
-The [AFTERLINE guide](collector/docs/recommender.md) covers those commands and all options.
+The [AFTERLINE guide](docs/services/recommender.md) covers those commands and all options.
 The historical `stories-002` archive is private and is not included in a clone.
 
 Open a third terminal in the `collector` folder:
@@ -519,11 +519,11 @@ Only the collector writes to the database. The AFTERLINE reader and the training
 | [`collector/ml-v2/`](collector/ml-v2) | The topic classifier service (`app/`), shared text-cleaning tools (`src/newsmlv2/`) and AFTERLINE's recommender (`src/newsrec/`). |
 | [`collector/ml-v4/`](collector/ml-v4) | Candidate sampling, verification, label pooling and the separate V4 classifier trainer. |
 | [`collector/scripts/`](collector/scripts) | JavaScript tests, run with Node. |
-| [`collector/fixtures/`](collector/fixtures) | Small sample feeds used by the tests. |
-| [`collector/deployments/docker-compose.yml`](collector/deployments/docker-compose.yml) | The Docker setup that `make mongo-up` uses. |
+| [`collector/fixtures/`](collector/testdata) | Small sample feeds used by the tests. |
+| [`collector/deployments/docker-compose.yml`](deployment/compose/compose.yaml) | The Docker setup that `make mongo-up` uses. |
 | [`docs/assets/system-overview.mmd`](docs/assets/system-overview.mmd) | The source of the big-picture diagram. |
-| [`collector/docs/roadmap.md`](collector/docs/roadmap.md) | Current scope, contracts, implementation/deployment status, decisions and evidence. |
-| [`collector/docs/recommender.md`](collector/docs/recommender.md) | Current AFTERLINE setup, browser storage, API and snapshot workflows. |
+| [`collector/docs/roadmap.md`](docs/project/roadmap.md) | Current scope, contracts, implementation/deployment status, decisions and evidence. |
+| [`collector/docs/recommender.md`](docs/services/recommender.md) | Current AFTERLINE setup, browser storage, API and snapshot workflows. |
 
 ## 7. Command cheat sheet
 
@@ -556,7 +556,7 @@ Run these from the `collector` folder. `make help` lists command descriptions; t
 Thank you for helping! Here's the usual flow:
 
 1. **Fork** the repo on GitHub and create a branch for your change.
-2. **Read and claim a task** in the [roadmap](collector/docs/roadmap.md) without overlapping another agent's files. Set up with [Part A](#part-a--collect-the-news); for the Python parts, run `make rec-setup` once.
+2. **Read and claim a task** in the [roadmap](docs/project/roadmap.md) without overlapping another agent's files. Set up with [Part A](#part-a--collect-the-news); for the Python parts, run `make rec-setup` once.
 3. **Make a small, focused change**, with a test that fails without it.
 4. **Run the checks** for what you changed:
 
@@ -593,9 +593,9 @@ These keep the project safe, honest and easy to run:
 - **No sign-in in the reader.** It's meant for your own computer only.
 - **Local storage, not accounts.** Likes/dislikes and viewed history reset with a new snapshot. Saved stories/notes and settings survive that change, but clearing browser data removes them; nothing syncs across devices.
 - **Yesterday is a demo selection.** It is calculated from the snapshot, not persisted per account, and does not apply the planned topic cap.
-- **Classifier labels are AI-generated.** Human validation is not met. The recommender's final human-quality target is also unverified; TF-IDF remains the default. See [recorded results](collector/docs/recommender-results.md).
+- **Classifier labels are AI-generated.** Human validation is not met. The recommender's final human-quality target is also unverified; TF-IDF remains the default. See [recorded results](docs/project/recommender-results.md).
 - **English filtering is imperfect.** Source declarations and automatic language checks are not a guarantee that every collected article is English.
-- **Release work remains.** Hosted sign-in, reader-added feeds, saved topics, full settings, association rules, assistant access and release hardening remain in the [roadmap](collector/docs/roadmap.md).
+- **Release work remains.** Hosted sign-in, reader-added feeds, saved topics, full settings, association rules, assistant access and release hardening remain in the [roadmap](docs/project/roadmap.md).
 
 ## 10. Words you'll see
 

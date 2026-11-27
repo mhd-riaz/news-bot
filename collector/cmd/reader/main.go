@@ -13,14 +13,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/riaz/newscollector/internal/config"
-	"github.com/riaz/newscollector/internal/handler"
-	"github.com/riaz/newscollector/internal/mongodb"
-	"github.com/riaz/newscollector/internal/observability"
-	"github.com/riaz/newscollector/internal/recommendation"
-	mongorepo "github.com/riaz/newscollector/internal/repository/mongo"
-	"github.com/riaz/newscollector/internal/service"
-	"github.com/riaz/newscollector/internal/web"
+	"github.com/mhd-riaz/news-bot/collector/internal/config"
+	"github.com/mhd-riaz/news-bot/collector/internal/handler"
+	"github.com/mhd-riaz/news-bot/collector/internal/mongodb"
+	"github.com/mhd-riaz/news-bot/collector/internal/observability"
+	"github.com/mhd-riaz/news-bot/collector/internal/recommendation"
+	mongorepo "github.com/mhd-riaz/news-bot/collector/internal/repository/mongo"
+	"github.com/mhd-riaz/news-bot/collector/internal/service"
+	"github.com/mhd-riaz/news-bot/collector/internal/web"
 )
 
 func main() {

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/riaz/newscollector/internal/service"
+	"github.com/mhd-riaz/news-bot/collector/internal/service"
 )
 
 // fakeBacklog is a Backlog whose ProcessBacklog call is entirely scripted, so

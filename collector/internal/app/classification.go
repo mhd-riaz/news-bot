@@ -6,10 +6,10 @@ import (
 
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
 
-	"github.com/riaz/newscollector/internal/classifier"
-	"github.com/riaz/newscollector/internal/config"
-	mongorepo "github.com/riaz/newscollector/internal/repository/mongo"
-	"github.com/riaz/newscollector/internal/service"
+	"github.com/mhd-riaz/news-bot/collector/internal/classifier"
+	"github.com/mhd-riaz/news-bot/collector/internal/config"
+	mongorepo "github.com/mhd-riaz/news-bot/collector/internal/repository/mongo"
+	"github.com/mhd-riaz/news-bot/collector/internal/service"
 )
 
 // NewClassificationService wires the retry worker to the internal classifier.

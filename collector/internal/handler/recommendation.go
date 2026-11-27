@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/riaz/newscollector/internal/recommendation"
+	"github.com/mhd-riaz/news-bot/collector/internal/recommendation"
 )
 
 type Recommendation struct {

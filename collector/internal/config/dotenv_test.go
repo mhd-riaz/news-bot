@@ -53,6 +53,7 @@ func TestLoadEnvFileIgnoresAMissingFile(t *testing.T) {
 }
 
 func TestEnvFilePathHonoursTheOverride(t *testing.T) {
+	t.Setenv(EnvPrefix+"ENV_FILE", "")
 	if got := EnvFilePath(); got != DefaultEnvFile {
 		t.Fatalf("EnvFilePath() = %q, want %q", got, DefaultEnvFile)
 	}

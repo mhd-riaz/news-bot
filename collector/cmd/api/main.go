@@ -12,17 +12,17 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/riaz/newscollector/internal/app"
-	"github.com/riaz/newscollector/internal/bootstrap"
-	"github.com/riaz/newscollector/internal/classifier"
-	"github.com/riaz/newscollector/internal/config"
-	"github.com/riaz/newscollector/internal/handler"
-	"github.com/riaz/newscollector/internal/mongodb"
-	"github.com/riaz/newscollector/internal/observability"
-	mongorepo "github.com/riaz/newscollector/internal/repository/mongo"
-	"github.com/riaz/newscollector/internal/scheduler"
-	"github.com/riaz/newscollector/internal/service"
-	"github.com/riaz/newscollector/internal/web"
+	"github.com/mhd-riaz/news-bot/collector/internal/app"
+	"github.com/mhd-riaz/news-bot/collector/internal/bootstrap"
+	"github.com/mhd-riaz/news-bot/collector/internal/classifier"
+	"github.com/mhd-riaz/news-bot/collector/internal/config"
+	"github.com/mhd-riaz/news-bot/collector/internal/handler"
+	"github.com/mhd-riaz/news-bot/collector/internal/mongodb"
+	"github.com/mhd-riaz/news-bot/collector/internal/observability"
+	mongorepo "github.com/mhd-riaz/news-bot/collector/internal/repository/mongo"
+	"github.com/mhd-riaz/news-bot/collector/internal/scheduler"
+	"github.com/mhd-riaz/news-bot/collector/internal/service"
+	"github.com/mhd-riaz/news-bot/collector/internal/web"
 )
 
 // version is overridden at build time with -ldflags "-X main.version=...".

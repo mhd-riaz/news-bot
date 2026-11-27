@@ -266,3 +266,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# One env file per environment lives in deployment/env/. Only the .example
+# templates and the README are committed; the filled-in files hold passwords
+# and keys. This block stays last so it overrides the env/ and ENV/ rules above.
+!/deployment/env/
+/deployment/env/*
+!/deployment/env/*.env.example
+!/deployment/env/README.md

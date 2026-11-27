@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/riaz/newscollector/internal/service"
+	"github.com/mhd-riaz/news-bot/collector/internal/service"
 )
 
 type fakeClassificationBacklog struct {

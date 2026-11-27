@@ -8,7 +8,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
-	"github.com/riaz/newscollector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
 )
 
 func makeLegacyC1Regression(t *testing.T, repo *ArticleRepository, id string) {

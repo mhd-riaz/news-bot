@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/riaz/newscollector/internal/service"
+	"github.com/mhd-riaz/news-bot/collector/internal/service"
 )
 
 // Backlog is the part of the enrichment service the scheduler needs.

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/repository"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/repository"
 )
 
 func newRun(t *testing.T, sourceID string, status domain.RunStatus, startedAt time.Time) *domain.CollectionRun {

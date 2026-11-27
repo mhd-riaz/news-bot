@@ -73,7 +73,7 @@ jobs:
         # Keep the release job's IMAGES in step with this list.
         include:
           - image: news-bot
-            dockerfile: deployments/Dockerfile
+            dockerfile: Dockerfile
             version: true
           - image: news-collector-classifier
             dockerfile: deployments/classifier.Dockerfile

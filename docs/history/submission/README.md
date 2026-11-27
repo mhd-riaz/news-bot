@@ -2,8 +2,8 @@
 
 **Historical August 2026 classifier submission, not the current product checklist.**
 The artifact names, example predictions, counts and completion labels below describe
-that submission. Use the [collector guide](../readme.md), [AFTERLINE guide](../docs/recommender.md)
-and [roadmap](../docs/roadmap.md) for the current collector and reading demo.
+that submission. Use the [collector guide](../../../collector/README.md), [AFTERLINE guide](../../services/recommender.md)
+and [roadmap](../../project/roadmap.md) for the current collector and reading demo.
 
 **Provenance correction (25 Nov 2026, roadmap D16):** all classifier reference labels
 were AI-generated, including those earlier called human gold. The retained classifier

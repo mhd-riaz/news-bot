@@ -15,10 +15,10 @@ classifier scores and calibration describe agreement with AI labels, not
 human-validated accuracy. Human validation and 200 human labels per class are
 **not met**. This correction does not change the separate recommender human pilot.
 
-For current work, use the [roadmap](../docs/roadmap.md). The body-aware serving
+For current work, use the [roadmap](../../docs/project/roadmap.md). The body-aware serving
 implementation is in [`ml-v2`](../ml-v2/src/newsmlv2/serve.py), the pooled AI-label
 V4 model (approved for production on 27 Nov, D19) is documented in [`ml-v4`](../ml-v4/README.md), and
-reader/demo commands are in the [recommender guide](../docs/recommender.md).
+reader/demo commands are in the [recommender guide](../../docs/services/recommender.md).
 
 ## 1. The five-minute mental model
 
@@ -186,8 +186,8 @@ modelled, and scored.
 
 ## 6. Where to read more
 
-- [`../docs/roadmap.md`](../docs/roadmap.md) is the authoritative current plan.
-- [`../docs/plan.md`](../docs/plan.md) is the closed v1 classifier history,
+- [`../docs/roadmap.md`](../../docs/project/roadmap.md) is the authoritative current plan.
+- [`../docs/plan.md`](../../docs/history/classifier-plan.md) is the closed v1 classifier history,
   not a task source. Its label-origin claims are superseded by D16.
 - Every module's docstring in `src/newsml/` explains the "why", not just the
   "what".

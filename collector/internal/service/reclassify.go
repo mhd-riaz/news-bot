@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/riaz/newscollector/internal/classifier"
-	"github.com/riaz/newscollector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/classifier"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
 )
 
 // ReclassificationRepository reads articles labelled by an older model and

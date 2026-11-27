@@ -9,7 +9,7 @@ fresh checkout; do not rebuild a different corpus under the same ID to reproduce
 added manual recent-first snapshot builds, Fresh/Yesterday/Archive views, a professional
 source filter, a grid and full-screen reading view, browser-local saved stories/notes,
 and a system-aware theme. Those demonstrations do not revalidate the older speed or
-relevance figures. See [current setup](recommender.md) and the [progress checklist](recommender-client-review.md#project-progress-checklist).
+relevance figures. See [current setup](../services/recommender.md) and the [progress checklist](recommender-client-review.md#project-progress-checklist).
 Full V1 acceptance, automatic one-hour indexing and the final human study remain open.
 
 ## Delivered
@@ -18,7 +18,7 @@ A working content-based news archive recommender with a read-only Go application
 
 Local reader: **http://127.0.0.1:8090/stories**
 
-See [setup, training and evaluation](recommender.md), plus the [client and architecture review briefing](recommender-client-review.md).
+See [setup, training and evaluation](../services/recommender.md), plus the [client and architecture review briefing](recommender-client-review.md).
 
 **Reading default: TF-IDF.** It led both the small human pilot and the separate AI-assisted assessment. SVD and the trained neural model remain available for comparison; no model or frozen evaluation rankings were tuned during finalization.
 
@@ -98,7 +98,7 @@ A single blinded AI pass rated **all 437 candidate pairs across the 40 frozen ca
 | SVD | 0.480 | 0.7375 | 40 |
 | Neural | 0.380 | 0.6435 | 40 |
 
-![Separate human-pilot and AI-assisted relevance comparisons](assets/afterline-relevance.svg)
+![Separate human-pilot and AI-assisted relevance comparisons](../assets/afterline-relevance.svg)
 
 | AI-assessed slice | Cases | TF-IDF P@5 | SVD P@5 | Neural P@5 |
 | --- | ---: | ---: | ---: | ---: |

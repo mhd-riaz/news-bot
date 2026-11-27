@@ -9,7 +9,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
-	"github.com/riaz/newscollector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
 )
 
 const reclassifyTarget = "v4-test-hybrid"

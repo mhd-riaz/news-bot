@@ -1,11 +1,16 @@
 BIN_DIR   := bin
 VERSION   ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
 LDFLAGS   := -s -w -X main.version=$(VERSION)
-COMPOSE   := docker compose -f deployments/docker-compose.yml
+COMPOSE   := docker compose -f ../deployment/compose/compose.yaml
 CONFIG    ?= configs/config.yaml
 SOURCES   ?= configs/sources.yaml
 BACKFILL_LIMIT ?= 1000
 BACKFILL_DELAY ?= 1s
+
+# Commands that run the app read this environment's settings; the file is never
+# committed. An NEWS_ENV_FILE already set in the shell wins. Tests do not get it.
+ENV_FILE  ?= ../deployment/env/local.env
+RUN_ENV   := NEWS_ENV_FILE=$${NEWS_ENV_FILE:-$(ENV_FILE)}
 
 .DEFAULT_GOAL := help
 
@@ -62,43 +67,43 @@ check: fmt-check vet test ## Check Go formatting, vet and unit tests; race/integ
 
 .PHONY: run
 run: ## Run the collector/API; migrates and writes to the configured database
-	go run ./cmd/api -config $(CONFIG)
+	$(RUN_ENV) go run ./cmd/api -config $(CONFIG)
 
 .PHONY: migrate
 migrate: ## Apply collection/index schema migrations to the configured database
-	go run ./cmd/migrate -config $(CONFIG)
+	$(RUN_ENV) go run ./cmd/migrate -config $(CONFIG)
 
 .PHONY: seed
 seed: ## Apply the sources declared in $(SOURCES)
-	go run ./cmd/seed -config $(CONFIG) -sources $(SOURCES)
+	$(RUN_ENV) go run ./cmd/seed -config $(CONFIG) -sources $(SOURCES)
 
 .PHONY: seed-check
 seed-check: ## Validate the seed file without writing to the database
-	go run ./cmd/seed -config $(CONFIG) -sources $(SOURCES) -dry-run
+	$(RUN_ENV) go run ./cmd/seed -config $(CONFIG) -sources $(SOURCES) -dry-run
 
 .PHONY: collect
 collect: ## Collect every source that is currently due
-	go run ./cmd/collector -config $(CONFIG)
+	$(RUN_ENV) go run ./cmd/collector -config $(CONFIG)
 
 .PHONY: collect-source
 collect-source: ## Collect one source now: make collect-source SOURCE=<id>
-	go run ./cmd/collector -config $(CONFIG) -source $(SOURCE)
+	$(RUN_ENV) go run ./cmd/collector -config $(CONFIG) -source $(SOURCE)
 
 .PHONY: scrape
 scrape: ## Run one full-text enrichment batch against scraper.batch_size
-	go run ./cmd/scrape -config $(CONFIG)
+	$(RUN_ENV) go run ./cmd/scrape -config $(CONFIG)
 
 .PHONY: scrape-limit
 scrape-limit: ## Run one enrichment batch of a given size: make scrape-limit LIMIT=10
-	go run ./cmd/scrape -config $(CONFIG) -limit $(LIMIT)
+	$(RUN_ENV) go run ./cmd/scrape -config $(CONFIG) -limit $(LIMIT)
 
 .PHONY: backfill
 backfill: ## Fill missing C1 article fields in bounded, resumable batches
-	go run ./cmd/backfill -config $(CONFIG) -limit $(BACKFILL_LIMIT) -delay $(BACKFILL_DELAY)
+	$(RUN_ENV) go run ./cmd/backfill -config $(CONFIG) -limit $(BACKFILL_LIMIT) -delay $(BACKFILL_DELAY)
 
 .PHONY: backfill-reclassify
 backfill-reclassify: ## Relabel articles that carry another model's topic with the sidecar's current model (writes the configured database)
-	go run ./cmd/backfill -config $(CONFIG) -reclassify -limit $(BACKFILL_LIMIT) -delay $(BACKFILL_DELAY)
+	$(RUN_ENV) go run ./cmd/backfill -config $(CONFIG) -reclassify -limit $(BACKFILL_LIMIT) -delay $(BACKFILL_DELAY)
 
 .PHONY: up
 up: ## Build and start the configured Compose services; the collector writes to its database
@@ -337,13 +342,13 @@ demo-serve: ## Serve the latest demo-refresh snapshot on localhost:8001
 
 .PHONY: reader
 reader: ## Serve the read-only AFTERLINE reader at http://127.0.0.1:8090/stories
-	go run ./cmd/reader
+	$(RUN_ENV) go run ./cmd/reader
 
 .PHONY: rec-test
 rec-test: ## Check recommendation Python, Go and browser-state logic without a live DB
 	cd ml-v2 && uv run --no-sync pytest tests/test_recommendations.py tests/test_evaluation_provenance.py tests/test_recommender_defaults.py
 	go test ./cmd/reader ./internal/recommendation ./internal/handler ./internal/web ./internal/config ./internal/mongodb
-	node --test scripts/*.test.mjs
+	node --test internal/web/stories.test.mjs ../deployment/mongo/mongo-users.test.mjs
 
 .PHONY: ml2-compare
 ml2-compare: ## Render the model comparison table from the experiment ledger

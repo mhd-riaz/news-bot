@@ -643,16 +643,16 @@ Small human judgement coverage, AI-assessment bias, English-language and publish
 ## 21. Supporting evidence and code entry points
 
 - [Measured results and verification caveats](recommender-results.md)
-- [Setup, training, evaluation and API instructions](recommender.md)
-- [Read-only Go entry point](../cmd/reader/main.go)
-- [Go recommendation orchestration](../internal/recommendation/recommendation.go)
-- [Public recommendation handlers](../internal/handler/recommendation.go)
-- [Dataset preparation](../ml-v2/src/newsrec/data.py)
-- [Baseline and neural training](../ml-v2/src/newsrec/model.py)
-- [Ranking and exclusions](../ml-v2/src/newsrec/index.py)
-- [Private model API](../ml-v2/src/newsrec/api.py)
-- [Evaluation and provenance enforcement](../ml-v2/src/newsrec/evaluate.py)
-- [Story markup](../internal/web/templates/stories.html), [styling](../internal/web/static/stories.css) and [browser behavior](../internal/web/static/stories.js)
-- [JavaScript regression checks](../scripts/stories.test.mjs)
+- [Setup, training, evaluation and API instructions](../services/recommender.md)
+- [Read-only Go entry point](../../collector/cmd/reader/main.go)
+- [Go recommendation orchestration](../../collector/internal/recommendation/recommendation.go)
+- [Public recommendation handlers](../../collector/internal/handler/recommendation.go)
+- [Dataset preparation](../../collector/ml-v2/src/newsrec/data.py)
+- [Baseline and neural training](../../collector/ml-v2/src/newsrec/model.py)
+- [Ranking and exclusions](../../collector/ml-v2/src/newsrec/index.py)
+- [Private model API](../../collector/ml-v2/src/newsrec/api.py)
+- [Evaluation and provenance enforcement](../../collector/ml-v2/src/newsrec/evaluate.py)
+- [Story markup](../../collector/internal/web/templates/stories.html), [styling](../../collector/internal/web/static/stories.css) and [browser behavior](../../collector/internal/web/static/stories.js)
+- [JavaScript regression checks](../../collector/internal/web/stories.test.mjs)
 
 </details>

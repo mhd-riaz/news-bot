@@ -1,7 +1,7 @@
 # Phase plan — models and results
 
 > **Closed historical classifier plan — not the product backlog.** Current
-> scope, status, contracts and decisions are in [roadmap.md](roadmap.md).
+> scope, status, contracts and decisions are in [roadmap.md](../project/roadmap.md).
 > The dated outcomes and original plans below are preserved, not current
 > deployment or release-acceptance claims. **Provenance correction (roadmap
 > D16, 22 Nov 2026): all old and new classifier labels are AI-generated.**
@@ -10,7 +10,7 @@
 > validation. Historical constraints, deadlines and thresholds are not
 > silently changed by this correction.
 
-Phase 1 (collection) is complete and described in [readme.md](../readme.md). Phase 2
+Phase 1 (collection) is complete and described in [readme.md](../../collector/README.md). Phase 2
 (data readiness) and Phase 4.5 (thin UI) are complete and summarised below. This
 document plans the work that is left, which is **model building and the numbers that
 justify it**.

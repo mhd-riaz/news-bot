@@ -5,9 +5,9 @@ import (
 
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
 
-	"github.com/riaz/newscollector/internal/config"
-	mongorepo "github.com/riaz/newscollector/internal/repository/mongo"
-	"github.com/riaz/newscollector/internal/service"
+	"github.com/mhd-riaz/news-bot/collector/internal/config"
+	mongorepo "github.com/mhd-riaz/news-bot/collector/internal/repository/mongo"
+	"github.com/mhd-riaz/news-bot/collector/internal/service"
 )
 
 // NewDerivedFieldBackfillService wires the resumable C1 backfill to MongoDB and

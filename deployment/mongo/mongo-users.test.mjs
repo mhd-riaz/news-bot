@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 
-const source = readFileSync(new URL("../deployments/mongo-users.js", import.meta.url), "utf8");
+const source = readFileSync(new URL("./mongo-users.js", import.meta.url), "utf8");
 const accounts = ["collector", "batch", "ranker", "reader", "owner"];
 
 function harness() {

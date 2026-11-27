@@ -9,8 +9,7 @@ backfill
 **/*.joblib
 **/*.keras
 **/*.ipynb
-docs/
-fixtures/
+testdata/
 ml/*
 !ml/src
 ml-v2/artifacts/
@@ -19,4 +18,3 @@ ml-v2/notebooks/
 ml-v2/reports/
 ml-v2/tests/
 ml-v4/data/
-submission/

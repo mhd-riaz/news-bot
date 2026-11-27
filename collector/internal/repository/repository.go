@@ -9,7 +9,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/riaz/newscollector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
 )
 
 // Storage-neutral sentinels. Implementations must translate driver-specific

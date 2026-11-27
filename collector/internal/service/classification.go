@@ -7,9 +7,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/riaz/newscollector/internal/classifier"
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/repository"
+	"github.com/mhd-riaz/news-bot/collector/internal/classifier"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/repository"
 )
 
 // ClassificationDeps is everything ClassificationService needs to recover pending work.

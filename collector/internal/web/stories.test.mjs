@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createContext, runInContext } from "node:vm";
 
-const scriptURL = new URL("../internal/web/static/stories.js", import.meta.url);
+const scriptURL = new URL("./static/stories.js", import.meta.url);
 const source = readFileSync(scriptURL, "utf8");
-const template = readFileSync(new URL("../internal/web/templates/stories.html", import.meta.url), "utf8");
+const template = readFileSync(new URL("./templates/stories.html", import.meta.url), "utf8");
 const elementIDs = new Set([...template.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]));
 const elementTags = new Map([...template.matchAll(/<([a-z0-9]+)\b[^>]*\bid="([^"]+)"/g)].map((match) => [match[2], match[1].toUpperCase()]));
 const startup = /\n  init\(\);\n\}\)\(\);\s*$/;

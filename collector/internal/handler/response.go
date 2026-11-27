@@ -10,7 +10,7 @@ import (
 	"mime"
 	"net/http"
 
-	"github.com/riaz/newscollector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
 )
 
 // Error codes returned to clients. They are deliberately coarse so that no

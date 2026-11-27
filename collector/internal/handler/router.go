@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/riaz/newscollector/internal/observability"
+	"github.com/mhd-riaz/news-bot/collector/internal/observability"
 )
 
 // NewRouter wires every route the API serves. A nil auth leaves the API

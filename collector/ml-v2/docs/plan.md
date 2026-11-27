@@ -2,11 +2,11 @@
 
 > **Historical record, status clarified 25 Nov 2026.** Phases A–H and the measurements
 > below are closed classifier-study evidence, not the current product plan or a task
-> source. Use [the roadmap](../../docs/roadmap.md) for current work. The old “next:
+> source. Use [the roadmap](../../../docs/project/roadmap.md) for current work. The old “next:
 > decide on serving” and “ship nothing” statements below describe that study stage:
 > the body-aware `newsmlv2.serve` bundle is now used by the classifier sidecar
 > (`app/api.py`, configured through `NEWSML_MODEL_DIR`), while `newsrec` serves the
-> separate AFTERLINE recommender. See the [reader guide](../../docs/recommender.md)
+> separate AFTERLINE recommender. See the [reader guide](../../../docs/services/recommender.md)
 > and [V4 guide](../../ml-v4/README.md); the sidecar can serve either bundle, and the
 > owner approved V4 for production on 27 Nov (D19).
 >

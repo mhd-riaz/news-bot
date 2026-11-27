@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/recommendation"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/recommendation"
 )
 
 const recommendedID = "0198f3d2-3333-7000-8000-000000000001"

@@ -11,7 +11,7 @@ import (
 
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
 
-	"github.com/riaz/newscollector/internal/mongodb"
+	"github.com/mhd-riaz/news-bot/collector/internal/mongodb"
 )
 
 // newTestDatabase connects to the MongoDB instance named by NEWS_TEST_MONGO_URI

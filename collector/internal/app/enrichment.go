@@ -5,13 +5,13 @@ import (
 
 	driver "go.mongodb.org/mongo-driver/v2/mongo"
 
-	"github.com/riaz/newscollector/internal/config"
-	"github.com/riaz/newscollector/internal/extract"
-	"github.com/riaz/newscollector/internal/httpclient"
-	"github.com/riaz/newscollector/internal/ratelimit"
-	mongorepo "github.com/riaz/newscollector/internal/repository/mongo"
-	"github.com/riaz/newscollector/internal/robots"
-	"github.com/riaz/newscollector/internal/service"
+	"github.com/mhd-riaz/news-bot/collector/internal/config"
+	"github.com/mhd-riaz/news-bot/collector/internal/extract"
+	"github.com/mhd-riaz/news-bot/collector/internal/httpclient"
+	"github.com/mhd-riaz/news-bot/collector/internal/ratelimit"
+	mongorepo "github.com/mhd-riaz/news-bot/collector/internal/repository/mongo"
+	"github.com/mhd-riaz/news-bot/collector/internal/robots"
+	"github.com/mhd-riaz/news-bot/collector/internal/service"
 )
 
 // NewEnrichmentService wires an enrichment service against db.

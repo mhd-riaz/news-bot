@@ -306,7 +306,7 @@ func Default() *Config {
 			Timeout:     2 * time.Minute,
 		},
 		Collector: Collector{
-			UserAgent:            "news-collector/1.0 (+https://github.com/riaz/newscollector)",
+			UserAgent:            "news-collector/1.0 (+https://github.com/mhd-riaz/news-bot)",
 			RequestTimeout:       20 * time.Second,
 			MaxResponseBytes:     10 << 20,
 			MaxRedirects:         5,
@@ -324,7 +324,7 @@ func Default() *Config {
 			Enabled:                 true,
 			Interval:                5 * time.Minute,
 			BatchSize:               50,
-			UserAgent:               "news-collector/1.0 (+https://github.com/riaz/newscollector)",
+			UserAgent:               "news-collector/1.0 (+https://github.com/mhd-riaz/news-bot)",
 			RequestTimeout:          20 * time.Second,
 			MaxResponseBytes:        20 << 20,
 			AllowPrivateNetworks:    false,

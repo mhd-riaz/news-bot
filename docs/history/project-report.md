@@ -4,11 +4,11 @@
 
 **Historical report, not the current product guide.** This document records the August
 classifier study; its corpus sizes, architecture, model comparisons and remaining-work
-table are dated evidence, not today's feature inventory. See the [collector guide](../readme.md),
-[AFTERLINE guide](recommender.md) and [roadmap](roadmap.md) for the current product.
+table are dated evidence, not today's feature inventory. See the [collector guide](../../collector/README.md),
+[AFTERLINE guide](../services/recommender.md) and [roadmap](../project/roadmap.md) for the current product.
 
 **Label-provenance correction (reviewed 25 Nov 2026):** the owner's
-[22 November correction, D16](roadmap.md#7-open-decisions-owner), establishes that all
+[22 November correction, D16](../project/roadmap.md#7-open-decisions-owner), establishes that all
 old and new classifier label datasets were AI-generated. The numerical results below
 are retained as agreement with those labels, not human-validated accuracy. Historical
 `gold` filenames do not establish human review; the human-validation target is not met.
@@ -495,7 +495,7 @@ recorded decision, not an unmeasured default.
 ## 10. Remaining work
 
 This is the historical August plan, not an active backlog. Later classifier/sidecar work
-and the local AFTERLINE demo are recorded in the [roadmap](roadmap.md); none of this
+and the local AFTERLINE demo are recorded in the [roadmap](../project/roadmap.md); none of this
 table's old status labels overrides those records.
 
 | Phase | Content | State |

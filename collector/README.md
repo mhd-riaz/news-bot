@@ -4,7 +4,7 @@ The collector gathers news from RSS and Atom feeds, stores it in MongoDB, and
 best-effort enriches it with article text, dates, images and topic classifications.
 AFTERLINE is the separate reader and recommendation application built on that data.
 
-**Status: 25 Nov 2026.** [The roadmap](docs/roadmap.md) owns current scope, contracts,
+**Status: 25 Nov 2026.** [The roadmap](../docs/project/roadmap.md) owns current scope, contracts,
 status and decisions. V1 is **not accepted**; its original 15 Nov deadline has not
 been replaced. The closed classifier plans are historical evidence, not the current
 backlog.
@@ -17,7 +17,7 @@ backlog.
 | Local AFTERLINE demo | The 24 Nov implementation and local evidence cover a fresh-first feed with archive, a Yesterday page, professional focus, and browser-local saved stories and notes. Snapshots are rebuilt manually; this is not the revision-aware scheduled recommendation pipeline or a V1 release. The roadmap still leaves morning refresh/rehearsal open. |
 | Still planned for V1 | Google sign-in, server-side reader state, persistent daily editions, incremental indexing and its freshness acceptance, association rules, read-only MCP, hosted reader/ranker and release evaluation. |
 
-Use [the recommender guide](docs/recommender.md) for the current AFTERLINE setup,
+Use [the recommender guide](../docs/services/recommender.md) for the current AFTERLINE setup,
 `make demo-refresh`, `make demo-serve`, `make reader`, and their prerequisites and
 limitations. The `/` site served by the collector API below is the **legacy feed**,
 not the `/stories` AFTERLINE reader on port 8090.
@@ -25,8 +25,8 @@ not the `/stories` AFTERLINE reader on port 8090.
 ## Historical classifier evidence
 
 The earlier *Beyond the Headline* classifier project is preserved under
-[ml/](ml/), [ml-v2/](ml-v2/) and [submission/](submission/). Its closed experiment
-logs are [docs/plan.md](docs/plan.md) and [ml-v2/docs/plan.md](ml-v2/docs/plan.md).
+[ml/](ml/), [ml-v2/](ml-v2/) and [submission/](../docs/history/submission/). Its closed experiment
+logs are [docs/plan.md](../docs/history/classifier-plan.md) and [ml-v2/docs/plan.md](ml-v2/docs/plan.md).
 
 **Label provenance correction (roadmap D16, 22 Nov): all old and new classifier
 labels are AI-generated.** Earlier descriptions of hand labels, human annotators
@@ -64,7 +64,7 @@ Classifier unavailability does not prevent valid feed items from being stored.
 - A reachable MongoDB 7 server; Docker and Docker Compose if using the supplied
   local stack or building containers.
 - Python and `uv` only for classifier/recommender tools and the safe target
-  inspection command; see [the recommender guide](docs/recommender.md).
+  inspection command; see [the recommender guide](../docs/services/recommender.md).
 
 Run the commands below from `collector/`, not the repository root.
 
@@ -79,7 +79,7 @@ part of local setup or verification.
 Before a writer, explicitly select the intended target and use `make rec-inspect`
 to check it without displaying the connection URI. Use the same environment
 selection for inspection and the writer, and check any Compose overrides too.
-The [recommender guide](docs/recommender.md) documents inspection setup.
+The [recommender guide](../docs/services/recommender.md) documents inspection setup.
 
 Go commands load the file selected by `-env`, otherwise `NEWS_ENV_FILE`, otherwise
 `.env` in the command's working directory. To use only already-exported values
@@ -334,7 +334,7 @@ images or calls the webhook. Then run the workflow on `main` (Actions →
 news-collector → Run workflow) to publish and deploy.
 
 On the Coolify side, create a **Docker Compose** resource from
-[deployments/coolify.compose.yml](deployments/coolify.compose.yml). It defines
+[deployments/coolify.compose.yml](../deployment/compose/coolify.compose.yml). It defines
 MongoDB **7.0.48** with generated root credentials, the classifier and the API
 behind a Coolify-issued
 domain. MongoDB's port is published on the host's loopback only, so Compass and
@@ -932,8 +932,8 @@ deployed by the shipped Coolify file. `ml-v4/` holds separate local classifier
 candidates, not an automatic production upgrade.
 
 The current reader/recommender commands are in
-[docs/recommender.md](docs/recommender.md). Historical classifier phase logs
-remain in [docs/plan.md](docs/plan.md) and
+[docs/recommender.md](../docs/services/recommender.md). Historical classifier phase logs
+remain in [docs/plan.md](../docs/history/classifier-plan.md) and
 [ml-v2/docs/plan.md](ml-v2/docs/plan.md); do not take current product tasks from them.
 The older `ml/` targets below are for reproducing that baseline, not updating
 the current AFTERLINE demo:

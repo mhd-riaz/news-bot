@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/riaz/newscollector/internal/classifier"
-	"github.com/riaz/newscollector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/classifier"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
 )
 
 // MaxDerivedBackfillBatchSize bounds each sidecar request and database batch.

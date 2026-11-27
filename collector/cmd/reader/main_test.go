@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/riaz/newscollector/internal/domain"
-	"github.com/riaz/newscollector/internal/handler"
-	"github.com/riaz/newscollector/internal/recommendation"
-	"github.com/riaz/newscollector/internal/repository"
-	"github.com/riaz/newscollector/internal/service"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/handler"
+	"github.com/mhd-riaz/news-bot/collector/internal/recommendation"
+	"github.com/mhd-riaz/news-bot/collector/internal/repository"
+	"github.com/mhd-riaz/news-bot/collector/internal/service"
 )
 
 const readID = "0198f3d2-3333-7000-8000-000000000001"

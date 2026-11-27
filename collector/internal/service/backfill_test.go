@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/riaz/newscollector/internal/classifier"
-	"github.com/riaz/newscollector/internal/domain"
+	"github.com/mhd-riaz/news-bot/collector/internal/classifier"
+	"github.com/mhd-riaz/news-bot/collector/internal/domain"
 )
 
 type fakeDerivedBackfillRepo struct {

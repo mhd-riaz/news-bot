@@ -1,5 +1,5 @@
-# Build context is collector/; run from that directory:
-#   docker build -f deployments/Dockerfile .
+# Build context is collector/:
+#   docker build -t news-bot collector
 
 FROM golang:1.27-alpine AS build
 

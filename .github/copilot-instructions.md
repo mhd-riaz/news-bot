@@ -26,7 +26,7 @@ The client wants to keep up with their professional field, initially software de
   - A read-only MCP server for AI agents.
 - **V2 — audio and iPhone:** ask for the user's listening time, narrate a briefing sized to it from the daily edition, accept spoken commands, and ship an iPhone app. Android follows V2.
 
-**The plan, contracts and status live in [collector/docs/roadmap.md](../collector/docs/roadmap.md).** `collector/docs/plan.md` and `collector/ml-v2/docs/plan.md` are closed classifier plans: use them as history only, never as a task source.
+**The plan, contracts and status live in [docs/project/roadmap.md](../docs/project/roadmap.md).** `docs/history/classifier-plan.md` and `collector/ml-v2/docs/plan.md` are closed classifier plans: use them as history only, never as a task source.
 
 ## Delivered in phase 1 (baseline `c06fdf4`)
 
@@ -34,7 +34,7 @@ The client wants to keep up with their professional field, initially software de
 - **AFTERLINE MVP:** frozen edition `stories-002` (20,000 articles from 40 publishers, cut on 22 Oct). TF-IDF is the default; SVD-256 and a Keras denoising autoencoder (64-d, 82,496 parameters) are selectable. It has eight MiniBatchKMeans content groups and conservative, quadratic story grouping.
 - **Serving:** a read-only Go reader (`cmd/reader`, `/stories`) calls a private Flask ranker and hydrates results with one bounded MongoDB query. Local single-reader p95 is ≤ 15.12 ms.
 - **Reader:** Stories-style UI with onboarding, like/dislike, related reading and method switching. Preferences live in browser storage per snapshot.
-- **Evidence:** a human pilot covered 20 pairs (TF-IDF P@5 0.80). A separate AI-assisted run covered 40 cases (TF-IDF 0.565 > SVD 0.480 > Neural 0.380). The 0.65 target is unverified. Details are in [recommender-results.md](../collector/docs/recommender-results.md).
+- **Evidence:** a human pilot covered 20 pairs (TF-IDF P@5 0.80). A separate AI-assisted run covered 40 cases (TF-IDF 0.565 > SVD 0.480 > Neural 0.380). The 0.65 target is unverified. Details are in [recommender-results.md](../docs/project/recommender-results.md).
 - **Not delivered:**
   - Incremental indexing and freshness.
   - Reader sign-in; the demo runs on loopback with auth off.
@@ -81,7 +81,7 @@ in roadmap M1 and DEMO; they do not close V1 acceptance or prove today's service
 | `ml-v2/src/newsmlv2` | Shared cleaning, admission, boilerplate and dedup |
 | `ml/` | Closed v1 classifier; `ml/src/newsml/neardup.py` holds the calibrated MinHash/LSH |
 | `ml-v4/src/newsmlv4` | Candidate sampling/verification, truthful AI-label pooling and the separate V4 classifier trainer; no production promotion |
-| `deployments/coolify.compose.yml` | Production stack: MongoDB, classifier and API |
+| `../deployment/compose/coolify.compose.yml` | Production stack: MongoDB, classifier and API |
 | `configs/` | `config.yaml`, `reader.yaml` and `sources.yaml` |
 
 Reuse existing code before writing new code:
@@ -136,8 +136,8 @@ Reuse existing code before writing new code:
 
 ## Docs
 
-- [roadmap.md](../collector/docs/roadmap.md) — V1/V2 plan, contracts, status and decisions.
-- [recommender.md](../collector/docs/recommender.md) — recommender setup and operation.
-- [recommender-results.md](../collector/docs/recommender-results.md) — measured phase-1 evidence and limits.
-- [recommender-client-review.md](../collector/docs/recommender-client-review.md) — client briefing; update it with evidence at milestone exits.
-- [collector/readme.md](../collector/readme.md) — collector operations.
+- [roadmap.md](../docs/project/roadmap.md) — V1/V2 plan, contracts, status and decisions.
+- [recommender.md](../docs/services/recommender.md) — recommender setup and operation.
+- [recommender-results.md](../docs/project/recommender-results.md) — measured phase-1 evidence and limits.
+- [recommender-client-review.md](../docs/project/recommender-client-review.md) — client briefing; update it with evidence at milestone exits.
+- [collector/README.md](../collector/README.md) — collector operations.
