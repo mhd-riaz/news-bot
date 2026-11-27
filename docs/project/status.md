@@ -30,11 +30,11 @@ laptop is not the same as working in production.
 | A backfill for old stories, and a relabel command for a new model | In code, with tests. Not yet run on production | M1.5, ML4.7 |
 | The V4 topic classifier | Approved for production by the owner (D19). Code ready; not yet deployed | ML4.7, RS2 |
 | The ranker with three methods: TF-IDF, SVD and Neural | On a laptop, with snapshots built by hand | DEMO.2, DEMO.5 |
-| The reader: Fresh, Yesterday and Archive views, Professional focus, a story grid, a full-screen reading view, related stories, saved stories with notes, light and dark | Shown on a laptop with the old Go reader. The new React app has the same features and was checked against a made-up (mock) server; the check against the real server is still open. Choices stay in one browser | DEMO.4, RS5 |
-| The Python web server and the React app, replacing the Go reader | In code, with tests. The browser check against the real server is still open | RS4, RS5 |
+| The reader: Fresh, Yesterday and Archive views, Professional focus, a story grid, a full-screen reading view, related stories, saved stories with notes, light and dark | Shown on a laptop with the old Go reader, and again with the new React app against the real server (27 Nov, sign-in off). Choices stay in one browser | DEMO.4, RS5 |
+| The Python web server and the React app, replacing the Go reader | In code, with tests, and checked in a browser against the real server on a laptop. Not deployed | RS4, RS5 |
 | Google sign-in for invited readers | In code, tested with a fake Google. Not tried with a real Google client | RS4 |
 | The read-only MCP program, with 5 tools | On a laptop, over HTTP and stdio. Not deployed | RS4 |
-| One CI workflow, with one job per part | In the repository; RS9 is still in progress | RS9 |
+| One CI workflow, with one job per part | In the repository; every part passed on draft PR #11 | RS9 |
 
 ## What is not done
 
@@ -58,9 +58,10 @@ These V1 parts have no recorded completion:
   checklist (M1.8, M9).
 - **Production checks:** which publishers give trustworthy dates (M1.9), and running
   the backfill and the relabel on production (RS6).
-- **The repository move (RS):** RS4 waits for the Google OAuth client. RS5 needs its
-  browser check. RS6 (Helm), RS7 (`run.sh`) and RS9 (CI) are in progress. RS8 is this
-  documentation.
+- **The repository move (RS):** RS4 waits for the Google OAuth client. RS6 (Helm)
+  waits for the owner's home-lab steps. RS7 (`run.sh`) worked in a fresh copy on a
+  Mac, but is not yet tried on a clean machine or on Linux. The move is in draft
+  [PR #11](https://github.com/mhd-riaz/news-bot/pull/11) and is not yet in `main`.
 
 ## Key measured numbers
 

@@ -43,8 +43,8 @@ every command.
 ## Careful: these commands write
 
 `make run`, `make migrate`, `make seed`, `make collect`, `make collect-source`,
-`make scrape`, `make scrape-limit`, `make backfill`, `make backfill-reclassify` and
-`make up` write to the database they are given. Never run them against the
+`make scrape`, `make scrape-limit`, `make backfill` and `make backfill-reclassify`
+write to the database they are given. Never run them against the
 production database by mistake. `make -C ../ml rec-inspect` shows which database
 you will use, without printing its address.
 

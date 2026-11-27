@@ -48,6 +48,11 @@ token that can.
    The new folder layout is on the `v4` branch until it is merged into `main`
    (`git checkout v4`).
 
+   On a Mac, keep the folder inside your home folder (for example
+   `~/repos/news-bot`). Docker on a Mac can only see shared folders, and your home
+   folder is shared by default but `/tmp` is not. If Docker says "bind source path
+   does not exist", the folder is somewhere Docker cannot see.
+
 2. **Your settings file.** The app reads its keys and passwords from
    `deployment/env/local.env`. The first `./run.sh` makes this file for you from
    `deployment/env/local.env.example`, with new random keys. You can also copy the

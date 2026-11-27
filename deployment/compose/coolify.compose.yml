@@ -2,7 +2,7 @@
 #
 # This is what production runs today. The Helm chart in deployment/helm/news-bot
 # deploys the whole app on k3s and will replace this file after the owner switches
-# (roadmap R6); until then, change this file only together with the owner.
+# (roadmap RS6); until then, change this file only together with the owner.
 #
 # Create a "Docker Compose" resource in Coolify and paste this file, or point it
 # at this path in the repository. GitHub Actions (.github/workflows/ci.yml)

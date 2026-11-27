@@ -165,6 +165,11 @@ are not database backups.
 
 ## What the owner still has to do by hand
 
+**First, before draft [PR #11](https://github.com/mhd-riaz/news-bot/pull/11) is merged
+into `main`:** if Coolify reads its compose file from this repository, change that
+path from `collector/deployments/coolify.compose.yml` to
+`deployment/compose/coolify.compose.yml`. The file moved; only its comments changed.
+
 Each item links to its roadmap task.
 
 1. **Google sign-in (D10).** Create a Google OAuth client of type "Web application".
