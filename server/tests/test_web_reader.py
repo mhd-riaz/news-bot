@@ -189,7 +189,7 @@ def test_read_events_stays_disabled(same_origin):
 def test_session_with_sign_in_off_is_the_local_reader():
     body = client_for().get("/api/v1/session").get_json()
     assert body == {"auth_enabled": False, "signed_in": True, "reader": {"email": "local@localhost", "name": "Local reader"},
-                    "login_url": "/auth/google/login"}
+                    "login_url": "/auth/login"}
 
 
 def test_every_response_carries_request_id_and_security_headers():

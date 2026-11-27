@@ -96,13 +96,13 @@ All requests go to the same website, with `credentials: "same-origin"`. The brow
 `Origin` and `Sec-Fetch-Site` headers protect against forged requests, so the page sends
 no extra token. Errors come back as `{"error": {"code": "...", "message": "..."}}`.
 
-| Request                                   | Used for                                                                               |
-| ----------------------------------------- | -------------------------------------------------------------------------------------- |
-| `GET /api/v1/session`                     | First thing on start: is sign-in on, and is someone signed in?                         |
-| `GET /auth/google/login?next=<this page>` | The "Sign in with Google" link.                                                        |
-| `POST /auth/logout`                       | The "Sign out" button (the server answers 204).                                        |
-| `GET /api/v1/recommendations/meta`        | The snapshot, its dates, lenses, threads and topic tags.                               |
-| `POST /api/v1/recommendations`            | Every list of stories: the feed, related stories, the edition and the interest picker. |
+| Request                            | Used for                                                                               |
+| ---------------------------------- | -------------------------------------------------------------------------------------- |
+| `GET /api/v1/session`              | First thing on start: is sign-in on, and is someone signed in?                         |
+| `GET /auth/login?next=<this page>` | The "Sign in with Google" link.                                                        |
+| `POST /auth/logout`                | The "Sign out" button (the server answers 204).                                        |
+| `GET /api/v1/recommendations/meta` | The snapshot, its dates, lenses, threads and topic tags.                               |
+| `POST /api/v1/recommendations`     | Every list of stories: the feed, related stories, the edition and the interest picker. |
 
 If sign-in is on and nobody is signed in, the page shows only the sign-in screen. If the
 address has `?auth_error=not_invited`, it says the email is not on the invite list. If it

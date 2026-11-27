@@ -35,7 +35,7 @@ def world():
         ping_database=lambda: None,
         readers=readers,
         sessions=sessions,
-        oidc=GoogleOIDC(CLIENT_ID, "unit-test-client-secret", PUBLIC_URL + "/auth/google/callback", transport=google),
+        oidc=GoogleOIDC(CLIENT_ID, "unit-test-client-secret", PUBLIC_URL + "/auth/callback", transport=google),
         flow_cookie=FlowCookie("unit-test-client-secret"),
     )
     app = create_app(auth_settings(), services)
@@ -47,20 +47,20 @@ def set_cookie_header(response, name):
 
 
 def sign_in(client, google, next_path="/stories", **callback_args):
-    login = client.get(f"/auth/google/login?next={next_path}")
+    login = client.get(f"/auth/login?next={next_path}")
     query = google.saw_authorization(login.headers["Location"])
     args = {"state": query["state"], "code": "4/test-code", **callback_args}
-    return login, client.get("/auth/google/callback", query_string=args)
+    return login, client.get("/auth/callback", query_string=args)
 
 
 def test_login_redirects_to_google_with_pkce_state_and_nonce(world):
     client, google, *_ = world
-    login = client.get("/auth/google/login?next=/stories")
+    login = client.get("/auth/login?next=/stories")
     location = login.headers["Location"]
     query = google.saw_authorization(location)
     assert login.status_code == 302 and location.startswith(AUTHORIZATION_ENDPOINT + "?")
     assert query["response_type"] == "code" and query["client_id"] == CLIENT_ID and query["code_challenge_method"] == "S256"
-    assert query["redirect_uri"] == PUBLIC_URL + "/auth/google/callback" and query["scope"] == "openid email profile"
+    assert query["redirect_uri"] == PUBLIC_URL + "/auth/callback" and query["scope"] == "openid email profile"
     assert len(query["state"]) >= 30 and len(query["nonce"]) >= 30 and len(query["code_challenge"]) == 43
     cookie = set_cookie_header(login, FLOW_COOKIE)
     for attribute in ("Secure", "HttpOnly", "SameSite=Lax", "Path=/", "Max-Age=600"):
@@ -77,10 +77,10 @@ def test_callback_signs_an_invited_reader_in_and_binds_their_google_account(worl
     token = cookie.split(";", 1)[0].split("=", 1)[1]
     assert list(sessions.docs) == [hash_token(token)] and token not in str(sessions.docs)
     assert readers.docs[READER_ID]["google_sub"] == "1076915035000615071511" and readers.logins == [READER_ID]
-    assert google.posts[0]["grant_type"] == ["authorization_code"] and google.posts[0]["redirect_uri"] == [PUBLIC_URL + "/auth/google/callback"]
+    assert google.posts[0]["grant_type"] == ["authorization_code"] and google.posts[0]["redirect_uri"] == [PUBLIC_URL + "/auth/callback"]
     session = client.get("/api/v1/session").get_json()
     assert session == {"auth_enabled": True, "signed_in": True, "reader": {"email": "reader@example.test", "name": "Reader One"},
-                       "login_url": "/auth/google/login"}
+                       "login_url": "/auth/login"}
     assert client.get("/api/v1/articles").status_code == 200
 
 
@@ -120,21 +120,21 @@ def test_any_other_failure_is_sign_in_failed(world, break_it):
         extra = {"error": "access_denied"}
     elif break_it == "other_account":
         readers.docs[READER_ID]["google_sub"] = "a-different-google-account"
-    login = client.get("/auth/google/login?next=/stories")
+    login = client.get("/auth/login?next=/stories")
     query = google.saw_authorization(login.headers["Location"])
     if break_it == "no_cookie":
         client.delete_cookie(FLOW_COOKIE)
     if break_it == "forged_cookie":
         forged = FlowCookie("not-the-secret").encode(LoginFlow.start("/stories"))
         client.set_cookie(FLOW_COOKIE, forged)
-    done = client.get("/auth/google/callback", query_string={"state": query["state"], "code": "4/x", **extra})
+    done = client.get("/auth/callback", query_string={"state": query["state"], "code": "4/x", **extra})
     assert done.status_code == 302 and done.headers["Location"] == "/?auth_error=sign_in_failed"
     assert not sessions.docs and SESSION_COOKIE + "=" not in " ".join(done.headers.getlist("Set-Cookie"))
 
 
 @pytest.mark.parametrize(("raw", "expected"), [
     ("/stories", "/stories"), ("/?view=fresh", "/?view=fresh"), (None, "/"), ("", "/"), ("//evil.example", "/"),
-    ("https://evil.example/", "/"), ("/\\evil.example", "/"), ("javascript:alert(1)", "/"), ("/auth/google/login", "/"),
+    ("https://evil.example/", "/"), ("/\\evil.example", "/"), ("javascript:alert(1)", "/"), ("/auth/login", "/"),
     ("/%0d%0aSet-Cookie:x", "/%0d%0aSet-Cookie:x"), ("/a\r\nb", "/"), ("stories", "/"),
 ])
 def test_next_is_a_same_site_path_only(raw, expected):
@@ -219,7 +219,7 @@ def test_token_exchange_sends_the_verifier_to_googles_token_endpoint():
         seen.update(method=method, url=url, form=parse_qs(body.decode()), timeout=timeout)
         return 400, b""
 
-    oidc = GoogleOIDC(CLIENT_ID, "s", PUBLIC_URL + "/auth/google/callback", transport=transport)
+    oidc = GoogleOIDC(CLIENT_ID, "s", PUBLIC_URL + "/auth/callback", transport=transport)
     flow = LoginFlow.start("/")
     with pytest.raises(SignInFailed):
         oidc.exchange("code", flow)

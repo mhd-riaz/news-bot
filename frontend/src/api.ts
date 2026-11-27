@@ -115,7 +115,7 @@ export interface Session {
 	loginUrl: string;
 }
 
-export const DEFAULT_LOGIN_URL = "/auth/google/login";
+export const DEFAULT_LOGIN_URL = "/auth/login";
 
 // Only a path on this site may be used as the sign-in link.
 export function localPath(value: unknown): string {

@@ -86,14 +86,14 @@ def test_sign_in_end_to_end_with_mongodb(database, same_origin):
         ping_database=lambda: None,
         readers=readers,
         sessions=SessionStore(database, idle=timedelta(days=7), absolute=timedelta(days=30)),
-        oidc=GoogleOIDC(CLIENT_ID, "unit-test-client-secret", PUBLIC_URL + "/auth/google/callback", transport=google),
+        oidc=GoogleOIDC(CLIENT_ID, "unit-test-client-secret", PUBLIC_URL + "/auth/callback", transport=google),
         flow_cookie=FlowCookie("unit-test-client-secret"),
     )
     client = create_app(settings, services).test_client()
     assert client.get("/api/v1/articles").status_code == 401
-    login = client.get("/auth/google/login?next=/stories")
+    login = client.get("/auth/login?next=/stories")
     state = google.saw_authorization(login.headers["Location"])["state"]
-    done = client.get("/auth/google/callback", query_string={"state": state, "code": "4/x"})
+    done = client.get("/auth/callback", query_string={"state": state, "code": "4/x"})
     assert done.status_code == 302 and done.headers["Location"] == "/stories"
     assert readers.get(reader.id).google_bound and database.reader_sessions.count_documents({"reader_id": reader.id}) == 1
     assert client.get("/api/v1/session").get_json()["reader"]["email"] == "reader@example.test"
@@ -102,9 +102,9 @@ def test_sign_in_end_to_end_with_mongodb(database, same_origin):
     assert database.reader_sessions.count_documents({}) == 0
     assert client.get("/api/v1/articles").status_code == 401
 
-    login = client.get("/auth/google/login")
+    login = client.get("/auth/login")
     state = google.saw_authorization(login.headers["Location"])["state"]
-    client.get("/auth/google/callback", query_string={"state": state, "code": "4/y"})
+    client.get("/auth/callback", query_string={"state": state, "code": "4/y"})
     out = io.StringIO()
     assert admin.run(argparse.Namespace(action="revoke", email="Reader@Example.test"), {}, out=out, database=database) == 0
     assert "ended 1 session(s)" in out.getvalue()

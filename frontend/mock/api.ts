@@ -399,11 +399,11 @@ export function mockApi(): Plugin {
 					state.authEnabled && state.signedIn
 						? { email: "reader@example.com", name: "Mock Reader" }
 						: null,
-				login_url: "/auth/google/login",
+				login_url: "/auth/login",
 			});
 			return true;
 		}
-		if (path === "/auth/google/login" && req.method === "GET") {
+		if (path === "/auth/login" && req.method === "GET") {
 			if (state.invite !== "allow") {
 				const code = state.invite === "deny" ? "not_invited" : "sign_in_failed";
 				send(res, 302, undefined, { Location: `/?auth_error=${code}` });

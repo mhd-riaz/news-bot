@@ -16,14 +16,14 @@ const SIGNED_OUT = {
 	auth_enabled: true,
 	signed_in: false,
 	reader: null,
-	login_url: "/auth/google/login",
+	login_url: "/auth/login",
 };
 
 const SIGNED_IN = {
 	auth_enabled: true,
 	signed_in: true,
 	reader: { email: "reader@example.com", name: "Asha" },
-	login_url: "/auth/google/login",
+	login_url: "/auth/login",
 };
 
 describe("sign-in", () => {
@@ -36,7 +36,7 @@ describe("sign-in", () => {
 			name: "Sign in with Google",
 		});
 		expect(link.getAttribute("href")).toBe(
-			`/auth/google/login?next=${encodeURIComponent(`/stories?article=${id(3)}`)}`,
+			`/auth/login?next=${encodeURIComponent(`/stories?article=${id(3)}`)}`,
 		);
 		expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
 			"Sign in to read",
@@ -59,14 +59,14 @@ describe("sign-in", () => {
 			screen
 				.getByRole("link", { name: "Sign in with Google" })
 				.getAttribute("href"),
-		).toBe("/auth/google/login?next=%2F");
+		).toBe("/auth/login?next=%2F");
 	});
 
 	test("a failed sign-in says so and offers to try again", async () => {
 		const server = new FakeServer();
 		server.session = {
 			...SIGNED_OUT,
-			login_url: "/auth/google/login?prompt=select_account",
+			login_url: "/auth/login?prompt=select_account",
 		};
 		window.history.replaceState(null, "", "/stories?auth_error=sign_in_failed");
 		render(<App />);
@@ -77,7 +77,7 @@ describe("sign-in", () => {
 			screen
 				.getByRole("link", { name: "Try again with Google" })
 				.getAttribute("href"),
-		).toBe("/auth/google/login?prompt=select_account&next=%2Fstories");
+		).toBe("/auth/login?prompt=select_account&next=%2Fstories");
 	});
 
 	test("a sign-in link that leaves the site is replaced by the standard one", async () => {
@@ -87,7 +87,7 @@ describe("sign-in", () => {
 		const link = await screen.findByRole("link", {
 			name: "Sign in with Google",
 		});
-		expect(link.getAttribute("href")).toBe("/auth/google/login?next=%2F");
+		expect(link.getAttribute("href")).toBe("/auth/login?next=%2F");
 	});
 
 	test("a signed-in reader sees their name and can sign out", async () => {

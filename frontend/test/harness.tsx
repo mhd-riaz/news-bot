@@ -86,7 +86,7 @@ export class FakeServer {
 		auth_enabled: false,
 		signed_in: false,
 		reader: null,
-		login_url: "/auth/google/login",
+		login_url: "/auth/login",
 	};
 	sessionAnswer: Handler = () => response(this.session);
 	meta: Handler = () => response(META);

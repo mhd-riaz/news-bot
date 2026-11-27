@@ -71,8 +71,8 @@ It listens on `NEWS_SERVER_HOST:NEWS_SERVER_PORT` with 2 worker processes and
 ## Turn on Google sign-in
 
 1. In Google Cloud Console, create an OAuth client of type **Web application**.
-2. Add this redirect URI: `<NEWS_PUBLIC_URL>/auth/google/callback`, for example
-   `https://news.example.com/auth/google/callback`.
+2. Add this redirect URI: `<NEWS_PUBLIC_URL>/auth/callback`, for example
+   `https://news.example.com/auth/callback`.
 3. Set `NEWS_AUTH_ENABLED=true` (the default), `NEWS_PUBLIC_URL`,
    `NEWS_GOOGLE_CLIENT_ID` and `NEWS_GOOGLE_CLIENT_SECRET`.
 4. Invite your readers:
@@ -108,8 +108,8 @@ How sign-in works:
 | `GET /health/live` | Is the process running |
 | `GET /health/ready` | Are MongoDB and the ranker reachable (503 if not) |
 | `GET /api/v1/session` | `auth_enabled`, `signed_in`, `reader` (`email`, `name`) and `login_url` |
-| `GET /auth/google/login?next=/path` | Starts sign-in. `next` must be a path on this site |
-| `GET /auth/google/callback` | Google sends the reader back here. Not invited: `/?auth_error=not_invited`; any other problem: `/?auth_error=sign_in_failed` |
+| `GET /auth/login?next=/path` | Starts sign-in. `next` must be a path on this site |
+| `GET /auth/callback` | Google sends the reader back here. Not invited: `/?auth_error=not_invited`; any other problem: `/?auth_error=sign_in_failed` |
 | `POST /auth/logout` | Signs out: 204 |
 | `GET /api/v1/recommendations/meta` | The ranker's index details, as the Go reader returned them |
 | `POST /api/v1/recommendations` | Ranked stories with their article details, as the Go reader returned them |
