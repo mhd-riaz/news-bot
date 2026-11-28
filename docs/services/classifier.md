@@ -96,45 +96,44 @@ is ready. The production steps are the owner's, and they have **not been done ye
 61cbaa89016d1acd88473cad2cf59cec69e74177aabe123bafa0a9c9f6c22fde
 ```
 
-It is the same value as `bundle.joblib` in `ml/models.toml`. The production start
-command refuses any other file.
+It is the same value as `bundle.joblib` in `ml/models.toml`.
+[`coolify.compose.yml`](../../deployment/compose/coolify.compose.yml) uses it unless
+`NEWS_CLASSIFIER_MODEL_SHA256` is set in Coolify. The production start command refuses
+any other file.
 
 Steps:
 
-1. Copy `bundle.joblib` to `/models/v4-ai-072b01a9ceaf/bundle.joblib` on the
-   external `classifier-models` Docker volume of the production machine.
-2. In Coolify, set `NEWS_CLASSIFIER_MODEL_SHA256` to the checksum above.
-3. Publish the classifier image and redeploy. Publishing happens only when the GitHub
-   variable `DEPLOY_ENABLED` is `true`; see [Operations](../operations/README.md).
-   [`coolify.compose.yml`](../../deployment/compose/coolify.compose.yml) gives the
-   classifier 1.5 GB of memory and 120 seconds to start.
-4. Check that `GET /v1/meta` (with the classifier key) reports `model_version`
+1. Publish the classifier image and redeploy. Publishing happens only when the GitHub
+   variable `DEPLOY_ENABLED` is `true`; see [Operations](../operations/README.md). On
+   its first start, the classifier downloads the model from Google Drive into its
+   `classifier-models` volume and checks every file; nothing needs copying by hand.
+   It gets 1.5 GB of memory and 120 seconds to start.
+2. Check that `GET /v1/meta` (with the classifier key) reports `model_version`
    `v4-ai-072b01a9ceaf-hybrid_svc` and 14 topics (the 13 topics plus `unsorted`).
-5. Relabel the stories already in the database. From the repository root, run
+3. Relabel the stories already in the database. From the repository root, run
    `make -C collector backfill-reclassify BACKFILL_LIMIT=<n>` with production
    settings, or run the same program inside the production `api` container
    (`/app/backfill -reclassify`). Repeat it until it reports `updated` as 0. It
    changes only `topic`, `confidence`, `model_version`, `classification_status` and
    `classified_at`. It never touches the story text.
 
-Until step 5 runs, older stories keep the topics of the earlier model `v2-001`.
+Until step 3 runs, older stories keep the topics of the earlier model `v2-001`.
 
 A topic-only change does not move a story's `updated_at` or `content_rev`. So a
 future pipeline that watches those fields will not notice relabelled stories.
 
 ## Roll back
 
-The service can serve either model. To go back to `v2-001`:
+`v2-001` is not in `ml/models.toml`, so the classifier cannot download it. On 27 Nov
+2026 no `v2-001` `bundle.joblib` was found on the laptop or in the archive release.
+The only copy may be on the production machine's old external `classifier-models`
+volume, which was filled by hand and is no longer mounted. To look:
+`docker run --rm -v classifier-models:/m alpine ls /m`. If it is there:
 
-1. Put the `v2-001` bundle on the same `classifier-models` volume, under
-   `/models/v2-001/`.
-2. Point `NEWSML_MODEL_DIR` at `/models/v2-001`, and set
-   `NEWS_CLASSIFIER_MODEL_SHA256` to that bundle's SHA-256.
-3. Redeploy, then run `make -C collector backfill-reclassify` again.
-
-**Warning:** on 27 Nov 2026 no `v2-001` `bundle.joblib` was found on the laptop or
-in the archive release. Check that the volume holds one before you rely on a
-rollback.
+1. In `coolify.compose.yml`, mount that volume instead (`external: true`), point
+   `NEWSML_MODEL_DIR` at its `v2-001` folder, set `NEWS_CLASSIFIER_MODEL_SHA256` to that
+   bundle's SHA-256, and remove the download line from the start command.
+2. Redeploy, then run `make -C collector backfill-reclassify` again.
 
 ## Measured speed and memory
 

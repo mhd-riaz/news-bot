@@ -21,7 +21,7 @@ The owner confirmed that Coolify deploys the stack in
 | Service | Image | Memory limit | Notes |
 | --- | --- | --- | --- |
 | `mongo` | `mongo:7.0.48` | 3 GB | 2 GB cache. Port 27017 is open only on the machine itself |
-| `classifier` | `ghcr.io/mhd-riaz/news-collector-classifier:latest` | 1.5 GB | Refuses to start unless `bundle.joblib` matches `NEWS_CLASSIFIER_MODEL_SHA256` |
+| `classifier` | `ghcr.io/mhd-riaz/news-collector-classifier:latest` | 1.5 GB | Downloads its model on its first start; refuses any `bundle.joblib` except the approved one |
 | `api` | `ghcr.io/mhd-riaz/news-bot:latest` | 512 MB | The collector. Production mode, API sign-in on, classifier on |
 
 The roadmap records the collector and MongoDB as running there (requirements R8 and
@@ -68,12 +68,13 @@ In **Coolify**, the compose file stops with an error if one of these is missing:
 | `NEWS_AUTH_BASIC_USERNAME`, `NEWS_AUTH_BASIC_PASSWORD` | A user name and a password of at least 16 characters |
 | `NEWS_MONGO_COLLECTOR_PASSWORD` | The `collector` database user's password: 64 hex characters |
 | `NEWS_CLASSIFIER_API_KEY` | The key the collector and the classifier share |
-| `NEWS_CLASSIFIER_MODEL_SHA256` | The model's checksum (see [the classifier guide](../services/classifier.md#deploy-the-v4-classifier-d19)) |
 
 Coolify makes the MongoDB root user and password itself (`SERVICE_USER_MONGO`,
 `SERVICE_PASSWORD_64_MONGO`). Optional ones include `NEWS_IMAGE`,
 `NEWS_CLASSIFIER_IMAGE`, `NEWS_MONGO_DATABASE`, `NEWS_BOOTSTRAP_SOURCES_PATH` and
-`NEWS_LOGGING_LEVEL`.
+`NEWS_LOGGING_LEVEL`. Leave `NEWS_CLASSIFIER_MODEL_SHA256` unset: the compose file
+already holds the approved model's checksum (see
+[the classifier guide](../services/classifier.md#deploy-the-v4-classifier-d19)).
 
 In **GitHub**, the repository needs the secrets `COOLIFY_WEBHOOK` and
 `COOLIFY_TOKEN`, plus `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET` if
@@ -138,10 +139,11 @@ recorded.
   `make -C ml models` downloads them into `ml/models/` and checks them, with no sign-in.
   A backup copy of each one is a release in the private repository
   `mhd-riaz/news-bot-archive`.
-- Production does not download models. The owner copies the bundle onto the
-  `classifier-models` volume by hand. The steps and the checksum are in
+- Production downloads the model the first time the classifier starts, into its
+  `classifier-models` volume, and checks it. See
   [Deploy the V4 classifier](../services/classifier.md#deploy-the-v4-classifier-d19).
-- Keep every old release, so that a rollback is only a change of folder and checksum.
+- Keep every old model's archive in Drive and its release, so a rollback needs no
+  retraining.
 
 ## Backups
 
@@ -171,7 +173,8 @@ path from `collector/deployments/coolify.compose.yml` to
 `deployment/compose/coolify.compose.yml` (Base Directory `/deployment/compose`, Docker
 Compose Location `/coolify.compose.yml`). The file moved when
 [PR #11](https://github.com/mhd-riaz/news-bot/pull/11) was merged into `main`. It also
-switches the classifier to the V4 model, so finish step 4 below before the next deploy.
+switches the classifier to the V4 model, which the classifier downloads by itself on
+its first start.
 
 Each item links to its roadmap task.
 
@@ -182,8 +185,8 @@ Each item links to its roadmap task.
 2. **Invite readers (M3.9)** with `uv run newsbot-server readers invite <email>`.
 3. **Turn on deployment (M0.5, now RS6).** Add the GitHub secrets above, then set
    `DEPLOY_ENABLED` to `true` when ready.
-4. **Put the V4 classifier into production (ML4.7, now RS6).** Copy the bundle onto
-   the volume, set `NEWS_CLASSIFIER_MODEL_SHA256` and deploy. Then relabel the old
+4. **Put the V4 classifier into production (ML4.7, now RS6).** Deploy; the classifier
+   downloads the model by itself on its first start. Then relabel the old
    stories until the command reports `updated` as 0. The command is
    `make -C collector backfill-reclassify` with production settings, or the same
    program inside the production `api` container: `/app/backfill -reclassify`.

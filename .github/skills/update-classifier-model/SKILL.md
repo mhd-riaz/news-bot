@@ -24,7 +24,7 @@ Model files never go into git. Each model is one `.tar.gz` archive in the owner'
 
 4. Add a `[[model]]` entry to `ml/models.toml` with `url = "https://drive.usercontent.google.com/download?id=<file-id>&export=download&confirm=t"`, the archive's SHA-256 and size, and each file's SHA-256 (`shasum -a 256 <file>`). The file ID is the part between `/d/` and `/view` in the file's Drive link.
 5. Prove it: run `make -C ml models` in a fresh checkout without signing in to anything, then `make -C ml models-check`.
-6. Point the services at the new folder: `NEWSML_MODEL_DIR` in `deployment/compose/compose.yaml` and the classifier model settings in the Helm values files. Production also checks `NEWSML_MODEL_SHA256`, which is the SHA-256 of `bundle.joblib`.
+6. Point the services at the new model: `NEWSML_MODEL_DIR` in `deployment/compose/compose.yaml`, the classifier model settings in the Helm values files, and in `deployment/compose/coolify.compose.yml` the model name in the start command, `NEWSML_MODEL_DIR` and the default checksum. Production refuses any `bundle.joblib` whose SHA-256 differs from that checksum.
 
 ## Rules
 

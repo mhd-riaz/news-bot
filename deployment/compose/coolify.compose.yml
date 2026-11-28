@@ -47,11 +47,12 @@ services:
       retries: 10
       start_period: 20s
 
-  # Provision the externally managed classifier-models volume before deployment:
-  # copy v4-ai-072b01a9ceaf into /models/v4-ai-072b01a9ceaf and set
-  # NEWS_CLASSIFIER_MODEL_SHA256 to `sha256sum bundle.joblib`. The command below
-  # refuses a stale or partial bundle. To roll back, copy v2-001 into the volume and
-  # point NEWSML_MODEL_DIR and the hash back at it. The sidecar reads either bundle.
+  # On its first start the classifier downloads its model. The script and the model
+  # list (ml/models.toml) are in the image; the archive comes from Google Drive, and
+  # every file's SHA-256 is checked. A correct model already in the volume is not
+  # downloaded again. The start command then refuses any bundle.joblib except the
+  # approved one (D19); NEWS_CLASSIFIER_MODEL_SHA256 can override that checksum. If the
+  # download fails, only the classifier waits and retries; collection goes on.
   # V4 loads a sentence encoder: peak memory was 893 MB in a local test, so the limit
   # is 1.5 GB, and start-up takes a while because the encoder warms up first.
   classifier:
@@ -60,15 +61,16 @@ services:
     restart: unless-stopped
     mem_limit: 1536m
     environment:
-      - NEWSML_MODEL_DIR=/models/v4-ai-072b01a9ceaf
+      - NEWSML_MODEL_DIR=/data/models/classifier/v4-ai-072b01a9ceaf
       - NEWSML_API_KEY=${NEWS_CLASSIFIER_API_KEY:?}
-      - NEWSML_MODEL_SHA256=${NEWS_CLASSIFIER_MODEL_SHA256:?}
+      - NEWSML_MODEL_SHA256=${NEWS_CLASSIFIER_MODEL_SHA256:-61cbaa89016d1acd88473cad2cf59cec69e74177aabe123bafa0a9c9f6c22fde}
     volumes:
-      - classifier-models:/models:ro
+      - classifier-models:/data
     command:
       - /bin/sh
       - -ec
       - |
+        python /app/scripts/download_models.py --dest /data classifier-v4-ai-072b01a9ceaf
         echo "$$NEWSML_MODEL_SHA256  $$NEWSML_MODEL_DIR/bundle.joblib" | sha256sum -c -
         exec gunicorn --bind=0.0.0.0:8000 --workers=1 --threads=4 --timeout=120 app.wsgi:app
     healthcheck:
@@ -146,5 +148,6 @@ services:
 
 volumes:
   mongo-data:
+  # The downloaded model. Compose makes this volume on the first deploy. The external
+  # volume of the same name, filled by hand before 28 Nov, is no longer used.
   classifier-models:
-    external: true
