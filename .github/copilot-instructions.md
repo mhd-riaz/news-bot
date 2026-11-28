@@ -54,7 +54,7 @@ These are code and local checks. They do not close V1 acceptance or prove today'
 - **Limits:** ranker snapshots are rebuilt by hand. There is no automatic revision-aware index, no measured one-hour freshness, no stored per-reader editions and no association rules yet (M2 to M5).
 - **MCP:** five read-only tools. `get_story_group` and `get_rules` wait for association rules and story links (M5).
 - **Classifier:** the production model is `v4-ai-072b01a9ceaf-hybrid_svc` (D19), trained on the labels in `data/labels/`; that folder's README says how the labels were made. Human validation and 200 human labels per class are not met.
-- **Deployment:** production still runs on Coolify with `deployment/compose/coolify.compose.yml`, and publishing is gated by `DEPLOY_ENABLED`. A local image build is not a deployment.
+- **Deployment:** production runs on Coolify from `deployment/compose/coolify.compose.yml` (Coolify read an older copy in `data-scientist-roadmap` until 28 Nov), and publishing is gated by `DEPLOY_ENABLED`. Production MongoDB requires TLS. A local image build is not a deployment.
 
 Phase-1 history and the measured recommender results are in [recommender-results.md](../docs/project/recommender-results.md).
 

@@ -14,26 +14,32 @@ Production is the owner's **home-lab** laptop (12 GB of memory, an i5 processor)
 runs **Coolify** (a self-hosted tool that runs Docker apps), and a **Cloudflare
 Tunnel** carries web traffic to it.
 
-The owner confirmed that Coolify deploys the stack in
+Coolify deploys the stack in
 [`deployment/compose/coolify.compose.yml`](../../deployment/compose/coolify.compose.yml)
-(roadmap D20). It has three services:
+once its Git Source points at this repository (see
+[the switch](#what-the-owner-still-has-to-do-by-hand)). Until 28 Nov it still read an
+older copy in the `data-scientist-roadmap` repository, with only `mongo` and `api`;
+roadmap D20 had wrongly recorded this repository as the source. The file has three
+services:
 
 | Service | Image | Memory limit | Notes |
 | --- | --- | --- | --- |
-| `mongo` | `mongo:7.0.48` | 3 GB | 2 GB cache. Port 27017 is open only on the machine itself |
+| `mongo` | `mongo:7.0.48` | 3 GB | 2 GB cache. Every connection must use TLS. Port 27017 is open on the machine itself and on the home network |
 | `classifier` | `ghcr.io/mhd-riaz/news-collector-classifier:latest` | 1.5 GB | Downloads its model on its first start; refuses any `bundle.joblib` except the approved one |
 | `api` | `ghcr.io/mhd-riaz/news-bot:latest` | 512 MB | The collector. Production mode, API sign-in on, classifier on |
 
 The roadmap records the collector and MongoDB as running there (requirements R8 and
-R9). That is a record, not a check of today's health. Which image version production
-runs is not recorded: a release from this repository has not been proven yet (see
-below).
+R9). That is a record, not a check of today's health.
 
 **Not deployed yet:** the ranker, the web server, the MCP program and the planned
 automatic pipeline. So readers cannot use the hosted site yet.
 
-To reach the production database with Compass or `mongosh`, use an SSH tunnel to the
-machine or a Cloudflare Access tunnel. The port is not open to the network.
+**Reaching the production database.** MongoDB accepts only TLS (encrypted)
+connections, checked against the certificate authority file `ca.crt` from the
+server's `/etc/mongodb-tls-public`. Compass on the home network connects to
+`192.168.31.233:27017`; from elsewhere, use the SSH account `mongo-tunnel`, which
+reaches the machine's own port. A firewall list on the server (the `DOCKER-USER` rules
+in `/etc/ufw/after.rules`) decides which home-network devices may connect.
 
 ## How a new version reaches production
 
@@ -66,11 +72,13 @@ In **Coolify**, the compose file stops with an error if one of these is missing:
 | --- | --- |
 | `NEWS_AUTH_API_KEYS` | Keys for the collector API, comma-separated. Make one with `openssl rand -hex 32` |
 | `NEWS_AUTH_BASIC_USERNAME`, `NEWS_AUTH_BASIC_PASSWORD` | A user name and a password of at least 16 characters |
-| `NEWS_MONGO_COLLECTOR_PASSWORD` | The `collector` database user's password: 64 hex characters |
-| `NEWS_CLASSIFIER_API_KEY` | The key the collector and the classifier share |
+| `NEWS_CLASSIFIER_API_KEY` | The key the collector and the classifier share. Make one with `openssl rand -hex 32` |
 
 Coolify makes the MongoDB root user and password itself (`SERVICE_USER_MONGO`,
-`SERVICE_PASSWORD_64_MONGO`). Optional ones include `NEWS_IMAGE`,
+`SERVICE_PASSWORD_64_MONGO`), and the `collector` user's password
+(`SERVICE_PASSWORD_64_COLLECTOR`); the `collector` user itself was made once with
+`mongosh`. The server must also hold the TLS files in `/etc/mongodb-tls/server` and
+`/etc/mongodb-tls-public`; a missing folder stops the deploy. Optional ones include `NEWS_IMAGE`,
 `NEWS_CLASSIFIER_IMAGE`, `NEWS_MONGO_DATABASE`, `NEWS_BOOTSTRAP_SOURCES_PATH` and
 `NEWS_LOGGING_LEVEL`. Leave `NEWS_CLASSIFIER_MODEL_SHA256` unset: the compose file
 already holds the approved model's checksum (see
@@ -168,13 +176,21 @@ are not database backups.
 
 ## What the owner still has to do by hand
 
-**First, in Coolify:** if it reads its compose file from this repository, change the
-path from `collector/deployments/coolify.compose.yml` to
-`deployment/compose/coolify.compose.yml` (Base Directory `/deployment/compose`, Docker
-Compose Location `/coolify.compose.yml`). The file moved when
-[PR #11](https://github.com/mhd-riaz/news-bot/pull/11) was merged into `main`. It also
-switches the classifier to the V4 model, which the classifier downloads by itself on
-its first start.
+**First, switch Coolify to this repository.** Until 28 Nov it deployed an older copy
+of the file from `data-scientist-roadmap`. In the app's settings:
+
+1. **Git Source:** Repository `git@github.com:mhd-riaz/news-bot.git`, Branch `main`.
+2. **General → Build & deploy:** Base directory `/deployment/compose`, Docker compose
+   location `/coolify.compose.yml`. Update the description too.
+3. **Environment Variables:** add `NEWS_CLASSIFIER_API_KEY` (the old copy had no
+   classifier). If `NEWS_IMAGE` is set, it must be `ghcr.io/mhd-riaz/news-bot:latest`
+   or empty.
+4. Select **Reload compose**, save, then **Redeploy**. If Coolify cannot read the
+   repository, give its deploy key read access to `news-bot`.
+
+The database stays: the `mongo-data` volume name, the TLS setup, the ports and the
+`collector` password are the same as in the old copy. The classifier downloads its V4
+model by itself on its first start.
 
 Each item links to its roadmap task.
 
