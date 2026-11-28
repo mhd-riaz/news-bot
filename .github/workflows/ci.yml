@@ -128,7 +128,7 @@ jobs:
           docker compose -f deployment/compose/compose.yaml --profile mcp config --quiet
           docker compose -f deployment/compose/compose.yaml -f deployment/compose/compose.external-mongo.yaml config --quiet
           # The production file needs its required values; dummy ones only prove it parses.
-          NEWS_CLASSIFIER_API_KEY=x NEWS_CLASSIFIER_MODEL_SHA256=x NEWS_MONGO_COLLECTOR_PASSWORD=x \
+          NEWS_CLASSIFIER_API_KEY=x NEWS_CLASSIFIER_MODEL_SHA256=x SERVICE_PASSWORD_64_COLLECTOR=x \
           NEWS_AUTH_API_KEYS=x NEWS_AUTH_BASIC_USERNAME=x NEWS_AUTH_BASIC_PASSWORD=x \
           SERVICE_USER_MONGO=x SERVICE_PASSWORD_64_MONGO=x \
             docker compose -f deployment/compose/coolify.compose.yml config --quiet

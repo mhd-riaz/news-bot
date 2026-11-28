@@ -1,15 +1,19 @@
 # Coolify deployment stack for the homelab.
 #
-# This is what production runs today. The Helm chart in deployment/helm/news-bot
-# deploys the whole app on k3s and will replace this file after the owner switches
-# (roadmap RS6); until then, change this file only together with the owner.
+# Production deploys this file: in Coolify, Git Source mhd-riaz/news-bot (main),
+# Base Directory /deployment/compose, Docker Compose Location /coolify.compose.yml.
+# Until 28 Nov Coolify read an older copy in mhd-riaz/data-scientist-roadmap
+# (semester-1/06-supervised-ml-classification/mini-project/news/deployments/); this
+# file carries that copy's MongoDB TLS, ports and collector password, plus the
+# classifier. The Helm chart in deployment/helm/news-bot deploys the whole app on
+# k3s and will replace this file after the owner switches (roadmap RS6); until
+# then, change this file only together with the owner.
 #
-# Create a "Docker Compose" resource in Coolify and paste this file, or point it
-# at this path in the repository. GitHub Actions (.github/workflows/ci.yml)
-# builds the images; on main it publishes sha-<commit> tags, and its release job
-# moves the `latest` tags and asks Coolify to redeploy only when DEPLOY_ENABLED is
-# true. This stack pulls application images; it does not build them. It does
-# not yet deploy the AFTERLINE reader, ranker, batch pipeline or MCP server.
+# GitHub Actions (.github/workflows/ci.yml) builds the images; on main it
+# publishes sha-<commit> tags, and its release job moves the `latest` tags and
+# asks Coolify to redeploy only when DEPLOY_ENABLED is true. This stack pulls
+# application images; it does not build them. It does not yet deploy the
+# AFTERLINE reader, ranker, batch pipeline or MCP server.
 #
 # Coolify fills SERVICE_* itself and keeps the generated values stable across
 # deployments. Variables written as ${NAME:?} are required and must be set in
@@ -24,24 +28,53 @@ services:
     # misses patch releases. Bump this explicitly.
     image: mongo:7.0.48
     restart: unless-stopped
-    command: ["mongod", "--wiredTigerCacheSizeGB", "2"]
+    # Every connection must use TLS 1.2 or later, the API's included. The
+    # server certificate comes from the host's private CA in /etc/mongodb-tls
+    # (renew with /etc/mongodb-tls/renew-server-cert.sh). Clients verify it
+    # against ca.crt and log in with SCRAM; client certificates are optional.
+    # The 2 GB cache and the 3 GB limit are roadmap C15's.
+    command:
+      - mongod
+      - --wiredTigerCacheSizeGB
+      - "2"
+      - --tlsMode=requireTLS
+      - --tlsCertificateKeyFile=/etc/mongo-tls/server.pem
+      - --tlsCAFile=/etc/mongo-tls/ca.crt
+      - --tlsAllowConnectionsWithoutCertificates
+      - --tlsDisabledProtocols=TLS1_0,TLS1_1
     mem_limit: 3g
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${SERVICE_USER_MONGO}
-      # Coolify keeps this generated root password stable. The API uses the
-      # separately provisioned collection-scoped collector credential below.
+      # The 64-character variant is free of symbols, so it needs no escaping
+      # when it is embedded in a connection URI.
       - MONGO_INITDB_ROOT_PASSWORD=${SERVICE_PASSWORD_64_MONGO}
-    # Published on the host's loopback only, for Compass/mongosh. Docker
-    # publishes ports ahead of the host firewall, so a `ufw allow ...` rule
-    # cannot restrict an all-interfaces mapping. Clients reach this port
-    # through an SSH tunnel to the host (Compass: Advanced Connection Options >
-    # Proxy/SSH) or a Cloudflare Access TCP tunnel; root auth is still enforced.
+      # Password of `collector`, the API's own user (readWrite on the news
+      # database only). Declared here so Coolify generates and keeps it; the
+      # user itself is created once with mongosh, outside this file.
+      - MONGO_COLLECTOR_PASSWORD=${SERVICE_PASSWORD_64_COLLECTOR}
+    # Loopback is for the host and the `mongo-tunnel` SSH account; the LAN
+    # address is for Compass. Docker publishes ports ahead of the host
+    # firewall, so a `ufw allow ...` rule cannot restrict them: the LAN
+    # allowlist lives in the DOCKER-USER chain (/etc/ufw/after.rules). Never
+    # publish on 0.0.0.0. The host sets net.ipv4.ip_nonlocal_bind=1 so this
+    # still starts when Docker comes up before Wi-Fi has its DHCP lease.
     ports:
       - "127.0.0.1:27017:27017"
+      - "192.168.31.233:27017:27017"
     volumes:
       - mongo-data:/data/db
+      # server.pem (uid 999, mode 0400) and ca.crt. Long syntax with
+      # create_host_path: false, so Coolify neither creates nor reads the host
+      # path, and a missing directory fails the deploy instead of starting
+      # mongod without its certificate.
+      - type: bind
+        source: /etc/mongodb-tls/server
+        target: /etc/mongo-tls
+        read_only: true
+        bind:
+          create_host_path: false
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      test: ["CMD", "mongosh", "--quiet", "--tls", "--tlsCAFile", "/etc/mongo-tls/ca.crt", "--host", "127.0.0.1", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -105,7 +138,7 @@ services:
       - SERVICE_FQDN_API_8080
       - NEWS_SERVER_HOST=0.0.0.0
       - NEWS_SERVER_PORT=8080
-      - NEWS_MONGO_URI=mongodb://collector:${NEWS_MONGO_COLLECTOR_PASSWORD:?}@mongo:27017/?authSource=${NEWS_MONGO_DATABASE:-news}
+      - NEWS_MONGO_URI=mongodb://collector:${SERVICE_PASSWORD_64_COLLECTOR}@mongo:27017/?authSource=${NEWS_MONGO_DATABASE:-news}&tls=true&tlsCAFile=/etc/mongo-tls-ca/ca.crt
       - NEWS_MONGO_DATABASE=${NEWS_MONGO_DATABASE:-news}
 
       # The default reads the copy baked into the image, which means a new feed
@@ -138,6 +171,14 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+    volumes:
+      # The CA certificate that signed MongoDB's server certificate.
+      - type: bind
+        source: /etc/mongodb-tls-public
+        target: /etc/mongo-tls-ca
+        read_only: true
+        bind:
+          create_host_path: false
     healthcheck:
       # /health/ready is public and checks MongoDB, not classifier readiness.
       test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:8080/health/ready"]
