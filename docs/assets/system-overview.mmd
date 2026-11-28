@@ -4,7 +4,7 @@ flowchart TB
     subgraph NET["🌐 The internet"]
         FEEDS["News websites<br/>124 RSS and Atom feeds"]
         GOOGLE["Google sign-in"]
-        RELEASE["Private GitHub release<br/>mhd-riaz/news-bot-archive"]
+        MODELS["Google Drive folder<br/>model files, public"]
     end
 
     subgraph HOST["💻 One computer: a laptop or the home lab"]
@@ -23,7 +23,7 @@ flowchart TB
     FEEDS -- "new headlines · each feed every 10 min to 2 h" --> COL
     FEEDS -- "full story pages · every 5 min" --> COL
     COL -- "which topic? clean text? language?" --> CLS
-    RELEASE -. "model file · make -C ml models" .-> CLS
+    MODELS -. "model file · make -C ml models" .-> CLS
     COL -- "writes articles · the only writer" --> DB
     DB -- "reads recent articles" --> SNAP
     SNAP -- "files in ml/artifacts/recommender/" --> RANK
@@ -40,7 +40,7 @@ flowchart TB
     classDef ml fill:#e8f5e9,stroke:#2e7d32,color:#12321a
     classDef app fill:#fff8e1,stroke:#f9a825,color:#3e2a00
     classDef manual fill:#fff3e0,stroke:#e65100,stroke-dasharray:6 4,color:#4a1f00
-    class FEEDS,GOOGLE,RELEASE,READER,AGENT ext
+    class FEEDS,GOOGLE,MODELS,READER,AGENT ext
     class COL,DB collect
     class CLS,RANK ml
     class WEB,MCP app

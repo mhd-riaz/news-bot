@@ -3,9 +3,12 @@
 #
 # Each [[model]] is one archive. `unpack_to` is relative to ml/. `sha256` and `size`
 # describe the archive; [model.files] lists the SHA-256 of every file inside it.
-# A source is either a GitHub release (github_repo, tag, asset) or a plain https `url`.
-# The releases below are in the private repository mhd-riaz/news-bot-archive, so you
-# need read access to it: sign in with `gh auth login`, or set GITHUB_TOKEN.
+# A source is either a plain https `url` or a GitHub release (github_repo, tag, asset).
+# The archives below are in the owner's public Google Drive folder, so anyone can
+# download them without signing in:
+# https://drive.google.com/drive/folders/1UStIvlI6xOwMvuEI0i5VMD0vWIDoYoiU
+# A backup copy of each one is a release of the same name in the private repository
+# mhd-riaz/news-bot-archive.
 
 [[model]]
 name = "classifier-v4-ai-072b01a9ceaf"
@@ -15,9 +18,9 @@ sha256 = "a761086d2d4fa8013613c5036a1dbfb18d8dfb903d7de8f4ba7e7ee0e036ac73"
 size = 44485486
 
 [model.source]
-github_repo = "mhd-riaz/news-bot-archive"
-tag = "classifier-v4-ai-072b01a9ceaf"
-asset = "classifier-v4-ai-072b01a9ceaf.tar.gz"
+# The Drive file classifier-v4-ai-072b01a9ceaf.tar.gz. `confirm=t` skips the virus-scan
+# warning page that Drive shows instead of large files.
+url = "https://drive.usercontent.google.com/download?id=15R0MFD_TgVwvQCpy9Mi_IEQQeq1hUtq_&export=download&confirm=t"
 
 [model.files]
 # bundle.joblib's hash is the value production checks as NEWSML_MODEL_SHA256.

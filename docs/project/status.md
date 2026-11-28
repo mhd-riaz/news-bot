@@ -34,7 +34,7 @@ laptop is not the same as working in production.
 | The Python web server and the React app, replacing the Go reader | In code, with tests, and checked in a browser against the real server on a laptop. Not deployed | RS4, RS5 |
 | Google sign-in for invited readers | In code, tested with a fake Google. Not tried with a real Google client | RS4 |
 | The read-only MCP program, with 5 tools | On a laptop, over HTTP and stdio. Not deployed | RS4 |
-| One CI workflow, with one job per part | In the repository; every part passed on draft PR #11 | RS9 |
+| One CI workflow, with one job per part | In the repository; every part passed on PR #11, merged on 27 Nov | RS9 |
 
 ## What is not done
 
@@ -60,8 +60,8 @@ These V1 parts have no recorded completion:
   the backfill and the relabel on production (RS6).
 - **The repository move (RS):** RS4 waits for the Google OAuth client. RS6 (Helm)
   waits for the owner's home-lab steps. RS7 (`run.sh`) worked in a fresh copy on a
-  Mac, but is not yet tried on a clean machine or on Linux. The move is in draft
-  [PR #11](https://github.com/mhd-riaz/news-bot/pull/11) and is not yet in `main`.
+  Mac, but is not yet tried on a clean machine or on Linux. The move was merged into
+  `main` on 27 Nov ([PR #11](https://github.com/mhd-riaz/news-bot/pull/11)).
 
 ## Key measured numbers
 

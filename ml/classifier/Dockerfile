@@ -34,10 +34,14 @@ COPY classifier/app /app/app
 COPY configs/boilerplate.yaml /app/configs/boilerplate.yaml
 COPY taxonomy.yaml /app/taxonomy.yaml
 
-# The model download script and its list, so a Kubernetes init container can fill the
-# model volume: python /app/scripts/download_models.py --dest <volume>
+# The model download script and its list. They fill the model folder: when the
+# container starts under Docker Compose (Coolify), or from an init container under
+# Kubernetes: python /app/scripts/download_models.py --dest /data
 COPY scripts/download_models.py /app/scripts/download_models.py
 COPY models.toml /app/models.toml
+# A new, empty Docker volume mounted on /data takes this folder's owner, so the app
+# user can write the downloaded model there.
+RUN install -d -o 10001 -g 10001 /data
 
 USER 10001:10001
 
